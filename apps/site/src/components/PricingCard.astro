@@ -1,0 +1,103 @@
+---
+import type { Locale } from '../lib/i18n';
+import { t } from '../lib/i18n';
+import { APP_URL, CONTACT_EMAIL } from '../lib/app';
+import type { SitePlan } from '../data/plans';
+import { featureOrder } from '../data/plans';
+import Icon from './Icon.astro';
+
+interface Props {
+  plan: SitePlan;
+  lang: Locale;
+}
+
+const { plan, lang } = Astro.props;
+
+const nameKey: Record<SitePlan['key'], string> = {
+  starter: 'planStarter',
+  pro: 'planPro',
+  enterprise: 'planEnterprise',
+};
+
+const limitKeys: { key: 'users' | 'branches' | 'products'; label: string }[] = [
+  { key: 'users', label: t(lang, 'limitUsers', { n: plan.limits.users === -1 ? '∞' : plan.limits.users }) },
+  { key: 'branches', label: t(lang, 'limitBranches', { n: plan.limits.branches === -1 ? '∞' : plan.limits.branches }) },
+  { key: 'products', label: t(lang, 'limitProducts', { n: plan.limits.products === -1 ? '∞' : plan.limits.products }) },
+];
+
+const ctaLabel =
+  plan.key === 'enterprise'
+    ? t(lang, 'contactSales')
+    : t(lang, 'planCta', { plan: t(lang, nameKey[plan.key]) });
+
+const ctaHref = plan.key === 'enterprise' ? `mailto:${CONTACT_EMAIL}` : `${APP_URL}/register`;
+---
+
+<div
+  class:list={[
+    'relative flex flex-col rounded-3xl border bg-white p-7 shadow-sm transition-all',
+    plan.popular
+      ? 'border-transparent ring-2 ring-cyan-500 shadow-xl shadow-cyan-500/10 lg:-translate-y-2'
+      : 'border-slate-200 hover:border-cyan-200 hover:shadow-lg',
+  ]}
+>
+  {plan.popular && (
+    <span class="absolute -top-3 start-6 rounded-full bg-gradient-to-r from-cyan-500 to-blue-600 px-3 py-1 text-[10px] font-extrabold uppercase tracking-wider text-white shadow-md shadow-cyan-500/30">
+      {t(lang, 'popular')}
+    </span>
+  )}
+
+  <h3 class="text-sm font-extrabold uppercase tracking-wide text-slate-500">{t(lang, nameKey[plan.key])}</h3>
+  <div class="mt-3 flex items-end gap-1.5">
+    <span class="text-4xl font-extrabold tracking-tight text-slate-900">${plan.priceMonthly}</span>
+    <span class="pb-1 text-sm font-bold text-slate-400">{t(lang, 'perMonth')}</span>
+  </div>
+
+  <ul class="mt-6 space-y-2.5 text-sm">
+    {limitKeys.map((row) => (
+      <li class="flex items-center justify-between gap-2">
+        <span class="font-semibold text-slate-600">{row.label.split(' ')[1] || row.label}</span>
+        <span class="font-extrabold text-slate-900">{row.label.split(' ')[0]}</span>
+      </li>
+    ))}
+  </ul>
+
+  <div class="mt-6 border-t border-slate-100 pt-6">
+    <ul class="space-y-2.5">
+      {featureOrder.map((feat) => {
+        const included = plan.features[feat];
+        const label = t(lang, {
+          zatca: 'featZatcaLbl',
+          offline: 'featOfflineLbl',
+          advancedReports: 'featAdvancedReportsLbl',
+          multiBranch: 'featMultiBranchLbl',
+        }[feat]);
+        return (
+          <li class:list={['flex items-center gap-2.5 text-sm font-semibold', included ? 'text-slate-700' : 'text-slate-300']}>
+            <span
+              class:list={[
+                'flex h-5 w-5 shrink-0 items-center justify-center rounded-full',
+                included ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-300',
+              ]}
+            >
+              <Icon name="check" class="h-3 w-3" />
+            </span>
+            {label}
+          </li>
+        );
+      })}
+    </ul>
+  </div>
+
+  <a
+    href={ctaHref}
+    class:list={[
+      'mt-8 inline-flex w-full items-center justify-center gap-2 rounded-xl py-3 text-sm font-bold transition-all',
+      plan.popular
+        ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md shadow-cyan-500/25 hover:from-cyan-600 hover:to-blue-700'
+        : 'bg-slate-900 text-white hover:bg-slate-800',
+    ]}
+  >
+    {ctaLabel}
+  </a>
+</div>

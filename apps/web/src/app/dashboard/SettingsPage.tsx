@@ -1,0 +1,412 @@
+import React, { useEffect, useState } from 'react';
+import { api } from '../../lib/api';
+import { useLanguageStore } from '../../stores/languageStore';
+import { useAuthStore } from '../../stores/authStore';
+import { useBillingStore } from '../../stores/billingStore';
+import {
+  Settings,
+  Store,
+  CreditCard,
+  Save,
+  Check,
+  ShieldCheck,
+  Sparkles,
+  Loader2,
+  Crown,
+  AlertTriangle,
+} from 'lucide-react';
+
+interface BillingOverview {
+  plan: string;
+  planName: string;
+  priceMonthly: number;
+  priceYearly: number;
+  currency: string;
+  status: string;
+  trialStarted: string | null;
+  periodEnd: string | null;
+  autoRenew: boolean;
+  limits: { users: number; branches: number; products: number };
+  usage: { users: number; branches: number; products: number };
+  features: string[];
+  plans: { key: string; name: string; priceMonthly: number; priceYearly: number; trialDays: number }[];
+}
+
+const PLAN_ORDER = ['starter', 'pro', 'enterprise'];
+
+export const SettingsPage: React.FC = () => {
+  const [settings, setSettings] = useState<any>(null);
+  const [form, setForm] = useState({ storeName: '', vatNumber: '', receiptFooter: '' });
+  const [saving, setSaving] = useState(false);
+  const [settingsMsg, setSettingsMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const [billing, setBilling] = useState<BillingOverview | null>(null);
+  const [loadingBilling, setLoadingBilling] = useState(true);
+  const [changing, setChanging] = useState<string | null>(null);
+  const [renewing, setRenewing] = useState(false);
+  const [planMsg, setPlanMsg] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const { t, language } = useLanguageStore();
+  const user = useAuthStore((s) => s.user);
+
+  useEffect(() => {
+    api.get('/settings').then((res) => {
+      const data = res.data.data || {};
+      setSettings(data);
+      setForm({ storeName: data.storeName || '', vatNumber: data.vatNumber || '', receiptFooter: data.receiptFooter || '' });
+    });
+  }, []);
+
+  useEffect(() => {
+    api
+      .get('/billing/plan')
+      .then((res) => setBilling(res.data.data))
+      .catch(() => setPlanMsg({ ok: false, text: t.planChangeFailed }))
+      .finally(() => setLoadingBilling(false));
+  }, []);
+
+  const saveSettings = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    setSettingsMsg(null);
+    try {
+      await api.put('/settings', form);
+      setSettingsMsg({ ok: true, text: t.settingsSaved });
+    } catch {
+      setSettingsMsg({ ok: false, text: t.settingsSaveFailed });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const changePlan = async (planKey: string) => {
+    const planName = billing?.plans.find((p) => p.key === planKey)?.name ?? planKey;
+    if (!window.confirm(`${t.confirmPlanChange} ${planName}?`)) return;
+    setChanging(planKey);
+    setPlanMsg(null);
+    try {
+      const res = await api.put('/billing/plan', { plan: planKey });
+      setBilling(res.data.data);
+      await useBillingStore.getState().refresh();
+      setPlanMsg({ ok: true, text: t.planChangeSuccess });
+    } catch (err: any) {
+      setPlanMsg({ ok: false, text: err.response?.data?.message || t.planChangeFailed });
+    } finally {
+      setChanging(null);
+    }
+  };
+
+  const renew = async () => {
+    setRenewing(true);
+    setPlanMsg(null);
+    try {
+      const res = await api.post('/billing/renew');
+      setBilling(res.data.data);
+      await useBillingStore.getState().refresh();
+      setPlanMsg({ ok: true, text: t.renewSuccess });
+    } catch {
+      setPlanMsg({ ok: false, text: t.renewFailed });
+    } finally {
+      setRenewing(false);
+    }
+  };
+
+  const planLabel = (key: string) => {
+    switch (key) {
+      case 'starter': return t.saasStarter;
+      case 'pro': return t.saasPro;
+      case 'enterprise': return t.saasEnterprise;
+      default: return key;
+    }
+  };
+
+  const statusLabel = (status: string) => {
+    switch (status) {
+      case 'TRIAL': return t.saasTrial;
+      case 'ACTIVE': return t.saasActiveSub;
+      case 'PAST_DUE': return t.saasPastDue;
+      case 'CANCELED': return t.saasCancelled;
+      default: return status;
+    }
+  };
+
+  const formatDate = (d: string | null) =>
+    d
+      ? new Intl.DateTimeFormat(language === 'ar' ? 'ar-SA' : 'en-US', { dateStyle: 'medium' }).format(new Date(d))
+      : '—';
+
+  const formatMoney = (n: number) =>
+    new Intl.NumberFormat(language === 'ar' ? 'ar-SA' : 'en-US', {
+      style: 'currency',
+      currency: 'SAR',
+      maximumFractionDigits: 0,
+    }).format(n);
+
+  const usageRows = [
+    { label: t.usersUsage, used: billing?.usage.users ?? 0, limit: billing?.limits.users ?? -1 },
+    { label: t.branchesUsage, used: billing?.usage.branches ?? 0, limit: billing?.limits.branches ?? -1 },
+    { label: t.productsUsage, used: billing?.usage.products ?? 0, limit: billing?.limits.products ?? -1 },
+  ];
+
+  const statusColor =
+    billing?.status === 'ACTIVE'
+      ? 'bg-emerald-100 text-emerald-700'
+      : billing?.status === 'TRIAL'
+      ? 'bg-cyan-100 text-cyan-700'
+      : billing?.status === 'PAST_DUE'
+      ? 'bg-amber-100 text-amber-700'
+      : 'bg-rose-100 text-rose-700';
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-extrabold text-slate-900 flex items-center gap-2.5">
+            <div className="w-10 h-10 rounded-xl bg-cyan-50 text-cyan-600 flex items-center justify-center border border-cyan-200">
+              <Settings className="w-5 h-5" />
+            </div>
+            {t.settingsTitle}
+          </h1>
+          <p className="text-slate-500 text-xs mt-1 ml-[52px]">{t.settingsDesc}</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
+        {/* Store Information */}
+        <div className="xl:col-span-2 bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6 self-start">
+          <div className="flex items-center gap-2.5 mb-5">
+            <div className="w-9 h-9 rounded-xl bg-slate-50 text-slate-600 flex items-center justify-center border border-slate-200">
+              <Store className="w-4.5 h-4.5" />
+            </div>
+            <div>
+              <h2 className="text-sm font-extrabold text-slate-900">{t.storeInformation}</h2>
+              <p className="text-[10px] text-slate-400 font-semibold">{t.storeInfoDesc}</p>
+            </div>
+          </div>
+
+          <form onSubmit={saveSettings} className="space-y-4">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">{t.storeNameField}</label>
+              <input
+                type="text"
+                value={form.storeName}
+                onChange={(e) => setForm({ ...form, storeName: e.target.value })}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:border-cyan-500 focus:bg-white transition-all shadow-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">{t.vatNumberField}</label>
+              <input
+                type="text"
+                value={form.vatNumber}
+                onChange={(e) => setForm({ ...form, vatNumber: e.target.value })}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:border-cyan-500 focus:bg-white transition-all shadow-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1.5">{t.receiptFooterField}</label>
+              <textarea
+                value={form.receiptFooter}
+                onChange={(e) => setForm({ ...form, receiptFooter: e.target.value })}
+                rows={3}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:border-cyan-500 focus:bg-white transition-all shadow-sm resize-none"
+              />
+            </div>
+
+            {settingsMsg && (
+              <div className={`p-3 rounded-xl text-xs font-medium ${settingsMsg.ok ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-600 border border-rose-200'}`}>
+                {settingsMsg.text}
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={saving}
+              className="w-full py-3 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold rounded-xl shadow-lg shadow-cyan-500/25 hover:from-cyan-600 hover:to-blue-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
+            >
+              {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+              {t.saveSettings}
+            </button>
+          </form>
+        </div>
+
+        {/* Plan & Billing */}
+        <div className="xl:col-span-3 space-y-6">
+          <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6">
+            <div className="flex items-center justify-between mb-5">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-violet-50 text-violet-600 flex items-center justify-center border border-violet-200">
+                  <CreditCard className="w-4.5 h-4.5" />
+                </div>
+                <div>
+                  <h2 className="text-sm font-extrabold text-slate-900">{t.planBilling}</h2>
+                  <p className="text-[10px] text-slate-400 font-semibold">{t.planBillingDesc}</p>
+                </div>
+              </div>
+              {billing && (
+                <span className={`px-3 py-1 rounded-full text-[10px] font-extrabold uppercase ${statusColor}`}>
+                  {statusLabel(billing.status)}
+                </span>
+              )}
+            </div>
+
+            {loadingBilling ? (
+              <div className="flex items-center justify-center py-16 text-slate-400 text-sm">
+                <Loader2 className="w-5 h-5 animate-spin mr-2" /> {t.planLoading}
+              </div>
+            ) : billing ? (
+              <>
+                {/* Current plan summary */}
+                <div className="bg-gradient-to-br from-violet-600 via-indigo-600 to-blue-700 rounded-2xl p-6 text-white shadow-lg shadow-indigo-500/25 mb-6">
+                  <div className="flex items-center justify-between gap-4 flex-wrap">
+                    <div className="flex items-center gap-3">
+                      <div className="w-11 h-11 rounded-xl bg-white/15 flex items-center justify-center">
+                        {billing.plan === 'enterprise' ? <Crown className="w-6 h-6" /> : <Sparkles className="w-6 h-6" />}
+                      </div>
+                      <div>
+                        <p className="text-[10px] uppercase tracking-widest text-indigo-200 font-bold">{t.currentPlanLabel}</p>
+                        <p className="text-2xl font-extrabold">{billing.planName}</p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-2xl font-extrabold">{formatMoney(billing.priceMonthly)}</p>
+                      <p className="text-[10px] text-indigo-200 font-bold">{t.saasPerMonth}</p>
+                    </div>
+                  </div>
+                  <div className="mt-4 pt-4 border-t border-white/15 flex items-center justify-between text-xs font-semibold flex-wrap gap-2">
+                    <span className="text-indigo-100">
+                      {billing.status === 'TRIAL' ? t.trialEndsOn : t.renewsOn}: {formatDate(billing.periodEnd)}
+                    </span>
+                    <span className="px-2.5 py-1 rounded-full bg-white/15 text-[10px] font-extrabold uppercase">
+                      {billing.status === 'TRIAL' ? t.saasTrial : t.saasActiveSub}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Renew banner when inactive */}
+                {(billing.status === 'PAST_DUE' || billing.status === 'CANCELED') && (
+                  <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-5">
+                    <div className="flex items-center gap-2 mb-1.5">
+                      <AlertTriangle className="w-4 h-4 text-amber-600" />
+                      <h3 className="text-xs font-extrabold text-amber-800">{t.renewTitle}</h3>
+                    </div>
+                    <p className="text-xs font-medium text-amber-700 mb-3">{t.renewDesc}</p>
+                    <button
+                      onClick={renew}
+                      disabled={renewing}
+                      className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 px-5 py-2.5 text-xs font-extrabold text-white shadow-md shadow-amber-500/25 transition-all hover:from-amber-600 hover:to-orange-700 disabled:opacity-50"
+                    >
+                      {renewing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CreditCard className="w-3.5 h-3.5" />}
+                      {renewing ? t.renewing : t.renewNow}
+                    </button>
+                  </div>
+                )}
+
+                {/* Usage vs limits */}
+                <div className="mb-6">
+                  <h3 className="text-xs font-extrabold text-slate-900 mb-3 flex items-center gap-2">
+                    <ShieldCheck className="w-4 h-4 text-cyan-600" /> {t.usageLabel}
+                  </h3>
+                  <div className="space-y-4">
+                    {usageRows.map((row) => {
+                      const unlimited = row.limit === -1;
+                      const pct = unlimited ? 100 : Math.min(100, Math.round((row.used / row.limit) * 100));
+                      const barColor = pct >= 100 ? 'bg-rose-500' : pct >= 80 ? 'bg-amber-500' : 'bg-emerald-500';
+                      return (
+                        <div key={row.label}>
+                          <div className="flex items-center justify-between text-xs mb-1.5">
+                            <span className="font-bold text-slate-600">{row.label}</span>
+                            <span className={`font-extrabold ${pct >= 100 ? 'text-rose-600' : 'text-slate-700'}`}>
+                              {row.used} / {unlimited ? t.unlimited : row.limit}
+                            </span>
+                          </div>
+                          <div className="h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                            <div className={`h-full ${barColor} rounded-full transition-all`} style={{ width: `${unlimited ? 100 : pct}%` }} />
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Features */}
+                {billing.features.length > 0 && (
+                  <div className="mb-6">
+                    <h3 className="text-xs font-extrabold text-slate-900 mb-2.5">{t.featuresLabel}</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {billing.features.map((f) => (
+                        <span key={f} className="px-3 py-1.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-bold flex items-center gap-1.5">
+                          <Check className="w-3 h-3" /> {f}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {planMsg && (
+                  <div className={`mb-5 p-3 rounded-xl text-xs font-medium ${planMsg.ok ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-600 border border-rose-200'}`}>
+                    {planMsg.text}
+                  </div>
+                )}
+              </>
+            ) : null}
+          </div>
+
+          {/* Plan selector */}
+          {billing && (
+            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6">
+              <h3 className="text-xs font-extrabold text-slate-900 mb-1">{t.changePlan}</h3>
+              <p className="text-[11px] text-slate-400 font-semibold mb-5">{t.choosePlanDesc}</p>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {PLAN_ORDER.map((key) => {
+                  const plan = billing.plans.find((p) => p.key === key)!;
+                  const isCurrent = key === billing.plan;
+                  const isManager = user?.role === 'MANAGER';
+                  return (
+                    <div
+                      key={key}
+                      className={`rounded-2xl border p-5 transition-all ${
+                        isCurrent
+                          ? 'border-cyan-500 bg-cyan-50/50 shadow-md shadow-cyan-500/10'
+                          : 'border-slate-200 bg-white hover:border-cyan-300 hover:shadow-sm'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-2">
+                          {key === 'enterprise' && <Crown className="w-4 h-4 text-amber-500" />}
+                          <span className="font-extrabold text-slate-900 text-sm">{planLabel(key)}</span>
+                        </div>
+                        {isCurrent && (
+                          <span className="px-2 py-0.5 rounded-full bg-cyan-500 text-white text-[9px] font-extrabold uppercase">
+                            {t.currentPlanBadge}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-2xl font-extrabold text-slate-900">
+                        {formatMoney(plan.priceMonthly)}
+                        <span className="text-[11px] text-slate-400 font-bold">{t.saasPerMonth}</span>
+                      </p>
+                      <button
+                        onClick={() => changePlan(key)}
+                        disabled={isCurrent || isManager || changing === key}
+                        className={`mt-4 w-full py-2.5 rounded-xl text-xs font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
+                          isCurrent
+                            ? 'bg-cyan-500/10 text-cyan-600'
+                            : 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md shadow-cyan-500/20 hover:from-cyan-600 hover:to-blue-700'
+                        }`}
+                      >
+                        {changing === key ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+                        {isCurrent ? t.currentPlanBadge : t.saasUpgrade}
+                      </button>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};

@@ -1,0 +1,421 @@
+import { Prisma } from '@prisma/client';
+import { createHash, randomUUID } from 'crypto';
+import { prisma } from '../../lib/prisma';
+import { AppError } from '../../middleware/error.middleware';
+import type { CreateOrderDto, RefundOrderDto } from './orders.schema';
+
+const DEFAULT_TAX_RATE = 15;
+
+function roundCents(n: number): number {
+  return Math.round((n + Number.EPSILON) * 100) / 100;
+}
+
+// ZATCA invoice identifiers: a UUID for the invoice and a base64 SHA-256 hash
+// over a deterministic canonical representation of the invoice amounts. The
+// hash is stored for audit/Phase-2 reporting readiness (real Phase-2 requires
+// a CSID certificate and FATURA clearance, which is provider-integrated).
+function generateInvoiceMetadata(opts: {
+  orderNumber: string;
+  subtotal: number;
+  discountAmount: number;
+  taxAmount: number;
+  total: number;
+  issuedAt?: Date;
+}) {
+  const invoiceUuid = randomUUID();
+  const canonical = [
+    `INV=${opts.orderNumber}`,
+    `UUID=${invoiceUuid}`,
+    `ISSUED=${(opts.issuedAt ?? new Date()).toISOString()}`,
+    `SUBTOTAL=${opts.subtotal.toFixed(2)}`,
+    `DISCOUNT=${opts.discountAmount.toFixed(2)}`,
+    `TOTAL=${opts.total.toFixed(2)}`,
+    `VAT=${opts.taxAmount.toFixed(2)}`,
+  ].join('|');
+  const invoiceHash = createHash('sha256').update(canonical).digest('base64');
+  return { invoiceUuid, invoiceHash };
+}
+
+// Split an order-level discount across lines proportionally to their subtotal.
+// Remainder (cents rounding) is assigned to the largest line so that the
+// sum of per-line discounts always equals the order discount exactly.
+function allocateDiscount(lineSubtotals: number[], totalDiscount: number): number[] {
+  if (totalDiscount <= 0) return lineSubtotals.map(() => 0);
+  const total = lineSubtotals.reduce((a, b) => a + b, 0);
+  if (total <= 0) return lineSubtotals.map(() => 0);
+  let remaining = totalDiscount;
+  const out = lineSubtotals.map((sub) => {
+    const share = roundCents(totalDiscount * (sub / total));
+    remaining = roundCents(remaining - share);
+    return share;
+  });
+  if (remaining !== 0) {
+    let largest = 0;
+    for (let i = 1; i < lineSubtotals.length; i++) if (lineSubtotals[i] > lineSubtotals[largest]) largest = i;
+    out[largest] = roundCents(out[largest] + remaining);
+  }
+  return out;
+}
+
+function isUniqueViolation(err: unknown): boolean {
+  return (err as any)?.code === 'P2002';
+}
+
+// Collision-safe, per-branch sequential order number backed by a PostgreSQL
+// sequence. Sequences are non-transactional so a failed insert leaves a gap
+// but never a duplicate, and the unique (branchId, orderNumber) index is the
+// final safety net.
+async function generateOrderNumber(tx: Prisma.TransactionClient, branchId: string, now: Date): Promise<string> {
+  const seqName = `casheer_order_seq_${branchId.replace(/-/g, '')}`;
+  await tx.$executeRawUnsafe(`CREATE SEQUENCE IF NOT EXISTS "${seqName}" START 1`);
+  const rows = await tx.$queryRawUnsafe<{ nextval: bigint }[]>(`SELECT nextval('"${seqName}"') AS nextval`);
+  const seq = Number(rows[0].nextval);
+  const datePart = now.toISOString().slice(0, 10).replace(/-/g, '');
+  return `ORD-${datePart}-${String(seq).padStart(6, '0')}`;
+}
+
+export async function getOrders(
+  tenantId: string,
+  query: { page: number; limit: number; branchId?: string; status?: string; from?: string; to?: string; search?: string },
+) {
+  const { page, limit, branchId, status, from, to, search } = query;
+  const skip = (page - 1) * limit;
+
+  const where: any = { tenantId };
+  if (branchId) where.branchId = branchId;
+  if (status) where.status = status;
+  if (from || to) {
+    where.createdAt = {};
+    if (from) where.createdAt.gte = new Date(from);
+    if (to) where.createdAt.lte = new Date(to);
+  }
+  if (search) {
+    where.OR = [
+      { orderNumber: { contains: search, mode: 'insensitive' } },
+      { customer: { is: { name: { contains: search, mode: 'insensitive' } } } },
+    ];
+  }
+
+  const [items, total] = await Promise.all([
+    prisma.order.findMany({
+      where,
+      skip,
+      take: limit,
+      include: {
+        items: true,
+        payments: true,
+        cashier: { select: { id: true, name: true } },
+        customer: { select: { id: true, name: true } },
+      },
+      orderBy: { createdAt: 'desc' },
+    }),
+    prisma.order.count({ where }),
+  ]);
+
+  return { items, total, page, limit, totalPages: Math.ceil(total / limit) };
+}
+
+export async function getOrderById(tenantId: string, id: string) {
+  const order = await prisma.order.findFirst({
+    where: { id, tenantId },
+    include: {
+      items: { include: { product: true } },
+      payments: true,
+      cashier: { select: { id: true, name: true } },
+      customer: true,
+      shift: true,
+    },
+  });
+  if (!order) throw new AppError(404, 'Order not found');
+  return order;
+}
+
+export async function createOrder(tenantId: string, cashierId: string, dto: CreateOrderDto) {
+  if (dto.type !== 'SALE') {
+    throw new AppError(400, 'Only SALE orders can be created. Returns must be processed via the refund endpoint');
+  }
+
+  if (dto.idempotencyKey) {
+    const existing = await prisma.order.findFirst({ where: { tenantId, idempotencyKey: dto.idempotencyKey } });
+    if (existing) return existing;
+  }
+
+  try {
+    const order = await prisma.$transaction(async (tx) => {
+      const branch = await tx.branch.findFirst({ where: { id: dto.branchId, tenantId } });
+      if (!branch) throw new AppError(400, 'Branch not found');
+
+      if (dto.shiftId) {
+        const shift = await tx.shift.findFirst({ where: { id: dto.shiftId, branchId: dto.branchId, status: 'OPEN' } });
+        if (!shift) throw new AppError(400, 'Shift not found or not open');
+      }
+
+      const productIds = [...new Set(dto.items.map((i) => i.productId))];
+      const products = await tx.product.findMany({
+        where: { id: { in: productIds }, tenantId },
+        include: { taxRate: true },
+      });
+      if (products.length !== productIds.length) {
+        throw new AppError(400, 'One or more products not found');
+      }
+
+      const variantIds = dto.items.filter((i) => i.variantId).map((i) => i.variantId as string);
+      const variants = variantIds.length ? await tx.productVariant.findMany({ where: { id: { in: variantIds } } }) : [];
+
+      const productMap = new Map(products.map((p) => [p.id, p]));
+      const variantMap = new Map(variants.map((v) => [v.id, v]));
+
+      for (const product of products) {
+        if (!product.isActive) throw new AppError(400, `Product "${product.name}" is inactive`);
+      }
+
+      // Server-authoritative line pricing from the database.
+      const lines = dto.items.map((item) => {
+        const product = productMap.get(item.productId)!;
+        const modifier = item.variantId ? Number(variantMap.get(item.variantId)?.priceModifier ?? 0) : 0;
+        const unitPrice = roundCents(Number(product.price) + modifier);
+        const quantity = Number(item.quantity);
+        const lineSubtotal = roundCents(unitPrice * quantity);
+        const rate = product.taxRate ? Number(product.taxRate.rate) : DEFAULT_TAX_RATE;
+        return { item, product, unitPrice, quantity, lineSubtotal, rate };
+      });
+
+      const subtotal = roundCents(lines.reduce((s, l) => s + l.lineSubtotal, 0));
+      const orderDiscount = roundCents(Math.min(Math.max(dto.discountAmount, 0), subtotal));
+      const lineDiscounts = allocateDiscount(lines.map((l) => l.lineSubtotal), orderDiscount);
+
+      const lineTaxes = lines.map((l, i) => {
+        const taxable = roundCents(l.lineSubtotal - lineDiscounts[i]);
+        return roundCents((taxable * l.rate) / 100);
+      });
+      const taxAmount = roundCents(lineTaxes.reduce((s, t) => s + t, 0));
+      const total = roundCents(subtotal - orderDiscount + taxAmount);
+
+      const paidAmount = roundCents(Math.max(dto.paidAmount, 0));
+      if (paidAmount < total) {
+        throw new AppError(400, 'Paid amount cannot be less than order total');
+      }
+      const paymentsTotal = roundCents(dto.payments.reduce((s, p) => s + Number(p.amount), 0));
+      if (paymentsTotal !== paidAmount) {
+        throw new AppError(400, 'Payments total must equal the paid amount');
+      }
+      const changeAmount = roundCents(paidAmount - total);
+
+      const orderNumber = await generateOrderNumber(tx, dto.branchId, new Date());
+      const zatca = generateInvoiceMetadata({
+        orderNumber,
+        subtotal,
+        discountAmount: orderDiscount,
+        taxAmount,
+        total,
+      });
+
+      const newOrder = await tx.order.create({
+        data: {
+          tenantId,
+          branchId: dto.branchId,
+          shiftId: dto.shiftId,
+          customerId: dto.customerId,
+          cashierId,
+          orderNumber,
+          status: 'COMPLETED',
+          type: 'SALE',
+          invoiceType: dto.invoiceType || (dto.customerId ? 'TAX' : 'SIMPLIFIED'),
+          idempotencyKey: dto.idempotencyKey,
+          invoiceUuid: zatca.invoiceUuid,
+          invoiceHash: zatca.invoiceHash,
+          subtotal,
+          discountAmount: orderDiscount,
+          taxAmount,
+          total,
+          paidAmount,
+          changeAmount,
+          notes: dto.notes,
+          items: {
+            create: lines.map((l, i) => ({
+              productId: l.product.id,
+              variantId: l.item.variantId,
+              name: l.item.name,
+              sku: l.item.sku,
+              quantity: l.quantity,
+              unitPrice: l.unitPrice,
+              discountAmount: lineDiscounts[i],
+              taxAmount: lineTaxes[i],
+              subtotal: l.lineSubtotal,
+              modifiers: l.item.modifiers,
+            })),
+          },
+          payments: {
+            create: dto.payments.map((p) => ({
+              method: p.method,
+              amount: p.amount,
+              reference: p.reference,
+              status: 'COMPLETED',
+            })),
+          },
+        },
+        include: { items: true, payments: true },
+      });
+
+      // Atomic stock guard: decrement only if quantity is sufficient.
+      for (const l of lines) {
+        if (!l.product.trackInventory) continue;
+        const result = await tx.inventory.updateMany({
+          where: {
+            productId: l.product.id,
+            variantId: l.item.variantId ?? null,
+            branchId: dto.branchId,
+            quantity: { gte: l.quantity },
+          },
+          data: { quantity: { decrement: l.quantity } },
+        });
+        if (result.count === 0) {
+          throw new AppError(400, `Insufficient stock for product "${l.product.name}"`, 'INSUFFICIENT_STOCK');
+        }
+
+        await tx.inventoryMovement.create({
+          data: {
+            branchId: dto.branchId,
+            productId: l.product.id,
+            variantId: l.item.variantId,
+            type: 'sale',
+            quantity: -l.quantity,
+            referenceId: newOrder.id,
+            referenceType: 'order',
+            createdBy: cashierId,
+          },
+        });
+      }
+
+      return newOrder;
+    });
+
+    return order;
+  } catch (err) {
+    // Concurrent duplicate with the same idempotency key: return the winner.
+    if (dto.idempotencyKey && isUniqueViolation(err)) {
+      const existing = await prisma.order.findFirst({ where: { tenantId, idempotencyKey: dto.idempotencyKey } });
+      if (existing) return existing;
+    }
+    throw err;
+  }
+}
+
+export async function voidOrder(tenantId: string, id: string, cashierId: string, reason?: string) {
+  const order = await getOrderById(tenantId, id);
+  if (order.status !== 'COMPLETED') throw new AppError(400, 'Only completed orders can be voided');
+  if (order.items.some((item) => Number(item.refundedQuantity) > 0)) {
+    throw new AppError(400, 'Orders with returned items cannot be voided');
+  }
+
+  return prisma.$transaction(async (tx) => {
+    const voided = await tx.order.update({
+      where: { id },
+      data: {
+        status: 'VOIDED',
+        notes: [order.notes, reason ? `Void: ${reason}` : null].filter(Boolean).join(' | '),
+      },
+    });
+
+    // Restore inventory
+    for (const item of order.items) {
+      if (!item.product?.trackInventory) continue;
+      await tx.inventory.updateMany({
+        where: { productId: item.productId, variantId: item.variantId ?? null, branchId: order.branchId },
+        data: { quantity: { increment: item.quantity } },
+      });
+
+      await tx.inventoryMovement.create({
+        data: {
+          branchId: order.branchId,
+          productId: item.productId,
+          variantId: item.variantId,
+          type: 'adjustment',
+          quantity: Math.abs(Number(item.quantity)),
+          referenceId: id,
+          referenceType: 'void',
+          note: reason,
+          createdBy: cashierId,
+        },
+      });
+    }
+
+    return voided;
+  });
+}
+
+export async function refundOrder(tenantId: string, id: string, cashierId: string, dto: RefundOrderDto) {
+  const order = await getOrderById(tenantId, id);
+  if (order.status !== 'COMPLETED') throw new AppError(400, 'Only completed orders can be refunded');
+
+  return prisma.$transaction(async (tx) => {
+    const itemsToRefund = dto.items
+      ? dto.items.map((refundItem) => {
+          const line = order.items.find((oi) => oi.id === refundItem.orderItemId);
+          if (!line) throw new AppError(400, 'Order item not found');
+          const remaining = Number(line.quantity) - Number(line.refundedQuantity);
+          if (refundItem.quantity > remaining) {
+            throw new AppError(400, 'Refund quantity exceeds the remaining refundable quantity');
+          }
+          return { line, quantity: refundItem.quantity };
+        })
+      : order.items
+          .filter((line) => Number(line.quantity) - Number(line.refundedQuantity) > 0)
+          .map((line) => ({ line, quantity: Number(line.quantity) - Number(line.refundedQuantity) }));
+
+    if (itemsToRefund.length === 0) throw new AppError(400, 'Nothing left to refund');
+
+    // Restore stock, record a return movement and track refunded quantity per line.
+    for (const { line, quantity } of itemsToRefund) {
+      if (line.product?.trackInventory) {
+        await tx.inventory.updateMany({
+          where: { productId: line.productId, variantId: line.variantId ?? null, branchId: order.branchId },
+          data: { quantity: { increment: quantity } },
+        });
+      }
+
+      await tx.inventoryMovement.create({
+        data: {
+          branchId: order.branchId,
+          productId: line.productId,
+          variantId: line.variantId,
+          type: 'return',
+          quantity,
+          referenceId: order.id,
+          referenceType: 'refund',
+          note: dto.reason,
+          createdBy: cashierId,
+        },
+      });
+
+      await tx.orderItem.update({
+        where: { id: line.id },
+        data: { refundedQuantity: { increment: quantity } },
+      });
+    }
+
+    const refundedMap = new Map(itemsToRefund.map((r) => [r.line.id, r.quantity]));
+    const fullyRefunded = order.items.every((line) => {
+      const newRefunded = Number(line.refundedQuantity) + (refundedMap.get(line.id) ?? 0);
+      return newRefunded >= Number(line.quantity) - 1e-6;
+    });
+
+    const updated = await tx.order.update({
+      where: { id },
+      data: {
+        status: fullyRefunded ? 'REFUNDED' : 'COMPLETED',
+        paidAmount: fullyRefunded ? 0 : order.paidAmount,
+        notes: [order.notes, dto.reason ? `Refund: ${dto.reason}` : 'Refunded'].filter(Boolean).join(' | '),
+      },
+    });
+
+    if (fullyRefunded) {
+      await tx.payment.updateMany({
+        where: { orderId: id, status: 'COMPLETED' },
+        data: { status: 'REFUNDED' },
+      });
+    }
+
+    return updated;
+  });
+}

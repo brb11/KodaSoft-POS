@@ -1,0 +1,9 @@
+node_modules
+**/node_modules
+**/dist
+.git
+*.log
+.env
+.env.*
+!.env.example
+apps/api/prisma/migrations/**/migration_lock.toml

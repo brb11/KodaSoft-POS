@@ -1,0 +1,53 @@
+---
+import type { Locale } from '../lib/i18n';
+import { t } from '../lib/i18n';
+import { APP_URL } from '../lib/app';
+
+interface Props {
+  lang: Locale;
+}
+
+const { lang } = Astro.props;
+const year = new Date().getFullYear();
+---
+
+<footer class="bg-slate-950 text-slate-300" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+  <div class="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
+    <div class="grid grid-cols-1 gap-10 md:grid-cols-3">
+      <div>
+        <a href={`/${lang}`} class="flex items-center gap-2.5">
+          <img src="/logo_transparent.png" alt="KodaSoft-POS" class="h-9 w-9 object-contain" />
+          <span class="text-base font-extrabold tracking-tight text-white">
+            KodaSoft-<span class="text-cyan-400">POS</span>
+          </span>
+        </a>
+        <p class="mt-4 max-w-xs text-sm leading-relaxed text-slate-400">{t(lang, 'footerTagline')}</p>
+      </div>
+
+      <div>
+        <h3 class="text-xs font-extrabold uppercase tracking-widest text-slate-500">{t(lang, 'footerProduct')}</h3>
+        <ul class="mt-4 space-y-3 text-sm font-semibold text-slate-300">
+          <li><a class="transition-colors hover:text-cyan-400" href={`/${lang}#features`}>{t(lang, 'navFeatures')}</a></li>
+          <li><a class="transition-colors hover:text-cyan-400" href={`/${lang}/pricing`}>{t(lang, 'navPricing')}</a></li>
+          <li><a class="transition-colors hover:text-cyan-400" href={`/${lang}#faq`}>{t(lang, 'navFaq')}</a></li>
+          <li><a class="transition-colors hover:text-cyan-400" href={`${APP_URL}/register`}>{t(lang, 'startFree')}</a></li>
+        </ul>
+      </div>
+
+      <div>
+        <h3 class="text-xs font-extrabold uppercase tracking-widest text-slate-500">{t(lang, 'footerCompany')}</h3>
+        <ul class="mt-4 space-y-3 text-sm font-semibold text-slate-300">
+          <li><span class="text-slate-400">KodaSoft</span></li>
+          <li>
+            <a href="mailto:sales@kodasoft.sa" class="transition-colors hover:text-cyan-400">sales@kodasoft.sa</a>
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="mt-12 flex items-center justify-between border-t border-slate-800 pt-6 text-xs text-slate-500">
+      <span>© {year} KodaSoft-POS</span>
+      <span>{t(lang, 'footerRights')}</span>
+    </div>
+  </div>
+</footer>

@@ -1,0 +1,115 @@
+---
+import SiteLayout from '../../layouts/SiteLayout.astro';
+import PricingCard from '../../components/PricingCard.astro';
+import Icon from '../../components/Icon.astro';
+import { t, locales, type Locale } from '../../lib/i18n';
+import { APP_URL } from '../../lib/app';
+import { plans, featureOrder } from '../../data/plans';
+
+export function getStaticPaths() {
+  return locales.map((lang) => ({ params: { lang } }));
+}
+
+const { lang } = Astro.params as { lang: Locale };
+
+const limitRows: { key: 'users' | 'branches' | 'products'; label: string; tkey: string }[] = [
+  { key: 'users', label: 'users', tkey: 'limitUsers' },
+  { key: 'branches', label: 'branches', tkey: 'limitBranches' },
+  { key: 'products', label: 'products', tkey: 'limitProducts' },
+];
+
+const featureTKeys: Record<string, string> = {
+  zatca: 'featZatcaLbl',
+  offline: 'featOfflineLbl',
+  advancedReports: 'featAdvancedReportsLbl',
+  multiBranch: 'featMultiBranchLbl',
+};
+---
+
+<SiteLayout
+  lang={lang}
+  title={lang === 'ar' ? 'الباقات والأسعار | KodaSoft-POS' : 'Pricing | KodaSoft-POS'}
+  description={t(lang, 'pricingSubtitle')}
+>
+  <section class="relative overflow-hidden">
+    <div class="absolute inset-0 bg-gradient-to-b from-cyan-50 via-white to-slate-50" />
+    <div class="relative mx-auto max-w-7xl px-4 pb-16 pt-20 text-center sm:px-6 lg:px-8">
+      <h1 class="text-4xl font-extrabold tracking-tight text-slate-900 sm:text-5xl">{t(lang, 'pricingTitle')}</h1>
+      <p class="mx-auto mt-4 max-w-xl text-sm leading-relaxed text-slate-500 sm:text-base">{t(lang, 'pricingSubtitle')}</p>
+    </div>
+  </section>
+
+  <section class="mx-auto max-w-7xl px-4 pb-20 sm:px-6 lg:px-8" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
+    <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      {plans.map((plan) => <PricingCard plan={plan} lang={lang} />)}
+    </div>
+
+    <!-- Comparison table -->
+    <div class="mt-20 overflow-x-auto rounded-3xl border border-slate-200/80 bg-white shadow-sm">
+      <table class="w-full min-w-[640px] border-collapse text-sm">
+        <thead>
+          <tr class="border-b border-slate-200 bg-slate-50">
+            <th class="px-6 py-4 text-start text-xs font-extrabold uppercase tracking-wider text-slate-500">
+              {t(lang, 'pricingTitle')}
+            </th>
+            {plans.map((plan) => (
+              <th class="px-6 py-4 text-center">
+                <span class="flex items-center justify-center gap-1.5 text-sm font-extrabold text-slate-900">
+                  {plan.key === 'enterprise' && <Icon name="crown" class="h-4 w-4 text-amber-500" />}
+                  {t(lang, { starter: 'planStarter', pro: 'planPro', enterprise: 'planEnterprise' }[plan.key])}
+                </span>
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody class="divide-y divide-slate-100">
+          {limitRows.map((row) => (
+            <tr>
+              <td class="px-6 py-3.5 font-bold text-slate-700">{t(lang, row.tkey, { n: 0 }).replace('0', '').trim()}</td>
+              {plans.map((plan) => {
+                const value = plan.limits[row.key];
+                return (
+                  <td class="px-6 py-3.5 text-center font-extrabold text-slate-900">
+                    {value === -1 ? t(lang, 'unlimited') : value}
+                  </td>
+                );
+              })}
+            </tr>
+          ))}
+          {featureOrder.map((feat) => (
+            <tr>
+              <td class="px-6 py-3.5 font-bold text-slate-700">{t(lang, featureTKeys[feat])}</td>
+              {plans.map((plan) => (
+                <td class="px-6 py-3.5 text-center">
+                  <span
+                    class:list={[
+                      'inline-flex h-5 w-5 items-center justify-center rounded-full',
+                      plan.features[feat] ? 'bg-emerald-100 text-emerald-600' : 'bg-slate-100 text-slate-300',
+                    ]}
+                  >
+                    <Icon name="check" class="h-3 w-3" />
+                  </span>
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+
+    <!-- CTA -->
+    <div class="relative mt-20 overflow-hidden rounded-3xl bg-gradient-to-br from-cyan-500 via-blue-600 to-indigo-700 px-8 py-14 text-center shadow-2xl shadow-blue-500/20">
+      <div class="relative">
+        <h2 class="text-3xl font-extrabold tracking-tight text-white sm:text-4xl">{t(lang, 'ctaTitle')}</h2>
+        <p class="mx-auto mt-3 max-w-md text-sm leading-relaxed text-cyan-100">{t(lang, 'ctaSubtitle')}</p>
+        <a
+          href={`${APP_URL}/register`}
+          class="mt-8 inline-flex items-center justify-center gap-2 rounded-xl bg-white px-8 py-4 text-sm font-extrabold text-blue-700 shadow-lg transition-transform hover:scale-105"
+        >
+          {t(lang, 'ctaButton')}
+          <Icon name="arrow" class="h-4 w-4 rotate-180 rtl:rotate-0" />
+        </a>
+      </div>
+    </div>
+  </section>
+</SiteLayout>

@@ -1,0 +1,27 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Plus Jakarta Sans", "Almarai", ui-sans-serif, system-ui, sans-serif;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+::selection {
+  background-color: var(--color-cyan-500);
+  color: #fff;
+}
+
+/* subtle grid backdrop for hero sections */
+.hero-grid {
+  background-image:
+    radial-gradient(circle at 1px 1px, rgb(148 163 184 / 0.18) 1px, transparent 0);
+  background-size: 28px 28px;
+}

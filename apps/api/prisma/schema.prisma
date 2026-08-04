@@ -1,0 +1,487 @@
+// This is your Prisma schema file
+// https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────────────────────────────────────
+// TENANTS
+// ─────────────────────────────────────────────
+model Tenant {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  plan      String   @default("starter")
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  users         User[]
+  branches      Branch[]
+  products      Product[]
+  categories    Category[]
+  customers     Customer[]
+  taxRates      TaxRate[]
+  settings      Setting[]
+  notifications Notification[]
+  subscription  Subscription?
+
+  @@map("tenants")
+}
+
+// ─────────────────────────────────────────────
+// SUBSCRIPTIONS
+// ─────────────────────────────────────────────
+model Subscription {
+  id            String    @id @default(uuid())
+  tenantId      String    @unique
+  plan          String    @default("free")
+  status        String    @default("TRIAL") // TRIAL | ACTIVE | PAST_DUE | CANCELED
+  trialStarted  DateTime  @default(now())
+  periodStart   DateTime  @default(now())
+  periodEnd     DateTime?
+  autoRenew     Boolean   @default(true)
+  provider      String    @default("MANUAL") // MANUAL | STRIPE | PAYPAL | ...
+  providerRef   String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@map("subscriptions")
+}
+
+// ─────────────────────────────────────────────
+// BRANCHES
+// ─────────────────────────────────────────────
+model Branch {
+  id        String   @id @default(uuid())
+  tenantId  String
+  name      String
+  address   String?
+  phone     String?
+  timezone  String   @default("UTC")
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant             Tenant              @relation(fields: [tenantId], references: [id])
+  users              User[]
+  inventory          Inventory[]
+  orders             Order[]
+  shifts             Shift[]
+  expenses           Expense[]
+  inventoryMovements InventoryMovement[]
+
+  @@map("branches")
+}
+
+// ─────────────────────────────────────────────
+// USERS
+// ─────────────────────────────────────────────
+enum UserRole {
+  SUPER_ADMIN
+  OWNER
+  MANAGER
+  CASHIER
+}
+
+model User {
+  id           String   @id @default(uuid())
+  tenantId     String
+  branchId     String?
+  name         String
+  email        String
+  phone        String?
+  passwordHash String
+  pinHash      String?
+  role         UserRole @default(CASHIER)
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  tenant        Tenant         @relation(fields: [tenantId], references: [id])
+  branch        Branch?        @relation(fields: [branchId], references: [id])
+  orders        Order[]
+  shifts        Shift[]
+  expenses      Expense[]
+  notifications Notification[]
+
+  @@unique([tenantId, email])
+  @@map("users")
+}
+
+// ─────────────────────────────────────────────
+// CATEGORIES
+// ─────────────────────────────────────────────
+model Category {
+  id        String    @id @default(uuid())
+  tenantId  String
+  name      String
+  nameAr    String?
+  slug      String
+  imageUrl  String?
+  parentId  String?
+  sortOrder Int       @default(0)
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  tenant   Tenant     @relation(fields: [tenantId], references: [id])
+  parent   Category?  @relation("CategoryChildren", fields: [parentId], references: [id])
+  children Category[] @relation("CategoryChildren")
+  products Product[]
+
+  @@unique([tenantId, slug])
+  @@map("categories")
+}
+
+// ─────────────────────────────────────────────
+// PRODUCTS
+// ─────────────────────────────────────────────
+model Product {
+  id             String  @id @default(uuid())
+  tenantId       String
+  categoryId     String?
+  name           String
+  nameAr         String?
+  sku            String?
+  barcode        String?
+  description    String?
+  imageUrl       String?
+  price          Decimal @db.Decimal(10, 2)
+  cost           Decimal @db.Decimal(10, 2) @default(0)
+  taxRateId      String?
+  unit           String  @default("pcs")
+  isActive       Boolean @default(true)
+  trackInventory Boolean @default(true)
+  isComposite    Boolean @default(false)
+  type           String  @default("retail")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tenant             Tenant              @relation(fields: [tenantId], references: [id])
+  category           Category?           @relation(fields: [categoryId], references: [id])
+  taxRate            TaxRate?            @relation(fields: [taxRateId], references: [id])
+  variants           ProductVariant[]
+  inventory          Inventory[]
+  orderItems         OrderItem[]
+  inventoryMovements InventoryMovement[]
+
+  @@unique([tenantId, sku])
+  @@map("products")
+}
+
+model ProductVariant {
+  id            String  @id @default(uuid())
+  productId     String
+  name          String
+  sku           String?
+  barcode       String?
+  priceModifier Decimal @db.Decimal(10, 2) @default(0)
+  cost          Decimal @db.Decimal(10, 2) @default(0)
+  isActive      Boolean @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  product    Product     @relation(fields: [productId], references: [id])
+  inventory  Inventory[]
+  orderItems OrderItem[]
+
+  @@map("product_variants")
+}
+
+// ─────────────────────────────────────────────
+// INVENTORY
+// ─────────────────────────────────────────────
+model Inventory {
+  id                String    @id @default(uuid())
+  productId         String
+  variantId         String?
+  branchId          String
+  quantity          Decimal   @db.Decimal(10, 3) @default(0)
+  lowStockThreshold Decimal   @db.Decimal(10, 3) @default(5)
+  expiryDate        DateTime?
+
+  updatedAt DateTime @updatedAt
+
+  product Product        @relation(fields: [productId], references: [id])
+  variant ProductVariant? @relation(fields: [variantId], references: [id])
+  branch  Branch         @relation(fields: [branchId], references: [id])
+
+  @@unique([productId, variantId, branchId])
+  @@map("inventory")
+}
+
+model InventoryMovement {
+  id            String   @id @default(uuid())
+  branchId      String
+  productId     String
+  variantId     String?
+  type          String
+  quantity      Decimal  @db.Decimal(10, 3)
+  referenceId   String?
+  referenceType String?
+  note          String?
+  createdBy     String?
+  createdAt     DateTime @default(now())
+
+  branch  Branch  @relation(fields: [branchId], references: [id])
+  product Product @relation(fields: [productId], references: [id])
+
+  @@map("inventory_movements")
+}
+
+// ─────────────────────────────────────────────
+// TAX RATES
+// ─────────────────────────────────────────────
+model TaxRate {
+  id         String   @id @default(uuid())
+  tenantId   String
+  name       String
+  rate       Decimal  @db.Decimal(5, 2)
+  isCompound Boolean  @default(false)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  tenant   Tenant    @relation(fields: [tenantId], references: [id])
+  products Product[]
+
+  @@map("tax_rates")
+}
+
+// ─────────────────────────────────────────────
+// CUSTOMERS
+// ─────────────────────────────────────────────
+model Customer {
+  id            String   @id @default(uuid())
+  tenantId      String
+  name          String
+  email         String?
+  phone         String?
+  address       String?
+  loyaltyPoints Int      @default(0)
+  creditBalance Decimal  @db.Decimal(10, 2) @default(0)
+  notes         String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tenant Tenant  @relation(fields: [tenantId], references: [id])
+  orders Order[]
+
+  @@map("customers")
+}
+
+// ─────────────────────────────────────────────
+// SHIFTS
+// ─────────────────────────────────────────────
+enum ShiftStatus {
+  OPEN
+  CLOSED
+}
+
+model Shift {
+  id           String      @id @default(uuid())
+  branchId     String
+  userId       String
+  openedAt     DateTime    @default(now())
+  closedAt     DateTime?
+  openingCash  Decimal     @db.Decimal(10, 2) @default(0)
+  closingCash  Decimal?    @db.Decimal(10, 2)
+  expectedCash Decimal?    @db.Decimal(10, 2)
+  status       ShiftStatus @default(OPEN)
+  notes        String?
+
+  branch   Branch    @relation(fields: [branchId], references: [id])
+  user     User      @relation(fields: [userId], references: [id])
+  orders   Order[]
+  expenses Expense[]
+
+  @@map("shifts")
+}
+
+// ─────────────────────────────────────────────
+// ORDERS
+// ─────────────────────────────────────────────
+enum OrderStatus {
+  PENDING
+  COMPLETED
+  VOIDED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum OrderType {
+  SALE
+  RETURN
+  EXCHANGE
+}
+
+enum InvoiceType {
+  SIMPLIFIED
+  TAX
+}
+
+model Order {
+  id             String      @id @default(uuid())
+  tenantId       String
+  branchId       String
+  shiftId        String?
+  customerId     String?
+  cashierId      String
+  orderNumber    String
+  status         OrderStatus @default(PENDING)
+  type           OrderType   @default(SALE)
+  invoiceType    InvoiceType @default(SIMPLIFIED)
+  subtotal       Decimal     @db.Decimal(10, 2)
+  discountAmount Decimal     @db.Decimal(10, 2) @default(0)
+  taxAmount      Decimal     @db.Decimal(10, 2) @default(0)
+  total          Decimal     @db.Decimal(10, 2)
+  paidAmount     Decimal     @db.Decimal(10, 2) @default(0)
+  changeAmount   Decimal     @db.Decimal(10, 2) @default(0)
+  notes          String?
+  idempotencyKey String?
+  receiptData    Json?
+  invoiceUuid    String?  @unique
+  invoiceHash    String?
+  isSynced       Boolean     @default(true)
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+
+  branch   Branch    @relation(fields: [branchId], references: [id])
+  cashier  User      @relation(fields: [cashierId], references: [id])
+  customer Customer? @relation(fields: [customerId], references: [id])
+  shift    Shift?    @relation(fields: [shiftId], references: [id])
+  items    OrderItem[]
+  payments Payment[]
+
+  @@unique([branchId, orderNumber])
+  @@unique([tenantId, idempotencyKey])
+  @@map("orders")
+}
+
+model OrderItem {
+  id             String  @id @default(uuid())
+  orderId        String
+  productId      String
+  variantId      String?
+  name           String
+  sku            String?
+  quantity       Decimal @db.Decimal(10, 3)
+  refundedQuantity Decimal @db.Decimal(10, 3) @default(0)
+  unitPrice      Decimal @db.Decimal(10, 2)
+  discountAmount Decimal @db.Decimal(10, 2) @default(0)
+  taxAmount      Decimal @db.Decimal(10, 2) @default(0)
+  subtotal       Decimal @db.Decimal(10, 2)
+  modifiers      Json?
+
+  order   Order          @relation(fields: [orderId], references: [id])
+  product Product        @relation(fields: [productId], references: [id])
+  variant ProductVariant? @relation(fields: [variantId], references: [id])
+
+  @@map("order_items")
+}
+
+// ─────────────────────────────────────────────
+// PAYMENTS
+// ─────────────────────────────────────────────
+enum PaymentMethod {
+  CASH
+  CARD
+  MADA
+  VISA
+  MASTERCARD
+  APPLE_PAY
+  STC_PAY
+  BANK_TRANSFER
+  STORE_CREDIT
+  SPLIT
+}
+
+enum PaymentStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+model Payment {
+  id              String        @id @default(uuid())
+  orderId         String
+  method          PaymentMethod
+  amount          Decimal       @db.Decimal(10, 2)
+  reference       String?
+  status          PaymentStatus @default(COMPLETED)
+  gatewayResponse Json?
+  createdAt       DateTime      @default(now())
+
+  order Order @relation(fields: [orderId], references: [id])
+
+  @@map("payments")
+}
+
+// ─────────────────────────────────────────────
+// EXPENSES
+// ─────────────────────────────────────────────
+model Expense {
+  id          String   @id @default(uuid())
+  branchId    String
+  shiftId     String?
+  category    String
+  amount      Decimal  @db.Decimal(10, 2)
+  description String?
+  receiptUrl  String?
+  createdBy   String
+  createdAt   DateTime @default(now())
+
+  branch        Branch  @relation(fields: [branchId], references: [id])
+  shift         Shift?  @relation(fields: [shiftId], references: [id])
+  createdByUser User    @relation(fields: [createdBy], references: [id])
+
+  @@map("expenses")
+}
+
+// ─────────────────────────────────────────────
+// NOTIFICATIONS
+// ─────────────────────────────────────────────
+model Notification {
+  id        String    @id @default(uuid())
+  tenantId  String
+  userId    String
+  type      String
+  title     String
+  body      String
+  data      Json?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@map("notifications")
+}
+
+// ─────────────────────────────────────────────
+// SETTINGS
+// ─────────────────────────────────────────────
+model Setting {
+  id        String   @id @default(uuid())
+  tenantId  String
+  branchId  String?
+  key       String
+  value     Json
+  updatedAt DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@unique([tenantId, branchId, key])
+  @@map("settings")
+}
