@@ -345,6 +345,9 @@ export interface Translations {
   cameraScanHint: string;
   scanning: string;
   barcodeScannerHint: string;
+  scanFrameLabel: string;
+  noBarcodeDetected: string;
+  retry: string;
   close: string;
 
   // Categories Management
@@ -986,6 +989,9 @@ const translations: Record<Language, Translations> = {
     cameraScanHint: 'وجّه الكاميرا نحو الباركود',
     scanning: 'جارٍ المسح...',
     barcodeScannerHint: 'يمكنك استخدام ماسح الباركود أو الكاميرا لإضافة المنتجات بسرعة',
+    scanFrameLabel: 'الإطارات: ',
+    noBarcodeDetected: 'لم يتم اكتشاف باركود بعد. أبقه داخل الصندوق مع إضاءة جيدة وثبات الكاميرا.',
+    retry: 'إعادة المحاولة',
     close: 'إغلاق',
 
     // Categories Management
@@ -1622,6 +1628,9 @@ const translations: Record<Language, Translations> = {
     cameraScanHint: 'Point the camera at a barcode',
     scanning: 'Scanning...',
     barcodeScannerHint: 'Use a barcode scanner or the camera to add products instantly',
+    scanFrameLabel: 'Frames: ',
+    noBarcodeDetected: 'No barcode detected yet. Keep it inside the box, well lit and steady.',
+    retry: 'Retry',
     close: 'Close',
 
     // Categories Management

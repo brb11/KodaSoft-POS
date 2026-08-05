@@ -4,7 +4,7 @@ import {
   Html5QrcodeSupportedFormats,
 } from 'html5-qrcode';
 import { useLanguageStore } from '../../../stores/languageStore';
-import { Camera, X, Loader2 } from 'lucide-react';
+import { Camera, X, Loader2, RefreshCw } from 'lucide-react';
 
 interface Props {
   onScan: (code: string) => void;
@@ -30,14 +30,32 @@ const SUPPORTED_FORMATS = [
 ];
 
 export const BarcodeCameraModal: React.FC<Props> = ({ onScan, onClose }) => {
+  const [runId, setRunId] = useState(0);
+  return (
+    <CameraScanView
+      key={runId}
+      onScan={onScan}
+      onClose={onClose}
+      onRetry={() => setRunId((n) => n + 1)}
+    />
+  );
+};
+
+const CameraScanView: React.FC<Props & { onRetry: () => void }> = ({ onScan, onClose, onRetry }) => {
   const { t } = useLanguageStore();
   const [state, setState] = useState<'starting' | 'scanning' | 'error'>('starting');
   const [errorText, setErrorText] = useState('');
+  // Live frame counter: it proves the scan loop is running. If it never moves,
+  // the camera stream isn't being processed.
+  const [frames, setFrames] = useState(0);
+  const [showNoScanHint, setShowNoScanHint] = useState(false);
   const onScanRef = useRef(onScan);
   onScanRef.current = onScan;
 
   const lastCodeRef = useRef<{ code: string; at: number }>({ code: '', at: 0 });
   const scannerRef = useRef<Html5Qrcode | null>(null);
+  const framesRef = useRef(0);
+  const errorCountRef = useRef(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -71,6 +89,14 @@ export const BarcodeCameraModal: React.FC<Props> = ({ onScan, onClose }) => {
               width: Math.floor(vw * 0.92),
               height: Math.max(120, Math.floor(vh * 0.32)),
             }),
+            // Ask for a decent resolution up front: tiny, far-away barcodes
+            // fail to decode on low-res preview streams. "ideal" falls back
+            // to the camera's native resolution if 720p isn't supported.
+            videoConstraints: {
+              facingMode: 'environment',
+              width: { ideal: 1280 },
+              height: { ideal: 720 },
+            },
           },
           (decodedText) => {
             const now = Date.now();
@@ -80,7 +106,12 @@ export const BarcodeCameraModal: React.FC<Props> = ({ onScan, onClose }) => {
             onScanRef.current(decodedText);
           },
           () => {
-            /* frame without a readable barcode yet — ignore */
+            // Fired for every frame that did not contain a readable barcode.
+            framesRef.current += 1;
+            errorCountRef.current += 1;
+            if (errorCountRef.current <= 3 || errorCountRef.current % 50 === 0) {
+              console.warn('[BarcodeCamera] frame not decoded', errorCountRef.current);
+            }
           }
         );
         if (cancelled) {
@@ -118,6 +149,20 @@ export const BarcodeCameraModal: React.FC<Props> = ({ onScan, onClose }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Sync the frame counter to the UI once per second instead of per frame.
+  useEffect(() => {
+    if (state !== 'scanning') return;
+    const iv = setInterval(() => setFrames(framesRef.current), 1000);
+    return () => clearInterval(iv);
+  }, [state]);
+
+  // If nothing has been scanned after a few seconds, show a hint.
+  useEffect(() => {
+    if (state !== 'scanning') return;
+    const to = setTimeout(() => setShowNoScanHint(true), 8000);
+    return () => clearTimeout(to);
+  }, [state]);
+
   return (
     <div className="fixed inset-0 bg-slate-900/60 flex items-center justify-center p-4 z-[70] backdrop-blur-sm">
       <div className="bg-white rounded-3xl w-full max-w-md p-6 shadow-2xl">
@@ -152,12 +197,30 @@ export const BarcodeCameraModal: React.FC<Props> = ({ onScan, onClose }) => {
             <div className="absolute inset-0 flex flex-col items-center justify-center text-slate-100 bg-slate-900/60 gap-2 px-6 text-center">
               <X className="w-6 h-6 text-rose-400" />
               <p className="text-xs font-semibold">{errorText}</p>
+              <button
+                onClick={onRetry}
+                className="mt-3 px-4 py-2 bg-white/15 hover:bg-white/25 text-white rounded-xl text-xs font-bold flex items-center gap-2 transition-colors"
+              >
+                <RefreshCw className="w-3.5 h-3.5" />
+                {t.retry}
+              </button>
+            </div>
+          )}
+          {state === 'scanning' && showNoScanHint && (
+            <div className="absolute inset-x-0 bottom-0 bg-amber-500/90 text-white text-[11px] font-semibold px-3 py-2 text-center">
+              {t.noBarcodeDetected}
             </div>
           )}
         </div>
 
         <div className="mt-4 flex items-center justify-between gap-3">
           <p className="text-[11px] text-slate-400 flex-1">{t.barcodeScannerHint}</p>
+          {state === 'scanning' && (
+            <span className="text-[11px] font-mono text-slate-500 whitespace-nowrap">
+              {t.scanFrameLabel}
+              {frames}
+            </span>
+          )}
           <button
             onClick={onClose}
             className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-colors"
