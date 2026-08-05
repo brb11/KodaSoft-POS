@@ -64,10 +64,13 @@ export const BarcodeCameraModal: React.FC<Props> = ({ onScan, onClose }) => {
           { facingMode: 'environment' },
           {
             fps: 10,
-            qrbox: (vw: number, vh: number) => {
-              const size = Math.max(120, Math.floor(Math.min(vw, vh) * 0.62));
-              return { width: size, height: size };
-            },
+            // A wide, short box instead of a square: product barcodes are
+            // horizontal one-dimensional codes, so a wide box lets the user
+            // hold the whole code inside it more easily.
+            qrbox: (vw: number, vh: number) => ({
+              width: Math.floor(vw * 0.92),
+              height: Math.max(120, Math.floor(vh * 0.32)),
+            }),
           },
           (decodedText) => {
             const now = Date.now();
