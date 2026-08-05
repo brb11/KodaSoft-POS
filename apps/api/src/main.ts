@@ -25,6 +25,8 @@ import { plansRouter } from './modules/plans/plans.router';
 import { billingRouter } from './modules/billing/billing.router';
 import { inventoryRouter } from './modules/inventory/inventory.router';
 import { debtsRouter } from './modules/debts/debts.router';
+import { heldOrdersRouter } from './modules/heldOrders/held-orders.router';
+import { zatcaRouter } from './modules/zatca/zatca.router';
 
 const app = express();
 
@@ -72,6 +74,8 @@ app.use('/api/v1/plans', plansRouter);
 app.use('/api/v1/billing', billingRouter);
 app.use('/api/v1/inventory', inventoryRouter);
 app.use('/api/v1/debts', debtsRouter);
+app.use('/api/v1/held-orders', heldOrdersRouter);
+app.use('/api/v1/zatca', zatcaRouter);
 app.use('/api/v1/saas', saasRouter);
 
 // Error Handling

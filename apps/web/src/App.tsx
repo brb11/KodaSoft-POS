@@ -14,6 +14,7 @@ import { CustomersPage } from './app/dashboard/CustomersPage';
 import { CustomerAccountsPage } from './app/dashboard/CustomerAccountsPage';
 import { BranchesPage } from './app/dashboard/BranchesPage';
 import { SettingsPage } from './app/dashboard/SettingsPage';
+import { ZatcaPage } from './app/dashboard/ZatcaPage';
 import { SaasConsole } from './app/saas/SaasConsole';
 import { SubscriptionGuard } from './components/guards/SubscriptionGuard';
 import { useAuthStore } from './stores/authStore';
@@ -162,6 +163,18 @@ export const App: React.FC = () => {
                 <DashboardLayout>
                   <SettingsPage />
                 </DashboardLayout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/zatca"
+            element={
+              <ProtectedRoute>
+                <SubscriptionGuard>
+                  <DashboardLayout>
+                    <ZatcaPage />
+                  </DashboardLayout>
+                </SubscriptionGuard>
               </ProtectedRoute>
             }
           />

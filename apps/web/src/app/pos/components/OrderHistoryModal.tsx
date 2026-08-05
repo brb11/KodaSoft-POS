@@ -95,7 +95,7 @@ export const OrderHistoryModal: React.FC<OrderHistoryModalProps> = ({ open, onCl
       api
         .get('/settings')
         .then((res) => setStoreSettings(res.data.data || null))
-        .catch(() => {});
+        .catch(() => { });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, branchId]);
@@ -250,11 +250,10 @@ export const OrderHistoryModal: React.FC<OrderHistoryModalProps> = ({ open, onCl
               <button
                 key={chip.key}
                 onClick={() => handleStatusFilter(chip.key)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${
-                  statusFilter === chip.key
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border ${statusFilter === chip.key
                     ? 'bg-slate-900 text-white border-slate-900'
                     : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
-                }`}
+                  }`}
               >
                 {chip.label}
               </button>
@@ -435,9 +434,8 @@ export const OrderHistoryModal: React.FC<OrderHistoryModalProps> = ({ open, onCl
               <button
                 onClick={executeAction}
                 disabled={processingId === pendingAction.order.id}
-                className={`flex-1 py-3 rounded-xl font-bold text-white text-sm transition-colors disabled:opacity-50 ${
-                  pendingAction.type === 'refund' ? 'bg-rose-600 hover:bg-rose-700' : 'bg-amber-600 hover:bg-amber-700'
-                }`}
+                className={`flex-1 py-3 rounded-xl font-bold text-white text-sm transition-colors disabled:opacity-50 ${pendingAction.type === 'refund' ? 'bg-rose-600 hover:bg-rose-700' : 'bg-amber-600 hover:bg-amber-700'
+                  }`}
               >
                 {processingId === pendingAction.order.id ? t.processing : pendingAction.type === 'refund' ? t.confirmRefund : t.confirmVoid}
               </button>

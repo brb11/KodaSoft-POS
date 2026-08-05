@@ -3,6 +3,7 @@ import { createHash, randomUUID } from 'crypto';
 import { prisma } from '../../lib/prisma';
 import { AppError } from '../../middleware/error.middleware';
 import { assertFeatureAccess } from '../billing/plans';
+import { signAndSubmitOrder } from '../zatca/zatca.service';
 import type { CreateOrderDto, RefundOrderDto } from './orders.schema';
 
 const DEFAULT_TAX_RATE = 15;
@@ -330,6 +331,44 @@ export async function createOrder(tenantId: string, cashierId: string, dto: Crea
 
       return newOrder;
     });
+
+    // ZATCA Phase-2: sign the invoice and report it to FATURA (when enabled).
+    if (order.type === 'SALE') {
+      const signedOrder = await prisma.order.findUnique({
+        where: { id: order.id },
+        include: { items: { include: { product: { include: { taxRate: true } } } } },
+      });
+      const zatca = await signAndSubmitOrder(tenantId, {
+        id: order.id,
+        orderNumber: order.orderNumber,
+        invoiceType: order.invoiceType,
+        subtotal: Number(order.subtotal),
+        discountAmount: Number(order.discountAmount),
+        taxAmount: Number(order.taxAmount),
+        total: Number(order.total),
+        invoiceUuid: order.invoiceUuid || '',
+        branchId: order.branchId,
+        customerId: order.customerId,
+        notes: order.notes,
+        createdAt: order.createdAt,
+        items: (signedOrder?.items ?? []).map((item) => ({
+          name: item.name,
+          sku: item.sku,
+          quantity: Number(item.quantity),
+          unitPrice: Number(item.unitPrice),
+          discountAmount: Number(item.discountAmount),
+          taxAmount: Number(item.taxAmount),
+          subtotal: Number(item.subtotal),
+          taxRate: item.product.taxRate ? Number(item.product.taxRate.rate) : DEFAULT_TAX_RATE,
+        })),
+      }).catch(() => ({ signed: false as const }));
+
+      if (zatca.signed && zatca.invoiceHash) {
+        order.invoiceHash = zatca.invoiceHash;
+        order.invoiceSignature = zatca.invoiceSignature ?? null;
+        order.zatcaStatus = zatca.status ?? null;
+      }
+    }
 
     return order;
   } catch (err) {

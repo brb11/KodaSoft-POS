@@ -17,6 +17,13 @@ export interface CustomerInfo {
   phone?: string | null;
 }
 
+export interface CartSnapshot {
+  items: CartItem[];
+  customer: CustomerInfo | null;
+  discount: number;
+  discountType: 'percent' | 'fixed';
+}
+
 interface CartState {
   items: CartItem[];
   customer: CustomerInfo | null;
@@ -28,6 +35,7 @@ interface CartState {
   setDiscount: (amount: number, type: 'percent' | 'fixed') => void;
   setCustomer: (customer: CustomerInfo | null) => void;
   clearCart: () => void;
+  restoreCart: (snapshot: CartSnapshot) => void;
   getSubtotal: () => number;
   getDiscountAmount: () => number;
   getTaxAmount: () => number;
@@ -117,6 +125,15 @@ export const useCartStore = create<CartState>((set, get) => ({
 
   clearCart: () => {
     set({ items: [], discount: 0, customer: null });
+  },
+
+  restoreCart: (snapshot) => {
+    set({
+      items: snapshot.items,
+      customer: snapshot.customer,
+      discount: snapshot.discount,
+      discountType: snapshot.discountType,
+    });
   },
 
   getSubtotal: () => {

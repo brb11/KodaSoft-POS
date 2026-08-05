@@ -12,6 +12,7 @@ import { ReceiptContent } from './components/ReceiptContent';
 import { OrderHistoryModal } from './components/OrderHistoryModal';
 import { CustomerModal } from './components/CustomerModal';
 import { BarcodeCameraModal } from './components/BarcodeCameraModal';
+import { HeldOrdersModal } from './components/HeldOrdersModal';
 import {
   Search,
   ShoppingCart,
@@ -32,6 +33,8 @@ import {
   History,
   HandCoins,
   ScanBarcode,
+  Pause,
+  PauseCircle,
   XCircle
 } from 'lucide-react';
 
@@ -76,6 +79,7 @@ export const PosTerminal: React.FC = () => {
   const [shiftAction, setShiftAction] = useState<'OPEN'|'CLOSE'>('OPEN');
   const [resolvedBranchId, setResolvedBranchId] = useState<string | null>(useAuthStore.getState().user?.branchId || null);
   const [showOrderHistory, setShowOrderHistory] = useState(false);
+  const [showHeldOrders, setShowHeldOrders] = useState(false);
   const [showCustomerModal, setShowCustomerModal] = useState(false);
   const [showCameraScan, setShowCameraScan] = useState(false);
   const [scanFeedback, setScanFeedback] = useState<{ id: number; ok: boolean; text: string } | null>(null);
@@ -107,6 +111,8 @@ export const PosTerminal: React.FC = () => {
     getTaxAmount,
     getTotal,
   } = useCartStore();
+  const discount = useCartStore((s) => s.discount);
+  const discountType = useCartStore((s) => s.discountType);
 
   const [settings, setSettings] = useState<any>(null);
 
@@ -383,6 +389,39 @@ export const PosTerminal: React.FC = () => {
 
   useBarcodeScanner(handleScanCode);
 
+  const handleHoldOrder = async () => {
+    if (items.length === 0) return;
+    if (!isOnline) {
+      flashScan(false, t.heldUnavailableOffline);
+      return;
+    }
+    const branchId = resolvedBranchId || user?.branchId;
+    if (!branchId) {
+      flashScan(false, t.noBranchAssigned);
+      return;
+    }
+    try {
+      await api.post('/held-orders', {
+        branchId,
+        items,
+        customer,
+        discount,
+        discountType,
+      });
+      clearCart();
+      setShowHeldOrders(false);
+      flashScan(true, t.orderHeld);
+    } catch (err: any) {
+      console.error('Failed to hold order:', err);
+      flashScan(false, err?.response?.data?.message || t.orderHeldFailed);
+    }
+  };
+
+  const handleHeldResumed = () => {
+    setShowHeldOrders(false);
+    flashScan(true, t.orderResumed);
+  };
+
   return (
     <div className="h-screen bg-slate-100 text-slate-800 flex flex-col overflow-hidden">
       {/* Top Header */}
@@ -426,6 +465,16 @@ export const PosTerminal: React.FC = () => {
           >
             <History className="w-4 h-4 text-cyan-600" />
             {t.orderHistory}
+          </button>
+
+          <button
+            onClick={() => setShowHeldOrders(true)}
+            disabled={!isOnline}
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold transition-all border border-slate-200 shadow-sm disabled:opacity-40"
+            title={!isOnline ? t.heldUnavailableOffline : t.heldOrders}
+          >
+            <PauseCircle className="w-4 h-4 text-amber-500" />
+            {t.heldOrders}
           </button>
 
           {activeShift && (
@@ -686,6 +735,16 @@ export const PosTerminal: React.FC = () => {
               )}
             </div>
 
+            <button
+              onClick={handleHoldOrder}
+              disabled={items.length === 0 || processingOrder || !isOnline}
+              title={!isOnline ? t.heldUnavailableOffline : t.holdOrder}
+              className="w-full py-3 bg-amber-50 hover:bg-amber-100 border-2 border-dashed border-amber-300 text-amber-700 font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition-all disabled:opacity-40 shadow-sm"
+            >
+              <Pause className="w-4 h-4" />
+              {t.holdOrder}
+            </button>
+
             <div className="grid grid-cols-2 gap-2 pt-1">
               <button
                 disabled={items.length === 0 || processingOrder}
@@ -761,6 +820,14 @@ export const PosTerminal: React.FC = () => {
         open={showOrderHistory}
         onClose={() => setShowOrderHistory(false)}
         branchId={resolvedBranchId}
+      />
+
+      {/* Held Orders Modal */}
+      <HeldOrdersModal
+        open={showHeldOrders}
+        onClose={() => setShowHeldOrders(false)}
+        branchId={resolvedBranchId}
+        onResumed={handleHeldResumed}
       />
 
       {/* Shift Modal */}

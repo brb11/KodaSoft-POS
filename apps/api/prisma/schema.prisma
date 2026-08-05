@@ -32,6 +32,8 @@ model Tenant {
   notifications   Notification[]
   subscription    Subscription?
   customerPayments CustomerPayment[]
+  zatcaCredentials ZatcaCredential[]
+  invoiceSubmissions InvoiceSubmission[]
 
   @@map("tenants")
 }
@@ -271,6 +273,7 @@ model Customer {
   email         String?
   phone         String?
   address       String?
+  vatNumber     String?
   loyaltyPoints Int      @default(0)
   creditBalance Decimal  @db.Decimal(10, 2) @default(0)
   creditLimit   Decimal?  @db.Decimal(10, 2)
@@ -382,6 +385,8 @@ model Order {
   receiptData    Json?
   invoiceUuid    String?  @unique
   invoiceHash    String?
+  invoiceSignature String?
+  zatcaStatus    String?
   isSynced       Boolean     @default(true)
   createdAt      DateTime    @default(now())
   updatedAt      DateTime    @updatedAt
@@ -392,6 +397,7 @@ model Order {
   shift    Shift?    @relation(fields: [shiftId], references: [id])
   items    OrderItem[]
   payments Payment[]
+  zatcaSubmissions InvoiceSubmission[]
 
   @@unique([branchId, orderNumber])
   @@unique([tenantId, idempotencyKey])
@@ -514,4 +520,80 @@ model Setting {
 
   @@unique([tenantId, branchId, key])
   @@map("settings")
+}
+
+// ─────────────────────────────────────────────
+// HELD ORDERS (order hold / park)
+// ─────────────────────────────────────────────
+model HeldOrder {
+  id           String   @id @default(uuid())
+  tenantId     String
+  branchId     String
+  cashierId    String
+  customer     Json?
+  items        Json
+  itemCount    Int      @default(0)
+  total        Decimal  @default(0) @db.Decimal(10, 2)
+  discount     Decimal  @default(0) @db.Decimal(10, 2)
+  discountType String   @default("percent")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([branchId, createdAt])
+  @@map("held_orders")
+}
+
+// ─────────────────────────────────────────────
+// ZATCA (Saudi e-invoicing) — Phase 2
+// ─────────────────────────────────────────────
+model ZatcaCredential {
+  id                      String   @id @default(uuid())
+  tenantId                String
+  mode                    String   @default("sandbox") // sandbox | production
+  enabled                 Boolean  @default(false)
+  privateKeyPem           String?
+  selfSignedCertPem       String?
+  csrPem                  String?
+  complianceToken         String?
+  complianceSecret        String?
+  complianceRequestId     String?
+  complianceSerialNumber  String?
+  productionToken         String?
+  productionSecret        String?
+  productionRequestId     String?
+  productionSerialNumber  String?
+  lastInvoiceHash         String?
+  lastInvoiceNumber       String?
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, mode])
+  @@map("zatca_credentials")
+}
+
+model InvoiceSubmission {
+  id               String   @id @default(uuid())
+  tenantId         String
+  orderId          String?
+  invoiceUuid      String
+  invoiceNumber    String
+  invoiceType      String   @default("SIMPLIFIED") // SIMPLIFIED | TAX
+  invoiceXml       String
+  invoiceHash      String
+  invoiceSignature String
+  status           String   @default("SUBMITTED") // SUBMITTED | CLEARED | REPORTED | FAILED
+  faturaResponse   Json?
+  attemptCount     Int      @default(0)
+  submittedAt      DateTime @default(now())
+  clearedAt        DateTime?
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  order  Order? @relation(fields: [orderId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, status])
+  @@index([orderId])
+  @@map("invoice_submissions")
 }

@@ -350,6 +350,20 @@ export interface Translations {
   retry: string;
   close: string;
 
+  // Order Hold / Park
+  holdOrder: string;
+  heldOrders: string;
+  resumeOrder: string;
+  delete: string;
+  confirmResumeCart: string;
+  confirmDeleteHeld: string;
+  orderHeld: string;
+  orderResumed: string;
+  orderHeldFailed: string;
+  heldEmpty: string;
+  heldUnavailableOffline: string;
+  heldItems: string;
+
   // Categories Management
   categoriesManagement: string;
   categoriesDesc: string;
@@ -587,6 +601,70 @@ export interface Translations {
   renewing: string;
   renewSuccess: string;
   renewFailed: string;
+
+  // ZATCA e-Invoicing
+  zatcaNav: string;
+  zatcaTitle: string;
+  zatcaDesc: string;
+  zatcaEnabledBadge: string;
+  zatcaDisabledBadge: string;
+  zatcaActiveMode: string;
+  zatcaNotConfigured: string;
+  zatcaCounts: string;
+  statusSigned: string;
+  statusSubmitted: string;
+  statusCleared: string;
+  statusReported: string;
+  statusFailed: string;
+  modeSandbox: string;
+  modeProduction: string;
+  zatcaModeDesc: string;
+  zatcaVatNumber: string;
+  zatcaInvoiceTypeLabel: string;
+  zatcaInvoiceTypeSimplified: string;
+  zatcaInvoiceTypeTax: string;
+  zatcaGenerateCredentials: string;
+  zatcaGeneratingCredentials: string;
+  zatcaRegenerateCredentials: string;
+  zatcaCsrTitle: string;
+  zatcaCertTitle: string;
+  zatcaCertSerial: string;
+  zatcaCertExpiry: string;
+  zatcaComplianceTitle: string;
+  zatcaComplianceDesc: string;
+  zatcaOtpLabel: string;
+  zatcaOtpPlaceholder: string;
+  zatcaRequestCompliance: string;
+  zatcaRequestingCompliance: string;
+  zatcaProductionTitle: string;
+  zatcaProductionDesc: string;
+  zatcaRequestProduction: string;
+  zatcaRequestingProduction: string;
+  zatcaEnableTitle: string;
+  zatcaEnableDesc: string;
+  zatcaEnable: string;
+  zatcaDisable: string;
+  zatcaEnabling: string;
+  zatcaDisabling: string;
+  zatcaRevoke: string;
+  zatcaConfirmRevoke: string;
+  zatcaRevoked: string;
+  zatcaSubmissionsTitle: string;
+  zatcaSubmissionsDesc: string;
+  zatcaNoSubmissions: string;
+  zatcaInvoiceNumberCol: string;
+  zatcaTypeCol: string;
+  zatcaHashCol: string;
+  zatcaAttemptsCol: string;
+  zatcaSubmittedAtCol: string;
+  zatcaClearedAtCol: string;
+  zatcaRetry: string;
+  zatcaRetrying: string;
+  zatcaRetrySuccess: string;
+  zatcaDone: string;
+  zatcaFailGeneric: string;
+  zatcaCopy: string;
+  zatcaCopied: string;
 
   // Customer Accounts (Debts)
   customerAccounts: string;
@@ -994,6 +1072,20 @@ const translations: Record<Language, Translations> = {
     retry: 'إعادة المحاولة',
     close: 'إغلاق',
 
+    // Order Hold / Park
+    holdOrder: 'احتجاز الطلب',
+    heldOrders: 'الطلبات المحتجزة',
+    resumeOrder: 'استئناف',
+    delete: 'حذف',
+    confirmResumeCart: 'سيؤدي الاستئناف إلى استبدال السلة الحالية. هل تريد المتابعة؟',
+    confirmDeleteHeld: 'حذف هذا الطلب المحتجز؟',
+    orderHeld: 'تم احتجاز الطلب',
+    orderResumed: 'تمت استعادة الطلب إلى السلة',
+    orderHeldFailed: 'تعذر احتجاز الطلب',
+    heldEmpty: 'لا توجد طلبات محتجزة',
+    heldUnavailableOffline: 'الاحتجاز غير متاح دون اتصال',
+    heldItems: '{count} منتجات',
+
     // Categories Management
     categoriesManagement: 'إدارة التصنيفات',
     categoriesDesc: 'تنظيم المنتجات في تصنيفات القائمة',
@@ -1235,6 +1327,70 @@ const translations: Record<Language, Translations> = {
     renewing: 'جاري معالجة الدفع...',
     renewSuccess: 'تم تجديد الاشتراك بنجاح',
     renewFailed: 'فشل التجديد، حاول مرة أخرى',
+
+    // ZATCA e-Invoicing
+    zatcaNav: 'الفاتورة الإلكترونية (زاتكا)',
+    zatcaTitle: 'الفاتورة الإلكترونية (زاتكا)',
+    zatcaDesc: 'امتثال الفوترة الإلكترونية السعودية - المرحلة الثانية: التوقيع والتقديم عبر منظومة فاتورة',
+    zatcaEnabledBadge: 'مفعّلة',
+    zatcaDisabledBadge: 'غير مفعّلة',
+    zatcaActiveMode: 'البيئة النشطة:',
+    zatcaNotConfigured: 'لم يتم إعداد زاتكا بعد. ابدأ بتوليد المفاتيح وإصدار الشهادة.',
+    zatcaCounts: 'حالة عمليات الإرسال',
+    statusSigned: 'موقّعة',
+    statusSubmitted: 'قيد الإرسال',
+    statusCleared: 'مختمة',
+    statusReported: 'مبلّغة',
+    statusFailed: 'فشل الإرسال',
+    modeSandbox: 'بيئة الاختبار (Sandbox)',
+    modeProduction: 'بيئة الإنتاج',
+    zatcaModeDesc: 'البيئة التجريبية تستخدم شهادة ذاتية التوقيع للتجربة. الإنتاج يتطلب شهادات من فاتورة.',
+    zatcaVatNumber: 'الرقم الضريبي (VAT)',
+    zatcaInvoiceTypeLabel: 'نوع الفاتورة',
+    zatcaInvoiceTypeSimplified: 'مبسطة',
+    zatcaInvoiceTypeTax: 'ضريبية',
+    zatcaGenerateCredentials: 'توليد المفاتيح والشهادة',
+    zatcaGeneratingCredentials: 'جاري التوليد...',
+    zatcaRegenerateCredentials: 'إعادة توليد المفاتيح',
+    zatcaCsrTitle: 'طلب التوقيع (CSR)',
+    zatcaCertTitle: 'الشهادة الذاتية (للاختبار)',
+    zatcaCertSerial: 'الرقم التسلسلي',
+    zatcaCertExpiry: 'صالحة حتى',
+    zatcaComplianceTitle: 'إصدار شهادة الامتثال (Compliance CSID)',
+    zatcaComplianceDesc: 'أدخل رمز OTP الصادر من منصة فاتورة أثناء تسجيل المتجر لطلب شهادة الامتثال.',
+    zatcaOtpLabel: 'رمز OTP',
+    zatcaOtpPlaceholder: 'رمز التحقق من فاتورة',
+    zatcaRequestCompliance: 'طلب شهادة الامتثال',
+    zatcaRequestingCompliance: 'جاري إصدار الشهادة...',
+    zatcaProductionTitle: 'شهادة الإنتاج (Production CSID)',
+    zatcaProductionDesc: 'بعد الحصول على شهادة الامتثال، اطلب شهادة الإنتاج النهائية بنفس الرمز.',
+    zatcaRequestProduction: 'طلب شهادة الإنتاج',
+    zatcaRequestingProduction: 'جاري إصدار شهادة الإنتاج...',
+    zatcaEnableTitle: 'تفعيل الفوترة الإلكترونية',
+    zatcaEnableDesc: 'عند التفعيل سيتم توقيع كل فاتورة جديدة وإرسالها إلى فاتورة تلقائياً.',
+    zatcaEnable: 'تفعيل زاتكا',
+    zatcaDisable: 'إيقاف زاتكا',
+    zatcaEnabling: 'جاري التفعيل...',
+    zatcaDisabling: 'جاري الإيقاف...',
+    zatcaRevoke: 'إلغاء الشهادات',
+    zatcaConfirmRevoke: 'سيتم حذف مفاتيح وشهادات هذه البيئة نهائياً. هل أنت متأكد؟',
+    zatcaRevoked: 'تم إلغاء الشهادات بنجاح',
+    zatcaSubmissionsTitle: 'سجل إرسال الفواتير',
+    zatcaSubmissionsDesc: 'حالة كل فاتورة تم توقيعها وإرسالها إلى فاتورة',
+    zatcaNoSubmissions: 'لا توجد فواتير مُرسلة بعد',
+    zatcaInvoiceNumberCol: 'رقم الفاتورة',
+    zatcaTypeCol: 'النوع',
+    zatcaHashCol: 'تجزئة الفاتورة',
+    zatcaAttemptsCol: 'المحاولات',
+    zatcaSubmittedAtCol: 'تاريخ الإرسال',
+    zatcaClearedAtCol: 'تاريخ التختم',
+    zatcaRetry: 'إعادة إرسال',
+    zatcaRetrying: 'جاري الإرسال...',
+    zatcaRetrySuccess: 'تمت إعادة إرسال الفاتورة بنجاح',
+    zatcaDone: 'تمت العملية بنجاح',
+    zatcaFailGeneric: 'فشلت العملية، حاول مرة أخرى',
+    zatcaCopy: 'نسخ',
+    zatcaCopied: 'تم النسخ',
 
     // Customer Accounts (Debts)
     customerAccounts: 'حسابات العملاء (الآجال)',
@@ -1633,6 +1789,20 @@ const translations: Record<Language, Translations> = {
     retry: 'Retry',
     close: 'Close',
 
+    // Order Hold / Park
+    holdOrder: 'Hold order',
+    heldOrders: 'Held orders',
+    resumeOrder: 'Resume',
+    delete: 'Delete',
+    confirmResumeCart: 'Resuming will replace the current cart. Continue?',
+    confirmDeleteHeld: 'Delete this held order?',
+    orderHeld: 'Order held',
+    orderResumed: 'Order restored to cart',
+    orderHeldFailed: 'Could not hold the order',
+    heldEmpty: 'No held orders',
+    heldUnavailableOffline: 'Hold is unavailable while offline',
+    heldItems: '{count} items',
+
     // Categories Management
     categoriesManagement: 'Categories Management',
     categoriesDesc: 'Organize products into menu categories',
@@ -1874,6 +2044,70 @@ const translations: Record<Language, Translations> = {
     renewing: 'Processing payment...',
     renewSuccess: 'Subscription renewed successfully',
     renewFailed: 'Renewal failed, please try again',
+
+    // ZATCA e-Invoicing
+    zatcaNav: 'ZATCA e-Invoicing',
+    zatcaTitle: 'ZATCA e-Invoicing',
+    zatcaDesc: 'Saudi e-invoicing Phase-2 compliance: sign and report/clear invoices via FATURA.',
+    zatcaEnabledBadge: 'Enabled',
+    zatcaDisabledBadge: 'Disabled',
+    zatcaActiveMode: 'Active environment:',
+    zatcaNotConfigured: 'ZATCA is not configured yet. Start by generating keys and issuing a certificate.',
+    zatcaCounts: 'Submission status',
+    statusSigned: 'Signed',
+    statusSubmitted: 'Submitted',
+    statusCleared: 'Cleared',
+    statusReported: 'Reported',
+    statusFailed: 'Failed',
+    modeSandbox: 'Sandbox (Test)',
+    modeProduction: 'Production',
+    zatcaModeDesc: 'Sandbox uses a self-signed certificate for testing. Production requires certificates issued by FATURA.',
+    zatcaVatNumber: 'VAT Number',
+    zatcaInvoiceTypeLabel: 'Invoice type',
+    zatcaInvoiceTypeSimplified: 'Simplified',
+    zatcaInvoiceTypeTax: 'Standard (Tax)',
+    zatcaGenerateCredentials: 'Generate Keys & Certificate',
+    zatcaGeneratingCredentials: 'Generating...',
+    zatcaRegenerateCredentials: 'Regenerate Keys',
+    zatcaCsrTitle: 'Certificate Signing Request (CSR)',
+    zatcaCertTitle: 'Self-Signed Certificate (testing)',
+    zatcaCertSerial: 'Serial number',
+    zatcaCertExpiry: 'Valid until',
+    zatcaComplianceTitle: 'Issue Compliance CSID',
+    zatcaComplianceDesc: 'Enter the OTP received from FATURA when registering the store to request the compliance certificate.',
+    zatcaOtpLabel: 'OTP Code',
+    zatcaOtpPlaceholder: 'Verification code from FATURA',
+    zatcaRequestCompliance: 'Request Compliance CSID',
+    zatcaRequestingCompliance: 'Issuing certificate...',
+    zatcaProductionTitle: 'Production CSID',
+    zatcaProductionDesc: 'After obtaining the compliance certificate, request the final production certificate with the same code.',
+    zatcaRequestProduction: 'Request Production CSID',
+    zatcaRequestingProduction: 'Issuing production certificate...',
+    zatcaEnableTitle: 'Enable e-Invoicing',
+    zatcaEnableDesc: 'When enabled, every new invoice is signed and submitted to FATURA automatically.',
+    zatcaEnable: 'Enable ZATCA',
+    zatcaDisable: 'Disable ZATCA',
+    zatcaEnabling: 'Enabling...',
+    zatcaDisabling: 'Disabling...',
+    zatcaRevoke: 'Revoke Credentials',
+    zatcaConfirmRevoke: 'This will permanently delete the keys and certificates for this environment. Are you sure?',
+    zatcaRevoked: 'Credentials revoked successfully',
+    zatcaSubmissionsTitle: 'Invoice Submissions',
+    zatcaSubmissionsDesc: 'Status of every invoice signed and submitted to FATURA',
+    zatcaNoSubmissions: 'No invoices submitted yet',
+    zatcaInvoiceNumberCol: 'Invoice number',
+    zatcaTypeCol: 'Type',
+    zatcaHashCol: 'Invoice hash',
+    zatcaAttemptsCol: 'Attempts',
+    zatcaSubmittedAtCol: 'Submitted at',
+    zatcaClearedAtCol: 'Cleared at',
+    zatcaRetry: 'Resubmit',
+    zatcaRetrying: 'Submitting...',
+    zatcaRetrySuccess: 'Invoice resubmitted successfully',
+    zatcaDone: 'Operation completed successfully',
+    zatcaFailGeneric: 'Operation failed, please try again',
+    zatcaCopy: 'Copy',
+    zatcaCopied: 'Copied',
 
     // Customer Accounts (Debts)
     customerAccounts: 'Customer Accounts (Debts)',

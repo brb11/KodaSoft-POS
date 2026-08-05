@@ -14,7 +14,8 @@ import {
   LogOut,
   Store,
   Contact,
-  HandCoins
+  HandCoins,
+  ShieldCheck
 } from 'lucide-react';
 
 export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -34,6 +35,7 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
     { label: t.customerAccounts, path: '/dashboard/accounts', icon: HandCoins },
     { label: t.staffUsers, path: '/dashboard/users', icon: Users },
     { label: t.branches, path: '/dashboard/branches', icon: Building2 },
+    { label: t.zatcaNav, path: '/dashboard/zatca', icon: ShieldCheck },
     { label: t.settingsTitle, path: '/dashboard/settings', icon: Settings },
   ];
 
