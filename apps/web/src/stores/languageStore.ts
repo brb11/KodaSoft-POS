@@ -335,6 +335,18 @@ export interface Translations {
   pricePlaceholder: string;
   costPlaceholder: string;
 
+  // Barcode Scanning
+  scanBarcode: string;
+  scanBarcodeTitle: string;
+  scanAdded: string;
+  barcodeNotFound: string;
+  cameraPermissionDenied: string;
+  cameraUnavailable: string;
+  cameraScanHint: string;
+  scanning: string;
+  barcodeScannerHint: string;
+  close: string;
+
   // Categories Management
   categoriesManagement: string;
   categoriesDesc: string;
@@ -454,6 +466,7 @@ export interface Translations {
   cashierLabel: string;
   itemCol: string;
   qtyCol: string;
+  unitPriceCol: string;
   totalCol: string;
   subtotalCol: string;
   vatCol: string;
@@ -571,6 +584,56 @@ export interface Translations {
   renewing: string;
   renewSuccess: string;
   renewFailed: string;
+
+  // Customer Accounts (Debts)
+  customerAccounts: string;
+  customerAccountsTitle: string;
+  customerAccountsDesc: string;
+  totalReceivables: string;
+  totalOverdue: string;
+  debtCustomers: string;
+  creditLimit: string;
+  creditLimitCol: string;
+  debtBalance: string;
+  usage: string;
+  agingCurrent: string;
+  aging30: string;
+  aging60: string;
+  aging90: string;
+  overdue: string;
+  recordPayment: string;
+  recordPaymentTitle: string;
+  paymentAmount: string;
+  paymentMethod: string;
+  paymentReference: string;
+  paymentReferencePlaceholder: string;
+  paymentNote: string;
+  paymentNotePlaceholder: string;
+  recordPaymentSuccess: string;
+  recordPaymentFailed: string;
+  paymentExceedsBalance: string;
+  statement: string;
+  statementTitle: string;
+  statementDate: string;
+  statementType: string;
+  statementRef: string;
+  statementAmount: string;
+  statementBalance: string;
+  statementInvoice: string;
+  statementPayment: string;
+  statementRefund: string;
+  noStatement: string;
+  noDebts: string;
+  selectCustomerRequired: string;
+  payOnAccount: string;
+  onAccount: string;
+  managerOnly: string;
+  reportDebts: string;
+  reportDebtsDesc: string;
+  debtsSettlements: string;
+  debtsSettlementsDesc: string;
+  settlementsCount: string;
+  settlementsTotal: string;
 }
 
 export function translate(
@@ -913,6 +976,18 @@ const translations: Record<Language, Translations> = {
     pricePlaceholder: '5.00',
     costPlaceholder: '1.50',
 
+    // Barcode Scanning
+    scanBarcode: 'مسح الباركود',
+    scanBarcodeTitle: 'ماسح الباركود',
+    scanAdded: 'تمت الإضافة',
+    barcodeNotFound: 'الباركود غير موجود',
+    cameraPermissionDenied: 'تم رفض إذن الكاميرا',
+    cameraUnavailable: 'تعذر الوصول إلى الكاميرا',
+    cameraScanHint: 'وجّه الكاميرا نحو الباركود',
+    scanning: 'جارٍ المسح...',
+    barcodeScannerHint: 'يمكنك استخدام ماسح الباركود أو الكاميرا لإضافة المنتجات بسرعة',
+    close: 'إغلاق',
+
     // Categories Management
     categoriesManagement: 'إدارة التصنيفات',
     categoriesDesc: 'تنظيم المنتجات في تصنيفات القائمة',
@@ -1032,6 +1107,7 @@ const translations: Record<Language, Translations> = {
     cashierLabel: 'الكاشير:',
     itemCol: 'الصنف',
     qtyCol: 'الكمية',
+    unitPriceCol: 'سعر الوحدة',
     totalCol: 'الإجمالي',
     subtotalCol: 'المجموع الفرعي:',
     vatCol: 'ضريبة القيمة المضافة (15%):',
@@ -1153,6 +1229,56 @@ const translations: Record<Language, Translations> = {
     renewing: 'جاري معالجة الدفع...',
     renewSuccess: 'تم تجديد الاشتراك بنجاح',
     renewFailed: 'فشل التجديد، حاول مرة أخرى',
+
+    // Customer Accounts (Debts)
+    customerAccounts: 'حسابات العملاء (الآجال)',
+    customerAccountsTitle: 'حسابات العملاء (الآجال)',
+    customerAccountsDesc: 'تتبّع ديون العملاء والتحصيلات وأعمار المستحقات',
+    totalReceivables: 'إجمالي المستحقات',
+    totalOverdue: 'المتأخر',
+    debtCustomers: 'عملاء عليهم ديون',
+    creditLimit: 'الحد الائتماني',
+    creditLimitCol: 'الحد الائتماني',
+    debtBalance: 'الرصيد المستحق',
+    usage: 'الاستخدام',
+    agingCurrent: 'حالي (أقل من 30 يوم)',
+    aging30: '30-59 يوم',
+    aging60: '60-89 يوم',
+    aging90: '90+ يوم',
+    overdue: 'متأخر',
+    recordPayment: 'تسجيل دفعة',
+    recordPaymentTitle: 'تسجيل دفعة على حساب العميل',
+    paymentAmount: 'المبلغ',
+    paymentMethod: 'طريقة الدفع',
+    paymentReference: 'مرجع الدفعة (اختياري)',
+    paymentReferencePlaceholder: 'رقم التحويل، رقم الإيصال...',
+    paymentNote: 'ملاحظات (اختياري)',
+    paymentNotePlaceholder: 'ملاحظة حول الدفعة...',
+    recordPaymentSuccess: 'تم تسجيل الدفعة بنجاح',
+    recordPaymentFailed: 'فشل تسجيل الدفعة',
+    paymentExceedsBalance: 'المبلغ يتجاوز الرصيد المستحق للعميل',
+    statement: 'كشف حساب',
+    statementTitle: 'كشف حساب العميل',
+    statementDate: 'التاريخ',
+    statementType: 'النوع',
+    statementRef: 'المرجع',
+    statementAmount: 'المبلغ',
+    statementBalance: 'الرصيد',
+    statementInvoice: 'فاتورة آجل',
+    statementPayment: 'دفعة',
+    statementRefund: 'مرتجع',
+    noStatement: 'لا توجد حركات لهذا العميل',
+    noDebts: 'لا توجد حسابات بديون حالياً',
+    selectCustomerRequired: 'يجب اختيار عميل للبيع على الحساب',
+    payOnAccount: 'على الحساب (آجل)',
+    onAccount: 'على الحساب',
+    managerOnly: 'تتطلب صلاحية مدير أو مالك',
+    reportDebts: 'الآجال والديون',
+    reportDebtsDesc: 'مستحقات العملاء وأعمار الديون والتحصيلات',
+    debtsSettlements: 'التحصيلات',
+    debtsSettlementsDesc: 'الدفعات المسجلة ضد ديون العملاء خلال الفترة',
+    settlementsCount: 'عدد الدفعات',
+    settlementsTotal: 'إجمالي التحصيلات',
   },
   en: {
     // Navigation & Common
@@ -1486,6 +1612,18 @@ const translations: Record<Language, Translations> = {
     pricePlaceholder: '5.00',
     costPlaceholder: '1.50',
 
+    // Barcode Scanning
+    scanBarcode: 'Scan barcode',
+    scanBarcodeTitle: 'Barcode Scanner',
+    scanAdded: 'Added',
+    barcodeNotFound: 'Barcode not found',
+    cameraPermissionDenied: 'Camera permission denied',
+    cameraUnavailable: 'Could not access the camera',
+    cameraScanHint: 'Point the camera at a barcode',
+    scanning: 'Scanning...',
+    barcodeScannerHint: 'Use a barcode scanner or the camera to add products instantly',
+    close: 'Close',
+
     // Categories Management
     categoriesManagement: 'Categories Management',
     categoriesDesc: 'Organize products into menu categories',
@@ -1605,6 +1743,7 @@ const translations: Record<Language, Translations> = {
     cashierLabel: 'Cashier:',
     itemCol: 'Item',
     qtyCol: 'Qty',
+    unitPriceCol: 'Unit Price',
     totalCol: 'Total',
     subtotalCol: 'Subtotal:',
     vatCol: 'VAT (15%):',
@@ -1726,6 +1865,56 @@ const translations: Record<Language, Translations> = {
     renewing: 'Processing payment...',
     renewSuccess: 'Subscription renewed successfully',
     renewFailed: 'Renewal failed, please try again',
+
+    // Customer Accounts (Debts)
+    customerAccounts: 'Customer Accounts (Debts)',
+    customerAccountsTitle: 'Customer Accounts (Debts)',
+    customerAccountsDesc: 'Track customer debts, settlements, and receivables aging',
+    totalReceivables: 'Total Receivables',
+    totalOverdue: 'Overdue',
+    debtCustomers: 'Customers with debt',
+    creditLimit: 'Credit limit',
+    creditLimitCol: 'Credit limit',
+    debtBalance: 'Outstanding balance',
+    usage: 'Usage',
+    agingCurrent: 'Current (<30d)',
+    aging30: '30-59d',
+    aging60: '60-89d',
+    aging90: '90+ days',
+    overdue: 'Overdue',
+    recordPayment: 'Record payment',
+    recordPaymentTitle: 'Record payment against customer account',
+    paymentAmount: 'Amount',
+    paymentMethod: 'Payment method',
+    paymentReference: 'Payment reference (optional)',
+    paymentReferencePlaceholder: 'Transfer number, receipt number...',
+    paymentNote: 'Notes (optional)',
+    paymentNotePlaceholder: 'A note about this payment...',
+    recordPaymentSuccess: 'Payment recorded successfully',
+    recordPaymentFailed: 'Failed to record payment',
+    paymentExceedsBalance: 'Amount exceeds the customer outstanding balance',
+    statement: 'Statement',
+    statementTitle: 'Customer statement',
+    statementDate: 'Date',
+    statementType: 'Type',
+    statementRef: 'Reference',
+    statementAmount: 'Amount',
+    statementBalance: 'Balance',
+    statementInvoice: 'Credit invoice',
+    statementPayment: 'Payment',
+    statementRefund: 'Refund',
+    noStatement: 'No transactions for this customer',
+    noDebts: 'No accounts with outstanding debt',
+    selectCustomerRequired: 'Select a customer to sell on account',
+    payOnAccount: 'On Account',
+    onAccount: 'On account',
+    managerOnly: 'Requires Owner/Manager permission',
+    reportDebts: 'Debts & Aging',
+    reportDebtsDesc: 'Customer receivables, aging buckets, and settlements',
+    debtsSettlements: 'Settlements',
+    debtsSettlementsDesc: 'Payments recorded against customer debts in the period',
+    settlementsCount: 'Payments count',
+    settlementsTotal: 'Total collected',
   },
 };
 
@@ -1786,6 +1975,7 @@ export function paymentMethodLabel(method?: string): string {
     case 'APPLE_PAY': return t.payApplePay;
     case 'STC_PAY': return t.payStcPay;
     case 'BANK_TRANSFER': return t.payBankTransfer;
+    case 'STORE_CREDIT': return t.payOnAccount;
     default: return method || '';
   }
 }

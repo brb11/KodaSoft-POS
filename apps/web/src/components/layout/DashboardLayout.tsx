@@ -13,7 +13,8 @@ import {
   Settings,
   LogOut,
   Store,
-  Contact
+  Contact,
+  HandCoins
 } from 'lucide-react';
 
 export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -30,6 +31,7 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
     { label: t.categories, path: '/dashboard/categories', icon: FolderTree },
     { label: t.inventoryStock, path: '/dashboard/inventory', icon: Warehouse },
     { label: t.customers, path: '/dashboard/customers', icon: Contact },
+    { label: t.customerAccounts, path: '/dashboard/accounts', icon: HandCoins },
     { label: t.staffUsers, path: '/dashboard/users', icon: Users },
     { label: t.branches, path: '/dashboard/branches', icon: Building2 },
     { label: t.settingsTitle, path: '/dashboard/settings', icon: Settings },

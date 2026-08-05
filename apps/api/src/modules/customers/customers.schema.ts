@@ -1,11 +1,14 @@
 import { z } from 'zod';
 
+const creditLimitField = z.coerce.number().min(0).nullable().optional();
+
 export const createCustomerSchema = z.object({
   name: z.string().min(1, 'Name is required'),
   phone: z.string().optional(),
   email: z.string().email().optional().or(z.literal('')),
   address: z.string().optional(),
   notes: z.string().optional(),
+  creditLimit: creditLimitField,
 });
 
 export const customerQuerySchema = z.object({

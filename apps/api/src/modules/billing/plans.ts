@@ -20,6 +20,7 @@ export interface Plan {
     advancedReports: boolean;
     multiBranch: boolean;
     zatca: boolean;
+    customerDebts: boolean;
   };
 }
 
@@ -32,7 +33,7 @@ export const PLANS: Plan[] = [
     currency: 'USD',
     trialDays: 14,
     limits: { branches: 1, users: 5, products: 500 },
-    features: { offline: false, advancedReports: false, multiBranch: false, zatca: true },
+    features: { offline: false, advancedReports: false, multiBranch: false, zatca: true, customerDebts: false },
   },
   {
     key: 'pro',
@@ -42,7 +43,7 @@ export const PLANS: Plan[] = [
     currency: 'USD',
     trialDays: 14,
     limits: { branches: 3, users: 20, products: 5000 },
-    features: { offline: true, advancedReports: true, multiBranch: true, zatca: true },
+    features: { offline: true, advancedReports: true, multiBranch: true, zatca: true, customerDebts: true },
   },
   {
     key: 'enterprise',
@@ -52,7 +53,7 @@ export const PLANS: Plan[] = [
     currency: 'USD',
     trialDays: 14,
     limits: { branches: -1, users: -1, products: -1 },
-    features: { offline: true, advancedReports: true, multiBranch: true, zatca: true },
+    features: { offline: true, advancedReports: true, multiBranch: true, zatca: true, customerDebts: true },
   },
 ];
 
@@ -66,6 +67,7 @@ export const PLAN_FEATURE_LABELS = {
   advancedReports: 'Advanced Reports',
   multiBranch: 'Multi-Branch',
   zatca: 'ZATCA e-Invoicing',
+  customerDebts: 'Customer Accounts (Debts)',
 } as const;
 
 /**
@@ -94,6 +96,30 @@ export async function assertPlanLimit(tenantId: string, resource: 'branches' | '
       403,
       `Your ${plan.name} plan allows up to ${limit} ${resource}. Upgrade your plan to add more.`,
       'PLAN_LIMIT_REACHED'
+    );
+  }
+}
+
+/**
+ * Enforces a plan feature flag. Trial subscriptions get full access.
+ */
+export async function assertFeatureAccess(tenantId: string, feature: keyof Plan['features']) {
+  const tenant = await prisma.tenant.findUnique({
+    where: { id: tenantId },
+    include: { subscription: true },
+  });
+
+  if (!tenant) throw new AppError(404, 'Tenant not found');
+
+  // Trial = full access to all features.
+  if (tenant.subscription?.status === 'TRIAL') return;
+
+  const plan = getPlan(tenant.plan ?? tenant.subscription?.plan);
+  if (!plan.features[feature]) {
+    throw new AppError(
+      403,
+      `Customer Accounts (debts) are not included in your ${plan.name} plan. Upgrade to Professional to enable them.`,
+      'PLAN_FEATURE_LOCKED'
     );
   }
 }

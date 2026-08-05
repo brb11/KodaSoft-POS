@@ -11,6 +11,7 @@ import { InventoryPage } from './app/dashboard/InventoryPage';
 import { ReportsPage } from './app/dashboard/ReportsPage';
 import { UsersPage } from './app/dashboard/UsersPage';
 import { CustomersPage } from './app/dashboard/CustomersPage';
+import { CustomerAccountsPage } from './app/dashboard/CustomerAccountsPage';
 import { BranchesPage } from './app/dashboard/BranchesPage';
 import { SettingsPage } from './app/dashboard/SettingsPage';
 import { SaasConsole } from './app/saas/SaasConsole';
@@ -125,6 +126,18 @@ export const App: React.FC = () => {
                 <SubscriptionGuard>
                   <DashboardLayout>
                     <CustomersPage />
+                  </DashboardLayout>
+                </SubscriptionGuard>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/accounts"
+            element={
+              <ProtectedRoute>
+                <SubscriptionGuard>
+                  <DashboardLayout>
+                    <CustomerAccountsPage />
                   </DashboardLayout>
                 </SubscriptionGuard>
               </ProtectedRoute>

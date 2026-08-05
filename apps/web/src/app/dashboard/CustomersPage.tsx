@@ -10,6 +10,8 @@ interface Customer {
   email?: string | null;
   address?: string | null;
   notes?: string | null;
+  creditLimit?: number | null;
+  creditBalance?: number | string;
   createdAt: string;
 }
 
@@ -30,6 +32,7 @@ export const CustomersPage: React.FC = () => {
     email: '',
     address: '',
     notes: '',
+    creditLimit: '',
   });
 
   useEffect(() => {
@@ -50,7 +53,7 @@ export const CustomersPage: React.FC = () => {
 
   const openCreateModal = () => {
     setEditingCustomer(null);
-    setFormData({ name: '', phone: '', email: '', address: '', notes: '' });
+    setFormData({ name: '', phone: '', email: '', address: '', notes: '', creditLimit: '' });
     setShowModal(true);
   };
 
@@ -62,6 +65,7 @@ export const CustomersPage: React.FC = () => {
       email: c.email || '',
       address: c.address || '',
       notes: c.notes || '',
+      creditLimit: c.creditLimit != null ? String(c.creditLimit) : '',
     });
     setShowModal(true);
   };
@@ -75,6 +79,7 @@ export const CustomersPage: React.FC = () => {
         email: formData.email || undefined,
         address: formData.address || undefined,
         notes: formData.notes || undefined,
+        creditLimit: formData.creditLimit ? Number(formData.creditLimit) : null,
       };
       if (editingCustomer) {
         await api.put(`/customers/${editingCustomer.id}`, payload);
@@ -151,21 +156,35 @@ export const CustomersPage: React.FC = () => {
               <th className="px-6 py-4">{t.customerPhone}</th>
               <th className="px-6 py-4">{t.customerEmail}</th>
               <th className="px-6 py-4">{t.customerAddress}</th>
+              <th className="px-6 py-4 text-right">{t.debtBalance}</th>
+              <th className="px-6 py-4 text-right">{t.creditLimitCol}</th>
               <th className="px-6 py-4 text-right">{t.actions}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-100">
             {loading ? (
-              <tr><td colSpan={5} className="px-6 py-8 text-center text-slate-400">{t.loadingCustomers}</td></tr>
+              <tr><td colSpan={7} className="px-6 py-8 text-center text-slate-400">{t.loadingCustomers}</td></tr>
             ) : customers.length === 0 ? (
-              <tr><td colSpan={5} className="px-6 py-8 text-center text-slate-400">{t.noCustomers}</td></tr>
+              <tr><td colSpan={7} className="px-6 py-8 text-center text-slate-400">{t.noCustomers}</td></tr>
             ) : (
-              customers.map((c) => (
+              customers.map((c) => {
+                const balance = Number(c.creditBalance ?? 0);
+                return (
                 <tr key={c.id} className="hover:bg-slate-50/80">
                   <td className="px-6 py-4 font-bold text-slate-900">{c.name}</td>
                   <td className="px-6 py-4 text-slate-500" dir="ltr">{c.phone || '-'}</td>
                   <td className="px-6 py-4 text-slate-500" dir="ltr">{c.email || '-'}</td>
                   <td className="px-6 py-4 text-slate-500">{c.address || '-'}</td>
+                  <td className="px-6 py-4 text-right">
+                    {balance > 0 ? (
+                      <span className="font-extrabold text-rose-600">{t.currency} {balance.toFixed(2)}</span>
+                    ) : (
+                      <span className="text-slate-300">—</span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4 text-right text-slate-500">
+                    {c.creditLimit != null ? `${t.currency} ${Number(c.creditLimit).toFixed(2)}` : '—'}
+                  </td>
                   <td className="px-6 py-4 text-right">
                     <div className="inline-flex items-center gap-1.5">
                       <button onClick={() => openEditModal(c)} className="p-2 bg-slate-100 text-slate-600 rounded-xl hover:bg-slate-200 transition">
@@ -177,7 +196,8 @@ export const CustomersPage: React.FC = () => {
                     </div>
                   </td>
                 </tr>
-              ))
+                );
+              })
             )}
           </tbody>
         </table>
@@ -201,6 +221,11 @@ export const CustomersPage: React.FC = () => {
                   <label className="block font-bold text-slate-700 mb-1">{t.customerEmail}</label>
                   <input type="email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} className="w-full bg-slate-50 border rounded-xl px-3 py-2" dir="ltr" />
                 </div>
+              </div>
+              <div>
+                <label className="block font-bold text-slate-700 mb-1">{t.creditLimit}</label>
+                <input type="number" min="0" step="0.01" value={formData.creditLimit} onChange={e => setFormData({ ...formData, creditLimit: e.target.value })} placeholder="0.00" className="w-full bg-slate-50 border rounded-xl px-3 py-2" dir="ltr" />
+                <p className="text-[10px] text-slate-400 mt-1">{t.creditLimitCol} — {t.customerAccountsDesc}</p>
               </div>
               <div>
                 <label className="block font-bold text-slate-700 mb-1">{t.customerAddress}</label>

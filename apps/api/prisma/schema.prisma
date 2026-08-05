@@ -27,10 +27,11 @@ model Tenant {
   products      Product[]
   categories    Category[]
   customers     Customer[]
-  taxRates      TaxRate[]
-  settings      Setting[]
-  notifications Notification[]
-  subscription  Subscription?
+  taxRates        TaxRate[]
+  settings        Setting[]
+  notifications   Notification[]
+  subscription    Subscription?
+  customerPayments CustomerPayment[]
 
   @@map("tenants")
 }
@@ -78,6 +79,7 @@ model Branch {
   shifts             Shift[]
   expenses           Expense[]
   inventoryMovements InventoryMovement[]
+  customerPayments   CustomerPayment[]
 
   @@map("branches")
 }
@@ -112,6 +114,7 @@ model User {
   shifts        Shift[]
   expenses      Expense[]
   notifications Notification[]
+  customerPayments CustomerPayment[]
 
   @@unique([tenantId, email])
   @@map("users")
@@ -270,14 +273,41 @@ model Customer {
   address       String?
   loyaltyPoints Int      @default(0)
   creditBalance Decimal  @db.Decimal(10, 2) @default(0)
+  creditLimit   Decimal?  @db.Decimal(10, 2)
   notes         String?
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  tenant Tenant  @relation(fields: [tenantId], references: [id])
-  orders Order[]
+  tenant   Tenant            @relation(fields: [tenantId], references: [id])
+  orders   Order[]
+  payments CustomerPayment[]
 
   @@map("customers")
+}
+
+// ─────────────────────────────────────────────
+// CUSTOMER PAYMENTS (DEBT SETTLEMENTS)
+// ─────────────────────────────────────────────
+model CustomerPayment {
+  id         String        @id @default(uuid())
+  tenantId   String
+  customerId String
+  branchId   String
+  amount     Decimal       @db.Decimal(10, 2)
+  method     PaymentMethod
+  reference  String?
+  note       String?
+  createdBy  String
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+
+  tenant   Tenant   @relation(fields: [tenantId], references: [id])
+  customer Customer @relation(fields: [customerId], references: [id])
+  branch   Branch   @relation(fields: [branchId], references: [id])
+  user     User     @relation(fields: [createdBy], references: [id])
+
+  @@index([tenantId, customerId])
+  @@map("customer_payments")
 }
 
 // ─────────────────────────────────────────────

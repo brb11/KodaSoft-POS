@@ -24,6 +24,7 @@ import { saasRouter } from './modules/saas/saas.router';
 import { plansRouter } from './modules/plans/plans.router';
 import { billingRouter } from './modules/billing/billing.router';
 import { inventoryRouter } from './modules/inventory/inventory.router';
+import { debtsRouter } from './modules/debts/debts.router';
 
 const app = express();
 
@@ -70,6 +71,7 @@ app.use('/api/v1/customers', customersRouter);
 app.use('/api/v1/plans', plansRouter);
 app.use('/api/v1/billing', billingRouter);
 app.use('/api/v1/inventory', inventoryRouter);
+app.use('/api/v1/debts', debtsRouter);
 app.use('/api/v1/saas', saasRouter);
 
 // Error Handling

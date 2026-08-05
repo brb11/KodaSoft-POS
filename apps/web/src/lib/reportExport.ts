@@ -2,10 +2,10 @@ import * as XLSX from 'xlsx';
 import { api } from './api';
 import { localizedName, paymentMethodLabel, useLanguageStore, type Translations } from '../stores/languageStore';
 import { toQuery, type ReportFilters } from '../app/dashboard/reports/ReportFilters';
-export type ReportKey = 'sales' | 'vat' | 'invoices' | 'payments' | 'inventory' | 'shifts';
+export type ReportKey = 'sales' | 'vat' | 'invoices' | 'payments' | 'inventory' | 'shifts' | 'debts';
 export type ExportFormat = 'csv' | 'excel' | 'pdf';
 
-export const REPORT_KEYS: ReportKey[] = ['sales', 'vat', 'invoices', 'payments', 'inventory', 'shifts'];
+export const REPORT_KEYS: ReportKey[] = ['sales', 'vat', 'invoices', 'payments', 'inventory', 'shifts', 'debts'];
 
 export interface ReportSection {
   title?: string;
@@ -30,6 +30,7 @@ function reportTitle(t: Translations, key: ReportKey): string {
     payments: 'reportPayments',
     inventory: 'reportInventory',
     shifts: 'reportShifts',
+    debts: 'reportDebts',
   };
   return t[map[key]] as string;
 }
@@ -204,6 +205,35 @@ export function reportToSections(key: ReportKey, t: Translations, data: any): Re
           String(s.orderCount),
         ]),
       });
+      break;
+    }
+
+    case 'debts': {
+      const totals = data?.totals;
+      const settlements = data?.settlements;
+      sections.push({
+        pairs: [
+          [t.totalReceivables, money(t, totals?.totalReceivables)],
+          [t.totalOverdue, money(t, totals?.totalOverdue)],
+          [t.settlementsCount, String(settlements?.count ?? 0)],
+          [t.settlementsTotal, money(t, settlements?.total)],
+        ],
+      });
+      if (data?.rows?.length) {
+        sections.push({
+          title: t.breakdown,
+          headers: [
+            t.customerName, t.customerPhone, t.debtBalance, t.creditLimitCol,
+            t.agingCurrent, t.aging30, t.aging60, t.aging90, t.overdue,
+          ],
+          rows: (data.rows as any[]).map((r) => [
+            r.name, r.phone || '', money(t, r.balance),
+            r.creditLimit != null ? money(t, r.creditLimit) : '—',
+            money(t, r.aging.current), money(t, r.aging.d30),
+            money(t, r.aging.d60), money(t, r.aging.d90), money(t, r.overdue),
+          ]),
+        });
+      }
       break;
     }
   }

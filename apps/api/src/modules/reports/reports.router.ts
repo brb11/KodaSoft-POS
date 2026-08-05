@@ -2,6 +2,7 @@ import { Router, Response } from 'express';
 import { authenticate, AuthRequest } from '../../middleware/auth.middleware';
 import { requireActiveSubscription } from '../billing/subscription.guard';
 import * as reportsService from './reports.service';
+import * as debtsService from '../debts/debts.service';
 
 export const reportsRouter: Router = Router();
 reportsRouter.use(authenticate);
@@ -70,5 +71,11 @@ reportsRouter.get('/inventory', async (req: AuthRequest, res: Response) => {
 reportsRouter.get('/shifts', async (req: AuthRequest, res: Response) => {
   const { from, to, branchId } = req.query as any;
   const data = await reportsService.getShiftReport(req.user!.tenantId, { from, to, branchId });
+  res.json({ success: true, data });
+});
+
+reportsRouter.get('/debts', async (req: AuthRequest, res: Response) => {
+  const { from, to, branchId } = req.query as any;
+  const data = await debtsService.getDebtsReport(req.user!.tenantId, { from, to, branchId });
   res.json({ success: true, data });
 });

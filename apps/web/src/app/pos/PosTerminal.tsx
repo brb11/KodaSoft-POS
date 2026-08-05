@@ -5,11 +5,13 @@ import { useCartStore } from '../../stores/cartStore';
 import { useAuthStore } from '../../stores/authStore';
 import { useSyncStore } from '../../stores/syncStore';
 import { useLanguageStore, translate, localizedName } from '../../stores/languageStore';
+import { useBarcodeScanner } from '../../hooks/useBarcodeScanner';
 import { LanguageSwitcher } from '../../components/common/LanguageSwitcher';
 import { api } from '../../lib/api';
 import { ReceiptContent } from './components/ReceiptContent';
 import { OrderHistoryModal } from './components/OrderHistoryModal';
 import { CustomerModal } from './components/CustomerModal';
+import { BarcodeCameraModal } from './components/BarcodeCameraModal';
 import {
   Search,
   ShoppingCart,
@@ -27,7 +29,10 @@ import {
   CheckCircle2,
   WifiOff,
   CloudOff,
-  History
+  History,
+  HandCoins,
+  ScanBarcode,
+  XCircle
 } from 'lucide-react';
 
 interface Product {
@@ -72,6 +77,9 @@ export const PosTerminal: React.FC = () => {
   const [resolvedBranchId, setResolvedBranchId] = useState<string | null>(useAuthStore.getState().user?.branchId || null);
   const [showOrderHistory, setShowOrderHistory] = useState(false);
   const [showCustomerModal, setShowCustomerModal] = useState(false);
+  const [showCameraScan, setShowCameraScan] = useState(false);
+  const [scanFeedback, setScanFeedback] = useState<{ id: number; ok: boolean; text: string } | null>(null);
+  const feedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handlePrint = useReactToPrint({
     contentRef: receiptRef,
@@ -198,8 +206,19 @@ export const PosTerminal: React.FC = () => {
     return matchesCategory && matchesSearch;
   });
 
-  const handleCheckout = async (paymentMethod: 'CASH' | 'CARD' | 'MADA' | 'VISA' | 'MASTERCARD' | 'APPLE_PAY' | 'STC_PAY' | 'BANK_TRANSFER') => {
+  const handleCheckout = async (paymentMethod: 'CASH' | 'CARD' | 'MADA' | 'VISA' | 'MASTERCARD' | 'APPLE_PAY' | 'STC_PAY' | 'BANK_TRANSFER' | 'STORE_CREDIT') => {
     if (items.length === 0) return;
+
+    if (paymentMethod === 'STORE_CREDIT') {
+      if (!customer) {
+        alert(t.selectCustomerRequired);
+        return;
+      }
+      if (user?.role !== 'OWNER' && user?.role !== 'MANAGER') {
+        alert(t.managerOnly);
+        return;
+      }
+    }
 
     const branchId = resolvedBranchId || user?.branchId;
     if (!branchId) {
@@ -284,6 +303,85 @@ export const PosTerminal: React.FC = () => {
       setProcessingOrder(false);
     }
   };
+
+  // ─── Barcode scanning (keyboard-wedge + camera) ───────────────────────────
+
+  const playBeep = (ok: boolean) => {
+    try {
+      const Ctx: any = window.AudioContext || (window as any).webkitAudioContext;
+      if (!Ctx) return;
+      const ctx = new Ctx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = ok ? 'square' : 'sawtooth';
+      osc.frequency.value = ok ? 1568 : 220;
+      const dur = ok ? 0.18 : 0.4;
+      gain.gain.setValueAtTime(0.06, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + dur);
+      osc.start();
+      osc.stop(ctx.currentTime + dur);
+      osc.onended = () => ctx.close().catch(() => {});
+    } catch {
+      /* audio unavailable — visual feedback still shows */
+    }
+  };
+
+  const flashScan = (ok: boolean, text: string) => {
+    setScanFeedback({ id: Date.now(), ok, text });
+    playBeep(ok);
+    if (feedbackTimer.current) clearTimeout(feedbackTimer.current);
+    feedbackTimer.current = setTimeout(() => setScanFeedback(null), 1600);
+  };
+
+  useEffect(() => {
+    return () => {
+      if (feedbackTimer.current) clearTimeout(feedbackTimer.current);
+    };
+  }, []);
+
+  const addProductToCart = (p: any) => {
+    addItem({
+      id: p.id,
+      name: p.name,
+      nameAr: p.nameAr,
+      price: Number(p.price),
+      sku: p.sku,
+      taxRate: p.taxRate,
+    });
+  };
+
+  const handleScanCode = async (code: string) => {
+    const trimmed = code.trim();
+    if (!trimmed) return;
+
+    const local = products.find((p) => p.barcode && p.barcode.trim() === trimmed);
+    if (local) {
+      addProductToCart(local);
+      setSearchQuery('');
+      flashScan(true, `${t.scanAdded}: ${localizedName(local.name, local.nameAr)}`);
+      return;
+    }
+
+    // Not in the loaded list (catalog is paginated) — fall back to the exact
+    // barcode lookup endpoint.
+    try {
+      const res = await api.get(`/products/barcode/${encodeURIComponent(trimmed)}`);
+      const p = res.data?.data;
+      if (p && p.id) {
+        addProductToCart(p);
+        setSearchQuery('');
+        flashScan(true, `${t.scanAdded}: ${localizedName(p.name, p.nameAr)}`);
+        return;
+      }
+      flashScan(false, t.barcodeNotFound);
+    } catch (err) {
+      flashScan(false, t.barcodeNotFound);
+    }
+  };
+
+  useBarcodeScanner(handleScanCode);
 
   return (
     <div className="h-screen bg-slate-100 text-slate-800 flex flex-col overflow-hidden">
@@ -376,7 +474,28 @@ export const PosTerminal: React.FC = () => {
                 className="w-full bg-white border border-slate-200 rounded-2xl ltr:pl-10 ltr:pr-4 rtl:pr-10 rtl:pl-4 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-cyan-500 placeholder-slate-400 shadow-sm transition-all"
               />
             </div>
+            <button
+              onClick={() => setShowCameraScan(true)}
+              title={t.scanBarcode}
+              className="flex items-center justify-center gap-2 px-4 bg-white hover:bg-cyan-50 border border-slate-200 hover:border-cyan-400 text-slate-700 hover:text-cyan-700 rounded-2xl text-xs font-bold transition-all shadow-sm"
+            >
+              <ScanBarcode className="w-4 h-4" />
+              <span className="hidden xl:inline">{t.scanBarcode}</span>
+            </button>
           </div>
+
+          {/* Scan feedback toast */}
+          {scanFeedback && (
+            <div
+              key={scanFeedback.id}
+              className={`fixed top-4 left-1/2 -translate-x-1/2 z-[75] px-4 py-2.5 rounded-xl text-xs font-bold shadow-2xl flex items-center gap-2 ${
+                scanFeedback.ok ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'
+              }`}
+            >
+              {scanFeedback.ok ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
+              {scanFeedback.text}
+            </div>
+          )}
 
           {/* Category Tabs */}
           <div className="flex gap-2 overflow-x-auto pb-3 mb-2 no-scrollbar">
@@ -549,6 +668,24 @@ export const PosTerminal: React.FC = () => {
               </div>
             </div>
 
+            <div className="space-y-2">
+              {user?.role === 'OWNER' || user?.role === 'MANAGER' ? (
+                <button
+                  disabled={items.length === 0 || processingOrder || !customer}
+                  onClick={() => handleCheckout('STORE_CREDIT')}
+                  className="w-full py-3 bg-emerald-50 hover:bg-emerald-100 border-2 border-dashed border-emerald-300 text-emerald-700 font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition-all disabled:opacity-40 shadow-sm"
+                  title={t.payOnAccount}
+                >
+                  <HandCoins className="w-4 h-4" />
+                  {t.payOnAccount}
+                </button>
+              ) : (
+                <p className="text-[10px] text-slate-400 flex items-center justify-center gap-1.5">
+                  <HandCoins className="w-3.5 h-3.5" /> {t.managerOnly}
+                </p>
+              )}
+            </div>
+
             <div className="grid grid-cols-2 gap-2 pt-1">
               <button
                 disabled={items.length === 0 || processingOrder}
@@ -691,6 +828,11 @@ export const PosTerminal: React.FC = () => {
         open={showCustomerModal}
         onClose={() => setShowCustomerModal(false)}
       />
+
+      {/* Barcode Camera Scanner */}
+      {showCameraScan && (
+        <BarcodeCameraModal onScan={handleScanCode} onClose={() => setShowCameraScan(false)} />
+      )}
     </div>
   );
 };

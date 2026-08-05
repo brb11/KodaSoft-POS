@@ -48,6 +48,7 @@ export async function createCustomer(tenantId: string, dto: CreateCustomerDto) {
       email: dto.email || null,
       address: dto.address || null,
       notes: dto.notes || null,
+      creditLimit: dto.creditLimit ?? null,
     },
   });
 }
@@ -64,12 +65,16 @@ export async function updateCustomer(tenantId: string, id: string, dto: UpdateCu
       ...(dto.email !== undefined ? { email: dto.email || null } : {}),
       ...(dto.address !== undefined ? { address: dto.address || null } : {}),
       ...(dto.notes !== undefined ? { notes: dto.notes || null } : {}),
+      ...(dto.creditLimit !== undefined ? { creditLimit: dto.creditLimit } : {}),
     },
   });
 }
 
 export async function deleteCustomer(tenantId: string, id: string) {
-  const existing = await prisma.customer.findFirst({ where: { id, tenantId }, select: { id: true } });
+  const existing = await prisma.customer.findFirst({
+    where: { id, tenantId },
+    select: { id: true, creditBalance: true },
+  });
   if (!existing) throw new AppError(404, 'Customer not found', 'CUSTOMER_NOT_FOUND');
 
   const orderCount = await prisma.order.count({ where: { customerId: id } });
@@ -77,6 +82,13 @@ export async function deleteCustomer(tenantId: string, id: string) {
     throw new AppError(400, 'Customer has orders and cannot be deleted', 'CUSTOMER_HAS_ORDERS');
   }
 
-  await prisma.customer.deleteMany({ where: { id, tenantId } });
+  if (Number(existing.creditBalance) > 0) {
+    throw new AppError(400, 'Customer has an outstanding balance and cannot be deleted', 'CUSTOMER_HAS_BALANCE');
+  }
+
+  await prisma.$transaction([
+    prisma.customerPayment.deleteMany({ where: { customerId: id, tenantId } }),
+    prisma.customer.deleteMany({ where: { id, tenantId } }),
+  ]);
   return { id };
 }

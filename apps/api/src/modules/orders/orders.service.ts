@@ -2,12 +2,24 @@ import { Prisma } from '@prisma/client';
 import { createHash, randomUUID } from 'crypto';
 import { prisma } from '../../lib/prisma';
 import { AppError } from '../../middleware/error.middleware';
+import { assertFeatureAccess } from '../billing/plans';
 import type { CreateOrderDto, RefundOrderDto } from './orders.schema';
 
 const DEFAULT_TAX_RATE = 15;
 
 function roundCents(n: number): number {
   return Math.round((n + Number.EPSILON) * 100) / 100;
+}
+
+// Sum of on-account (STORE_CREDIT) payment amounts. These represent the
+// portion of an order charged to the customer's credit account rather than
+// collected as cash/card.
+function creditTotal(payments: Array<{ method: string; amount: number | string | { toString(): string } }>): number {
+  return roundCents(
+    payments
+      .filter((p) => p.method === 'STORE_CREDIT')
+      .reduce((s, p) => s + Number(p.amount), 0)
+  );
 }
 
 // ZATCA invoice identifiers: a UUID for the invoice and a base64 SHA-256 hash
@@ -138,6 +150,14 @@ export async function createOrder(tenantId: string, cashierId: string, dto: Crea
   if (dto.idempotencyKey) {
     const existing = await prisma.order.findFirst({ where: { tenantId, idempotencyKey: dto.idempotencyKey } });
     if (existing) return existing;
+  }
+
+  const creditTotalAmount = creditTotal(dto.payments);
+  if (creditTotalAmount > 0) {
+    await assertFeatureAccess(tenantId, 'customerDebts');
+    if (!dto.customerId) {
+      throw new AppError(400, 'A customer must be selected for on-account sales', 'CUSTOMER_REQUIRED');
+    }
   }
 
   try {
@@ -287,6 +307,27 @@ export async function createOrder(tenantId: string, cashierId: string, dto: Crea
         });
       }
 
+      // On-account portion: charge the customer's debt account.
+      if (creditTotalAmount > 0 && dto.customerId) {
+        const customer = await tx.customer.findFirst({ where: { id: dto.customerId, tenantId } });
+        if (!customer) throw new AppError(400, 'Customer not found', 'CUSTOMER_NOT_FOUND');
+
+        const limit = customer.creditLimit ? Number(customer.creditLimit) : null;
+        const newBalance = roundCents(Number(customer.creditBalance) + creditTotalAmount);
+        if (limit != null && limit > 0 && newBalance > limit) {
+          throw new AppError(
+            400,
+            `This sale (${newBalance.toFixed(2)}) exceeds the customer credit limit (${limit.toFixed(2)})`,
+            'CREDIT_LIMIT_EXCEEDED'
+          );
+        }
+
+        await tx.customer.update({
+          where: { id: customer.id },
+          data: { creditBalance: { increment: creditTotalAmount } },
+        });
+      }
+
       return newOrder;
     });
 
@@ -316,6 +357,17 @@ export async function voidOrder(tenantId: string, id: string, cashierId: string,
         notes: [order.notes, reason ? `Void: ${reason}` : null].filter(Boolean).join(' | '),
       },
     });
+
+    // Reverse any on-account amount so the voided sale no longer counts as
+    // debt. Never push the balance below zero (the debt may already have been
+    // settled before the void).
+    const creditPaid = creditTotal(order.payments);
+    if (order.customerId && creditPaid > 0) {
+      await tx.customer.updateMany({
+        where: { id: order.customerId, creditBalance: { gte: creditPaid } },
+        data: { creditBalance: { decrement: creditPaid } },
+      });
+    }
 
     // Restore inventory
     for (const item of order.items) {
@@ -399,6 +451,23 @@ export async function refundOrder(tenantId: string, id: string, cashierId: strin
       const newRefunded = Number(line.refundedQuantity) + (refundedMap.get(line.id) ?? 0);
       return newRefunded >= Number(line.quantity) - 1e-6;
     });
+
+    // A refund of an on-account sale reduces the customer's debt (the refunded
+    // gross, capped at the amount originally charged to the account).
+    const creditPaid = creditTotal(order.payments);
+    const refundedGross = itemsToRefund.reduce((sum, { line, quantity }) => {
+      const gross = Number(line.subtotal) + Number(line.taxAmount);
+      const qty = Number(line.quantity);
+      if (qty <= 0) return sum;
+      return sum + roundCents(gross * (quantity / qty));
+    }, 0);
+    const refundedCredit = roundCents(Math.min(refundedGross, creditPaid));
+    if (order.customerId && refundedCredit > 0) {
+      await tx.customer.updateMany({
+        where: { id: order.customerId, creditBalance: { gte: refundedCredit } },
+        data: { creditBalance: { decrement: refundedCredit } },
+      });
+    }
 
     const updated = await tx.order.update({
       where: { id },
