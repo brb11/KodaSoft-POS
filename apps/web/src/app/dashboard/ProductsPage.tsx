@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../../lib/api';
 import { useLanguageStore, localizedName, alternateName } from '../../stores/languageStore';
-import { Plus, Search, Edit2, Trash2, Package, Upload, Download, Loader2, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { BarcodeCameraModal } from '../pos/components/BarcodeCameraModal';
+import { Plus, Search, Edit2, Trash2, Package, Upload, Download, Loader2, AlertTriangle, CheckCircle2, ScanBarcode } from 'lucide-react';
 
 interface Category {
   id: string;
@@ -30,6 +31,7 @@ export const ProductsPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [showScan, setShowScan] = useState(false);
   const { t } = useLanguageStore();
 
   const [formData, setFormData] = useState({
@@ -341,8 +343,18 @@ export const ProductsPage: React.FC = () => {
                 </div>
                 <div>
                   <label className="block text-slate-700 font-bold mb-1">{t.barcode}</label>
-                  <input type="text" value={formData.barcode} onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-800 focus:outline-none focus:border-cyan-500 shadow-sm" placeholder={t.barcodePlaceholder} />
+                  <div className="relative">
+                    <input type="text" value={formData.barcode} onChange={(e) => setFormData({ ...formData, barcode: e.target.value })}
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl ltr:pr-10 rtl:pl-10 px-3 py-2.5 text-slate-800 focus:outline-none focus:border-cyan-500 shadow-sm" placeholder={t.barcodePlaceholder} />
+                    <button
+                      type="button"
+                      onClick={() => setShowScan(true)}
+                      title={t.scanBarcode}
+                      className="absolute ltr:right-2 rtl:left-2 top-1/2 -translate-y-1/2 p-1.5 rounded-lg bg-cyan-50 text-cyan-600 hover:bg-cyan-100 transition-colors"
+                    >
+                      <ScanBarcode className="w-4 h-4" />
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -372,6 +384,16 @@ export const ProductsPage: React.FC = () => {
             </form>
           </div>
         </div>
+      )}
+
+      {showScan && (
+        <BarcodeCameraModal
+          onScan={(code) => {
+            setFormData((prev) => ({ ...prev, barcode: code.trim() }));
+            setShowScan(false);
+          }}
+          onClose={() => setShowScan(false)}
+        />
       )}
     </div>
   );

@@ -1,5 +1,8 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Html5Qrcode } from 'html5-qrcode';
+import {
+  Html5Qrcode,
+  Html5QrcodeSupportedFormats,
+} from 'html5-qrcode';
 import { useLanguageStore } from '../../../stores/languageStore';
 import { Camera, X, Loader2 } from 'lucide-react';
 
@@ -11,6 +14,20 @@ interface Props {
 // Repeated scans of the same code are ignored for a short window — the library
 // reports the same barcode on many frames, and one code usually means one unit.
 const DEDUPE_MS = 2000;
+
+// Only the formats this POS deals with. Constraining the decoder makes frames
+// decode faster and avoids false positives from unrelated QR codes.
+const SUPPORTED_FORMATS = [
+  Html5QrcodeSupportedFormats.EAN_13,
+  Html5QrcodeSupportedFormats.EAN_8,
+  Html5QrcodeSupportedFormats.UPC_A,
+  Html5QrcodeSupportedFormats.UPC_E,
+  Html5QrcodeSupportedFormats.CODE_128,
+  Html5QrcodeSupportedFormats.CODE_39,
+  Html5QrcodeSupportedFormats.CODE_93,
+  Html5QrcodeSupportedFormats.ITF,
+  Html5QrcodeSupportedFormats.QR_CODE,
+];
 
 export const BarcodeCameraModal: React.FC<Props> = ({ onScan, onClose }) => {
   const { t } = useLanguageStore();
@@ -24,8 +41,22 @@ export const BarcodeCameraModal: React.FC<Props> = ({ onScan, onClose }) => {
 
   useEffect(() => {
     let cancelled = false;
-    const scanner = new Html5Qrcode('pos-barcode-reader');
-    scannerRef.current = scanner;
+    let startTimer: ReturnType<typeof setTimeout> | null = null;
+
+    // Create the scanner once, not per effect run. React StrictMode mounts,
+    // unmounts and remounts this component in dev, and a brand-new Html5Qrcode
+    // per mount would grab the camera twice and leave the scanning loop broken.
+    if (!scannerRef.current) {
+      scannerRef.current = new Html5Qrcode('pos-barcode-reader', {
+        // The native BarcodeDetector in desktop Chrome only decodes QR codes —
+        // EAN/UPC product barcodes would never be read. Force the bundled ZXing
+        // decoder, which handles every format we need.
+        verbose: false,
+        useBarCodeDetectorIfSupported: false,
+        formatsToSupport: SUPPORTED_FORMATS,
+      });
+    }
+    const scanner = scannerRef.current;
 
     const start = async () => {
       try {
@@ -49,7 +80,11 @@ export const BarcodeCameraModal: React.FC<Props> = ({ onScan, onClose }) => {
             /* frame without a readable barcode yet — ignore */
           }
         );
-        if (!cancelled) setState('scanning');
+        if (cancelled) {
+          await scanner.stop().catch(() => {});
+          return;
+        }
+        setState('scanning');
       } catch (err: any) {
         if (cancelled) return;
         const name: string = err?.name || '';
@@ -62,13 +97,16 @@ export const BarcodeCameraModal: React.FC<Props> = ({ onScan, onClose }) => {
       }
     };
 
-    start();
+    // Defer until the first StrictMode mount has run its cleanup, so only the
+    // remounted instance ends up talking to the camera.
+    startTimer = setTimeout(start, 50);
 
     return () => {
       cancelled = true;
-      const s = scanner;
+      if (startTimer) clearTimeout(startTimer);
+      const s = scannerRef.current;
       scannerRef.current = null;
-      if (s.isScanning) {
+      if (s && s.isScanning) {
         s.stop()
           .then(() => s.clear())
           .catch(() => {});
