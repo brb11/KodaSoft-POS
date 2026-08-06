@@ -2,15 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { api } from '../../../lib/api';
 import { useLanguageStore, paymentMethodLabel } from '../../../stores/languageStore';
 import { toQuery, ReportFilters } from './ReportFilters';
-import { Wallet, CreditCard, Banknote, Smartphone, Landmark } from 'lucide-react';
+import { Wallet, CreditCard, Banknote } from 'lucide-react';
 import { ReportExportButton } from './ReportExportButton';
 
 function methodIcon(method: string, className: string) {
   switch (method) {
     case 'CASH': return <Banknote className={className} />;
-    case 'BANK_TRANSFER': return <Landmark className={className} />;
-    case 'APPLE_PAY':
-    case 'STC_PAY': return <Smartphone className={className} />;
     default: return <CreditCard className={className} />;
   }
 }

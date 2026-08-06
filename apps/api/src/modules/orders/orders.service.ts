@@ -3,6 +3,7 @@ import { createHash, randomUUID } from 'crypto';
 import { prisma } from '../../lib/prisma';
 import { AppError } from '../../middleware/error.middleware';
 import { assertFeatureAccess } from '../billing/plans';
+import { isInventoryEnabled } from '../settings/settings.service';
 import { signAndSubmitOrder } from '../zatca/zatca.service';
 import type { CreateOrderDto, RefundOrderDto } from './orders.schema';
 
@@ -161,6 +162,8 @@ export async function createOrder(tenantId: string, cashierId: string, dto: Crea
     }
   }
 
+  const inventoryEnabled = await isInventoryEnabled(tenantId);
+
   try {
     const order = await prisma.$transaction(async (tx) => {
       const branch = await tx.branch.findFirst({ where: { id: dto.branchId, tenantId } });
@@ -280,7 +283,7 @@ export async function createOrder(tenantId: string, cashierId: string, dto: Crea
 
       // Atomic stock guard: decrement only if quantity is sufficient.
       for (const l of lines) {
-        if (!l.product.trackInventory) continue;
+        if (!inventoryEnabled || !l.product.trackInventory) continue;
         const result = await tx.inventory.updateMany({
           where: {
             productId: l.product.id,
@@ -388,6 +391,8 @@ export async function voidOrder(tenantId: string, id: string, cashierId: string,
     throw new AppError(400, 'Orders with returned items cannot be voided');
   }
 
+  const inventoryEnabled = await isInventoryEnabled(tenantId);
+
   return prisma.$transaction(async (tx) => {
     const voided = await tx.order.update({
       where: { id },
@@ -410,7 +415,7 @@ export async function voidOrder(tenantId: string, id: string, cashierId: string,
 
     // Restore inventory
     for (const item of order.items) {
-      if (!item.product?.trackInventory) continue;
+      if (!inventoryEnabled || !item.product?.trackInventory) continue;
       await tx.inventory.updateMany({
         where: { productId: item.productId, variantId: item.variantId ?? null, branchId: order.branchId },
         data: { quantity: { increment: item.quantity } },
@@ -439,6 +444,8 @@ export async function refundOrder(tenantId: string, id: string, cashierId: strin
   const order = await getOrderById(tenantId, id);
   if (order.status !== 'COMPLETED') throw new AppError(400, 'Only completed orders can be refunded');
 
+  const inventoryEnabled = await isInventoryEnabled(tenantId);
+
   return prisma.$transaction(async (tx) => {
     const itemsToRefund = dto.items
       ? dto.items.map((refundItem) => {
@@ -458,26 +465,28 @@ export async function refundOrder(tenantId: string, id: string, cashierId: strin
 
     // Restore stock, record a return movement and track refunded quantity per line.
     for (const { line, quantity } of itemsToRefund) {
-      if (line.product?.trackInventory) {
+      if (inventoryEnabled && line.product?.trackInventory) {
         await tx.inventory.updateMany({
           where: { productId: line.productId, variantId: line.variantId ?? null, branchId: order.branchId },
           data: { quantity: { increment: quantity } },
         });
       }
 
-      await tx.inventoryMovement.create({
-        data: {
-          branchId: order.branchId,
-          productId: line.productId,
-          variantId: line.variantId,
-          type: 'return',
-          quantity,
-          referenceId: order.id,
-          referenceType: 'refund',
-          note: dto.reason,
-          createdBy: cashierId,
-        },
-      });
+      if (inventoryEnabled) {
+        await tx.inventoryMovement.create({
+          data: {
+            branchId: order.branchId,
+            productId: line.productId,
+            variantId: line.variantId,
+            type: 'return',
+            quantity,
+            referenceId: order.id,
+            referenceType: 'refund',
+            note: dto.reason,
+            createdBy: cashierId,
+          },
+        });
+      }
 
       await tx.orderItem.update({
         where: { id: line.id },

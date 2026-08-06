@@ -1,9 +1,14 @@
 import { randomUUID } from 'node:crypto';
 import { prisma } from '../../lib/prisma';
 import { AppError } from '../../middleware/error.middleware';
+import { isInventoryEnabled } from '../settings/settings.service';
 import { CreateAdjustmentDto } from './inventory.schema';
 
 export async function createAdjustments(tenantId: string, userId: string, dto: CreateAdjustmentDto) {
+  if (!(await isInventoryEnabled(tenantId))) {
+    throw new AppError(400, 'Inventory tracking is disabled for this store', 'INVENTORY_DISABLED');
+  }
+
   const productIds = dto.items.map((i) => i.productId);
   const branchIds = dto.items.map((i) => i.branchId);
 

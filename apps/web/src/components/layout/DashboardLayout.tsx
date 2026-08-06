@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
 import { useLanguageStore } from '../../stores/languageStore';
+import { useSettingsStore } from '../../stores/settingsStore';
 import { LanguageSwitcher } from '../common/LanguageSwitcher';
 import {
   Package,
@@ -24,13 +25,19 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
   const user = useAuthStore((s) => s.user);
   const logout = useAuthStore((s) => s.logout);
   const { t } = useLanguageStore();
+  const trackInventory = useSettingsStore((s) => s.settings?.trackInventory);
+  const loadSettings = useSettingsStore((s) => s.load);
+
+  useEffect(() => {
+    if (trackInventory === undefined) loadSettings();
+  }, [trackInventory, loadSettings]);
 
   const navItems = [
     { label: t.posTerminal, path: '/pos', icon: Store },
     { label: t.reports, path: '/dashboard/reports', icon: BarChart3 },
     { label: t.products, path: '/dashboard/products', icon: Package },
     { label: t.categories, path: '/dashboard/categories', icon: FolderTree },
-    { label: t.inventoryStock, path: '/dashboard/inventory', icon: Warehouse },
+    ...(trackInventory !== false ? [{ label: t.inventoryStock, path: '/dashboard/inventory', icon: Warehouse }] : []),
     { label: t.customers, path: '/dashboard/customers', icon: Contact },
     { label: t.customerAccounts, path: '/dashboard/accounts', icon: HandCoins },
     { label: t.staffUsers, path: '/dashboard/users', icon: Users },

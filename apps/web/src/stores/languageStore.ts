@@ -110,6 +110,7 @@ export interface Translations {
   voidFailed: string;
   orderFailed: string;
   insufficientStock: string;
+  stockLimitReached: string;
   cannotRefund: string;
   cannotVoid: string;
   noOrdersFound: string;
@@ -412,6 +413,10 @@ export interface Translations {
   adjustedBy: string;
   noAdjustments: string;
   currentStock: string;
+  inventoryDisabled: string;
+  inventoryDisabledDesc: string;
+  enableInventory: string;
+  enableInventoryDesc: string;
 
   // Users Management
   usersTitle: string;
@@ -847,6 +852,7 @@ const translations: Record<Language, Translations> = {
     voidFailed: 'فشل إلغاء الطلب',
     orderFailed: 'فشل إكمال الطلب',
     insufficientStock: 'المخزون غير كافٍ لإكمال الطلب',
+    stockLimitReached: 'الكمية غير متوفرة! المتوفر من "{name}": {available}',
     cannotRefund: 'لا يمكن إرجاع هذا الطلب',
     cannotVoid: 'لا يمكن إلغاء هذا الطلب',
     noOrdersFound: 'لا توجد طلبات مطابقة',
@@ -1149,6 +1155,10 @@ const translations: Record<Language, Translations> = {
     adjustedBy: 'بواسطة',
     noAdjustments: 'لا توجد تسويات بعد',
     currentStock: 'الكمية الحالية',
+    inventoryDisabled: 'إدارة المخزون معطلة',
+    inventoryDisabledDesc: 'تم إيقاف تتبع المخزون في الإعدادات. فعّله من صفحة الإعدادات لمتابعة الكميات.',
+    enableInventory: 'تتبع المخزون',
+    enableInventoryDesc: 'فعّل خصم الكميات تلقائياً عند البيع ومتابعة مستويات المخزون',
 
     // Users Management
     usersTitle: 'إدارة الموظفين والمستخدمين',
@@ -1579,6 +1589,7 @@ const translations: Record<Language, Translations> = {
     voidFailed: 'Failed to void order',
     orderFailed: 'Failed to complete order',
     insufficientStock: 'Insufficient stock to complete this order',
+    stockLimitReached: 'Not enough stock! Only {available} of "{name}" available',
     cannotRefund: 'This order cannot be refunded',
     cannotVoid: 'This order cannot be voided',
     noOrdersFound: 'No matching orders found',
@@ -1881,6 +1892,10 @@ const translations: Record<Language, Translations> = {
     adjustedBy: 'By',
     noAdjustments: 'No adjustments yet',
     currentStock: 'Current Stock',
+    inventoryDisabled: 'Inventory tracking is disabled',
+    inventoryDisabledDesc: 'Inventory tracking is turned off in settings. Enable it to monitor stock levels.',
+    enableInventory: 'Track Inventory',
+    enableInventoryDesc: 'Automatically deduct quantities on sale and monitor stock levels',
 
     // Users Management
     usersTitle: 'Staff & Users Management',
@@ -2257,12 +2272,6 @@ export function paymentMethodLabel(method?: string): string {
   switch (method) {
     case 'CASH': return t.payCash;
     case 'CARD': return t.payCard;
-    case 'MADA': return t.payMada;
-    case 'VISA': return t.payVisa;
-    case 'MASTERCARD': return t.payMastercard;
-    case 'APPLE_PAY': return t.payApplePay;
-    case 'STC_PAY': return t.payStcPay;
-    case 'BANK_TRANSFER': return t.payBankTransfer;
     case 'STORE_CREDIT': return t.payOnAccount;
     default: return method || '';
   }

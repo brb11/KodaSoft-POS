@@ -4,7 +4,7 @@ export const createSettlementSchema = z.object({
   customerId: z.string().uuid(),
   branchId: z.string().uuid(),
   amount: z.coerce.number().positive(),
-  method: z.enum(['CASH', 'CARD', 'MADA', 'VISA', 'MASTERCARD', 'APPLE_PAY', 'STC_PAY', 'BANK_TRANSFER']),
+  method: z.enum(['CASH', 'CARD']),
   reference: z.string().optional(),
   note: z.string().optional(),
 });

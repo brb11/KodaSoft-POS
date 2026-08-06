@@ -2,37 +2,20 @@ import { Router, Response } from 'express';
 import { authenticate, AuthRequest } from '../../middleware/auth.middleware';
 import { prisma } from '../../lib/prisma';
 import { z } from 'zod';
+import { getSettings } from './settings.service';
 
 const updateSettingsSchema = z.object({
   storeName: z.string().min(1).optional(),
   vatNumber: z.string().optional(),
   receiptFooter: z.string().optional(),
+  trackInventory: z.boolean().optional(),
 });
-
-const DEFAULTS = {
-  storeName: 'KODASOFT',
-  vatNumber: '300000000000003',
-  receiptFooter: 'Thank you for your visit!',
-};
 
 export const settingsRouter: Router = Router();
 settingsRouter.use(authenticate);
 
-async function readSettings(tenantId: string) {
-  const tenant = await prisma.tenant.findUnique({ where: { id: tenantId } });
-  const rows = await prisma.setting.findMany({
-    where: { tenantId, branchId: null, key: { in: ['storeName', 'vatNumber', 'receiptFooter'] } },
-  });
-  const map = new Map(rows.map((r) => [r.key, String(r.value)]));
-  return {
-    storeName: map.get('storeName') || tenant?.name || DEFAULTS.storeName,
-    vatNumber: map.get('vatNumber') || DEFAULTS.vatNumber,
-    receiptFooter: map.get('receiptFooter') || DEFAULTS.receiptFooter,
-  };
-}
-
 settingsRouter.get('/', async (req: AuthRequest, res: Response) => {
-  res.json({ success: true, data: await readSettings(req.user!.tenantId) });
+  res.json({ success: true, data: await getSettings(req.user!.tenantId) });
 });
 
 settingsRouter.put('/', async (req: AuthRequest, res: Response) => {
@@ -49,5 +32,5 @@ settingsRouter.put('/', async (req: AuthRequest, res: Response) => {
     }
   }
 
-  res.json({ success: true, data: await readSettings(tenantId) });
+  res.json({ success: true, data: await getSettings(tenantId) });
 });

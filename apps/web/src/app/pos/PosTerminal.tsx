@@ -21,8 +21,6 @@ import {
   Minus,
   CreditCard,
   Banknote,
-  Smartphone,
-  Landmark,
   LogOut,
   User,
   Coffee,
@@ -47,6 +45,8 @@ interface Product {
   barcode?: string;
   taxRate?: any;
   category?: { name: string; nameAr?: string };
+  trackInventory?: boolean;
+  inventory?: { branchId: string; quantity: number }[];
 }
 
 interface Category {
@@ -172,6 +172,19 @@ export const PosTerminal: React.FC = () => {
     }
   };
 
+  const mapProduct = (p: any): Product => ({
+    id: p.id,
+    name: p.name,
+    nameAr: p.nameAr,
+    price: Number(p.price),
+    sku: p.sku,
+    barcode: p.barcode,
+    category: p.category,
+    taxRate: p.taxRate ? Number(p.taxRate.rate) : undefined,
+    trackInventory: p.trackInventory,
+    inventory: p.inventory || [],
+  });
+
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -180,18 +193,7 @@ export const PosTerminal: React.FC = () => {
         api.get('/categories'),
         api.get('/settings').catch(() => ({ data: { data: null } })) // Fallback safe
       ]);
-      setProducts(
-        (prodRes.data.data.items || []).map((p: any) => ({
-          id: p.id,
-          name: p.name,
-          nameAr: p.nameAr,
-          price: Number(p.price),
-          sku: p.sku,
-          barcode: p.barcode,
-          category: p.category,
-          taxRate: p.taxRate ? Number(p.taxRate.rate) : undefined,
-        }))
-      );
+      setProducts((prodRes.data.data.items || []).map(mapProduct));
       setCategories(catRes.data.data || []);
       if (setRes.data.data) {
         setSettings(setRes.data.data);
@@ -200,6 +202,17 @@ export const PosTerminal: React.FC = () => {
       console.error('Failed to load catalog:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Refresh product stock after a sale so the client-side stock guard stays
+  // accurate for the next order.
+  const refreshStock = async () => {
+    try {
+      const prodRes = await api.get('/products?isActive=true&limit=1000');
+      setProducts((prodRes.data.data.items || []).map(mapProduct));
+    } catch (err) {
+      console.error('Failed to refresh stock:', err);
     }
   };
 
@@ -212,7 +225,37 @@ export const PosTerminal: React.FC = () => {
     return matchesCategory && matchesSearch;
   });
 
-  const handleCheckout = async (paymentMethod: 'CASH' | 'CARD' | 'MADA' | 'VISA' | 'MASTERCARD' | 'APPLE_PAY' | 'STC_PAY' | 'BANK_TRANSFER' | 'STORE_CREDIT') => {
+  // ─── Client-side stock guard ──────────────────────────────────────────────
+  // When inventory tracking is enabled (globally and per product), block
+  // adding a product once the cart quantity would exceed the branch stock.
+
+  const inventoryEnabled = settings?.trackInventory !== false;
+
+  const stockFor = (productId: string, product?: Product): number | null => {
+    const p = product ?? products.find((x) => x.id === productId);
+    if (!p || p.trackInventory === false) return null;
+    const branchId = resolvedBranchId || user?.branchId;
+    const inv = (p.inventory || []).find((i) => i.branchId === branchId);
+    return inv ? Number(inv.quantity) : 0;
+  };
+
+  const qtyInCart = (productId: string): number => {
+    const item = items.find((i) => i.productId === productId);
+    return item?.quantity ?? 0;
+  };
+
+  const tryAddToCart = (product: Product): boolean => {
+    if (!inventoryEnabled) return true;
+    const available = stockFor(product.id, product);
+    if (available === null) return true;
+    if (qtyInCart(product.id) + 1 > available) {
+      flashScan(false, translate(t.stockLimitReached, { name: localizedName(product.name, product.nameAr), available: String(available) }));
+      return false;
+    }
+    return true;
+  };
+
+  const handleCheckout = async (paymentMethod: 'CASH' | 'CARD' | 'STORE_CREDIT') => {
     if (items.length === 0) return;
 
     if (paymentMethod === 'STORE_CREDIT') {
@@ -285,6 +328,7 @@ export const PosTerminal: React.FC = () => {
           amountPaid: Number(order.total),
         });
         setOrderSuccess(true);
+        refreshStock();
         setTimeout(() => handlePrint(), 500);
       }
     } catch (err: any) {
@@ -347,7 +391,8 @@ export const PosTerminal: React.FC = () => {
     };
   }, []);
 
-  const addProductToCart = (p: any) => {
+  const addProductToCart = (p: Product) => {
+    if (!tryAddToCart(p)) return;
     addItem({
       id: p.id,
       name: p.name,
@@ -376,9 +421,23 @@ export const PosTerminal: React.FC = () => {
       const res = await api.get(`/products/barcode/${encodeURIComponent(trimmed)}`);
       const p = res.data?.data;
       if (p && p.id) {
-        addProductToCart(p);
+        const product: Product = {
+          id: p.id,
+          name: p.name,
+          nameAr: p.nameAr,
+          price: Number(p.price),
+          sku: p.sku,
+          barcode: p.barcode,
+          category: p.category,
+          taxRate: p.taxRate,
+          trackInventory: p.trackInventory,
+          inventory: p.inventory || [],
+        };
+        setProducts((prev) => (prev.some((x) => x.id === product.id) ? prev : [...prev, product]));
+        if (!tryAddToCart(product)) return;
+        addItem(product);
         setSearchQuery('');
-        flashScan(true, `${t.scanAdded}: ${localizedName(p.name, p.nameAr)}`);
+        flashScan(true, `${t.scanAdded}: ${localizedName(product.name, product.nameAr)}`);
         return;
       }
       flashScan(false, t.barcodeNotFound);
@@ -588,7 +647,7 @@ export const PosTerminal: React.FC = () => {
               filteredProducts.map((p) => (
                 <div
                   key={p.id}
-                  onClick={() => addItem(p)}
+                  onClick={() => addProductToCart(p)}
                   className="bg-white hover:bg-slate-50 border border-slate-200/80 hover:border-cyan-400/80 rounded-2xl p-4 flex flex-col justify-between cursor-pointer transition-all hover:-translate-y-0.5 group shadow-sm hover:shadow-md"
                 >
                   <div>
@@ -689,7 +748,12 @@ export const PosTerminal: React.FC = () => {
                     </button>
                     <span className="text-xs font-extrabold w-4 text-center text-slate-800">{item.quantity}</span>
                     <button
-                      onClick={() => updateQuantity(item.productId, item.quantity + 1)}
+                      onClick={() => {
+                        const p = products.find((x) => x.id === item.productId);
+                        if (!p || tryAddToCart(p)) {
+                          updateQuantity(item.productId, item.quantity + 1);
+                        }
+                      }}
                       className="w-6 h-6 rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 flex items-center justify-center shadow-xs"
                     >
                       <Plus className="w-3 h-3" />
@@ -761,54 +825,6 @@ export const PosTerminal: React.FC = () => {
               >
                 <CreditCard className="w-4 h-4 text-blue-600" />
                 {t.payCard}
-              </button>
-              <button
-                disabled={items.length === 0 || processingOrder}
-                onClick={() => handleCheckout('MADA')}
-                className="py-3 bg-white hover:bg-slate-100 border border-slate-200 text-slate-800 font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition-all disabled:opacity-40 shadow-sm"
-              >
-                <CreditCard className="w-4 h-4 text-teal-600" />
-                {t.payMada}
-              </button>
-              <button
-                disabled={items.length === 0 || processingOrder}
-                onClick={() => handleCheckout('VISA')}
-                className="py-3 bg-white hover:bg-slate-100 border border-slate-200 text-slate-800 font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition-all disabled:opacity-40 shadow-sm"
-              >
-                <CreditCard className="w-4 h-4 text-indigo-600" />
-                {t.payVisa}
-              </button>
-              <button
-                disabled={items.length === 0 || processingOrder}
-                onClick={() => handleCheckout('MASTERCARD')}
-                className="py-3 bg-white hover:bg-slate-100 border border-slate-200 text-slate-800 font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition-all disabled:opacity-40 shadow-sm"
-              >
-                <CreditCard className="w-4 h-4 text-orange-600" />
-                {t.payMastercard}
-              </button>
-              <button
-                disabled={items.length === 0 || processingOrder}
-                onClick={() => handleCheckout('APPLE_PAY')}
-                className="py-3 bg-white hover:bg-slate-100 border border-slate-200 text-slate-800 font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition-all disabled:opacity-40 shadow-sm"
-              >
-                <CreditCard className="w-4 h-4 text-slate-700" />
-                {t.payApplePay}
-              </button>
-              <button
-                disabled={items.length === 0 || processingOrder}
-                onClick={() => handleCheckout('STC_PAY')}
-                className="py-3 bg-white hover:bg-slate-100 border border-slate-200 text-slate-800 font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition-all disabled:opacity-40 shadow-sm"
-              >
-                <Smartphone className="w-4 h-4 text-violet-600" />
-                {t.payStcPay}
-              </button>
-              <button
-                disabled={items.length === 0 || processingOrder}
-                onClick={() => handleCheckout('BANK_TRANSFER')}
-                className="py-3 bg-white hover:bg-slate-100 border border-slate-200 text-slate-800 font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition-all disabled:opacity-40 shadow-sm"
-              >
-                <Landmark className="w-4 h-4 text-amber-600" />
-                {t.payBankTransfer}
               </button>
             </div>
           </div>

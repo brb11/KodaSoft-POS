@@ -3,6 +3,7 @@ import { api } from '../../lib/api';
 import { useLanguageStore } from '../../stores/languageStore';
 import { useAuthStore } from '../../stores/authStore';
 import { useBillingStore } from '../../stores/billingStore';
+import { useSettingsStore } from '../../stores/settingsStore';
 import {
   Settings,
   Store,
@@ -36,7 +37,7 @@ const PLAN_ORDER = ['starter', 'pro', 'enterprise'];
 
 export const SettingsPage: React.FC = () => {
   const [settings, setSettings] = useState<any>(null);
-  const [form, setForm] = useState({ storeName: '', vatNumber: '', receiptFooter: '' });
+  const [form, setForm] = useState({ storeName: '', vatNumber: '', receiptFooter: '', trackInventory: true });
   const [saving, setSaving] = useState(false);
   const [settingsMsg, setSettingsMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -53,7 +54,7 @@ export const SettingsPage: React.FC = () => {
     api.get('/settings').then((res) => {
       const data = res.data.data || {};
       setSettings(data);
-      setForm({ storeName: data.storeName || '', vatNumber: data.vatNumber || '', receiptFooter: data.receiptFooter || '' });
+      setForm({ storeName: data.storeName || '', vatNumber: data.vatNumber || '', receiptFooter: data.receiptFooter || '', trackInventory: data.trackInventory !== false });
     });
   }, []);
 
@@ -70,8 +71,9 @@ export const SettingsPage: React.FC = () => {
     setSaving(true);
     setSettingsMsg(null);
     try {
-      await api.put('/settings', form);
+      const res = await api.put('/settings', form);
       setSettingsMsg({ ok: true, text: t.settingsSaved });
+      useSettingsStore.getState().set(res.data.data);
     } catch {
       setSettingsMsg({ ok: false, text: t.settingsSaveFailed });
     } finally {
@@ -211,6 +213,22 @@ export const SettingsPage: React.FC = () => {
                 rows={3}
                 className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-sm text-slate-800 focus:outline-none focus:border-cyan-500 focus:bg-white transition-all shadow-sm resize-none"
               />
+            </div>
+
+            <div className="flex items-center justify-between gap-3 p-3.5 rounded-xl border border-slate-200 bg-slate-50">
+              <div>
+                <p className="text-xs font-extrabold text-slate-800">{t.enableInventory}</p>
+                <p className="text-[10px] text-slate-500 font-semibold mt-0.5">{t.enableInventoryDesc}</p>
+              </div>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={form.trackInventory}
+                onClick={() => setForm({ ...form, trackInventory: !form.trackInventory })}
+                className={`relative w-12 h-7 rounded-full transition-colors shrink-0 ${form.trackInventory ? 'bg-gradient-to-r from-cyan-500 to-blue-600' : 'bg-slate-300'}`}
+              >
+                <span className={`absolute top-1 w-5 h-5 bg-white rounded-full shadow transition-all ${form.trackInventory ? 'left-6' : 'left-1'}`} />
+              </button>
             </div>
 
             {settingsMsg && (

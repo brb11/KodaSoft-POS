@@ -14,7 +14,7 @@ export const createOrderItemSchema = z.object({
 });
 
 export const createPaymentSchema = z.object({
-  method: z.enum(['CASH', 'CARD', 'MADA', 'VISA', 'MASTERCARD', 'APPLE_PAY', 'STC_PAY', 'BANK_TRANSFER', 'STORE_CREDIT', 'SPLIT']),
+  method: z.enum(['CASH', 'CARD', 'STORE_CREDIT']),
   amount: z.coerce.number().positive(),
   reference: z.string().optional(),
 });

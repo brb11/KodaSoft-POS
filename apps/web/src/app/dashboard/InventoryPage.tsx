@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { api } from '../../lib/api';
 import { useLanguageStore, localizedName } from '../../stores/languageStore';
 import { useAuthStore } from '../../stores/authStore';
-import { Warehouse, AlertTriangle, CheckCircle, SlidersHorizontal, Loader2, CheckCircle2, XCircle, History } from 'lucide-react';
+import { useSettingsStore } from '../../stores/settingsStore';
+import { Warehouse, AlertTriangle, CheckCircle, SlidersHorizontal, Loader2, CheckCircle2, XCircle, History, Ban } from 'lucide-react';
 
 interface Product {
   id: string;
@@ -47,6 +48,12 @@ export const InventoryPage: React.FC = () => {
   const user = useAuthStore((s) => s.user);
   const canAdjust = user?.role === 'OWNER' || user?.role === 'MANAGER';
   const { t } = useLanguageStore();
+  const trackInventory = useSettingsStore((s) => s.settings?.trackInventory);
+  const loadSettings = useSettingsStore((s) => s.load);
+
+  useEffect(() => {
+    if (trackInventory === undefined) loadSettings();
+  }, [trackInventory, loadSettings]);
 
   const [form, setForm] = useState({
     productId: '',
@@ -148,7 +155,7 @@ export const InventoryPage: React.FC = () => {
           </h1>
           <p className="text-slate-500 text-xs mt-1 ml-[52px]">{t.inventoryDesc}</p>
         </div>
-        {canAdjust && (
+        {canAdjust && trackInventory !== false && (
           <button onClick={openModal}
             className="inline-flex items-center gap-2 px-4 py-2.5 bg-gradient-to-r from-cyan-500 to-blue-600 font-bold text-white rounded-xl hover:from-cyan-600 hover:to-blue-700 shadow-md text-xs">
             <SlidersHorizontal className="w-4 h-4" /> {t.adjustStock}
@@ -162,7 +169,19 @@ export const InventoryPage: React.FC = () => {
         </div>
       )}
 
-      {/* Branch selector */}
+      {trackInventory === false && (
+        <div className="bg-white border border-slate-200/80 rounded-2xl shadow-sm p-12 flex flex-col items-center justify-center text-center">
+          <div className="w-14 h-14 rounded-2xl bg-amber-50 text-amber-500 flex items-center justify-center border border-amber-200 mb-4">
+            <Ban className="w-7 h-7" />
+          </div>
+          <h2 className="text-lg font-extrabold text-slate-900">{t.inventoryDisabled}</h2>
+          <p className="text-xs text-slate-500 font-semibold mt-1.5 max-w-sm">{t.inventoryDisabledDesc}</p>
+        </div>
+      )}
+
+      {trackInventory !== false && (
+        <>
+        {/* Branch selector */}
       <div className="flex items-center gap-3">
         <label className="text-xs font-bold text-slate-700">{t.branch}</label>
         <select value={branchId} onChange={(e) => setBranchId(e.target.value)}
@@ -346,6 +365,8 @@ export const InventoryPage: React.FC = () => {
             </form>
           </div>
         </div>
+      )}
+        </>
       )}
     </div>
   );

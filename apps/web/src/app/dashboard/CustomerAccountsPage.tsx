@@ -48,7 +48,7 @@ interface StatementEntry {
   }>;
 }
 
-const SETTLE_METHODS = ['CASH', 'CARD', 'MADA', 'VISA', 'MASTERCARD', 'APPLE_PAY', 'STC_PAY', 'BANK_TRANSFER'];
+const SETTLE_METHODS = ['CASH', 'CARD'];
 
 export const CustomerAccountsPage: React.FC = () => {
   const { t } = useLanguageStore();

@@ -61,7 +61,7 @@ export async function getProductById(tenantId: string, id: string) {
 export async function getProductByBarcode(tenantId: string, barcode: string) {
   const product = await prisma.product.findFirst({
     where: { barcode, tenantId, isActive: true },
-    include: { category: true, taxRate: true, variants: true },
+    include: { category: true, taxRate: true, variants: true, inventory: true },
   });
   if (!product) throw new AppError(404, 'Product not found');
   return product;
