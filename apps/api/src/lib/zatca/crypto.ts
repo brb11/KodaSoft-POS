@@ -183,6 +183,10 @@ export interface ZatcaCsrOptions {
   registeredAddress?: string;
   /** Business category (defaults to "None"). */
   businessCategory?: string;
+  /** Solution provider name — component `1-` of the EGS serial number. */
+  solutionName?: string;
+  /** Solution model/version — component `2-` of the EGS serial number. */
+  model?: string;
 }
 
 const CERTIFICATE_TEMPLATE_NAME = {
@@ -190,10 +194,9 @@ const CERTIFICATE_TEMPLATE_NAME = {
   production: 'ZATCA-Code-Signing',
 } as const;
 
-const INVOICE_TYPE_TITLE = {
-  simplified: '0100',
-  standard: '1000',
-} as const;
+// Functionality map ("TSCZ"): Standard | Simplified | Buyer-QR | Self-billing.
+// Our solution issues both standard and simplified invoices.
+const FUNCTIONALITY_MAP_TITLE = '1100';
 
 // PKCS#10 + ZATCA extension OIDs
 const EXTENSION_REQUEST_OID = '1.2.840.113549.1.9.14';
@@ -238,16 +241,22 @@ export function buildCsr(subject: CsrSubject, keyPair: ZatcaKeyPair, opts: Zatca
   const spki = keyPair.publicKeySpkiDer;
 
   const egsSerial = randomUUID();
-  const serialString = `1-${subject.countryName || 'SA'}|2-${opts.invoiceType}|3-${egsSerial}`;
+  const solutionName = opts.solutionName || 'KodaSoft';
+  const model = opts.model || 'POS';
+  // EGS Serial Number per the ZATCA spec:
+  //   1-<Manufacturer or Solution Provider Name>|2-<Model or Version>|3-<SerialNumber>
+  // NOTE: the pipe separators make PrintableString invalid, so this RDN must be
+  // encoded as UTF8String — a PrintableString here is rejected as "Invalid-CSR".
+  const serialString = `1-${solutionName}|2-${model}|3-${egsSerial}`;
   const registeredAddress = opts.registeredAddress || subject.localityName || '';
-  const title = INVOICE_TYPE_TITLE[opts.invoiceType];
+  const title = FUNCTIONALITY_MAP_TITLE;
 
   // subjectAltName = one directoryName general name holding the ZATCA alt_names.
   const altNames = derSeq(
     tlv(
       0xa4,
       derSeq(
-        derRdn(SERIAL_NUMBER_OID, serialString, 'printable'),
+        derRdn(SERIAL_NUMBER_OID, serialString, 'utf8'),
         derRdn(UID_OID, opts.vatNumber, 'printable'),
         derRdn(TITLE_OID, title, 'printable'),
         derRdn(REGISTERED_ADDRESS_OID, registeredAddress, 'utf8'),
@@ -259,7 +268,8 @@ export function buildCsr(subject: CsrSubject, keyPair: ZatcaKeyPair, opts: Zatca
   // PKCS#10 extensionRequest attribute (1.2.840.113549.1.9.14).
   const extensions = derSeq(
     derSeq(derOid(BASIC_CONSTRAINTS_OID), derOctet(derSeq(Buffer.from([0x01, 0x01, 0x00])))),
-    derSeq(derOid(KEY_USAGE_OID), derOctet(derBitString(Buffer.from([0xc0]), 6))),
+    // digitalSignature | nonRepudiation | keyEncipherment
+    derSeq(derOid(KEY_USAGE_OID), derOctet(derBitString(Buffer.from([0xe0]), 5))),
     derSeq(derOid(SUBJECT_ALT_NAME_OID), derOctet(altNames)),
     derSeq(derOid(CERTIFICATE_TEMPLATE_NAME_OID), derOctet(derPrintable(CERTIFICATE_TEMPLATE_NAME[opts.environment]))),
   );

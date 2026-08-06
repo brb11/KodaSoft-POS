@@ -636,6 +636,21 @@ export interface Translations {
   zatcaOtpPlaceholder: string;
   zatcaRequestCompliance: string;
   zatcaRequestingCompliance: string;
+  zatcaChecksTitle: string;
+  zatcaChecksDesc: string;
+  zatcaChecksRun: string;
+  zatcaChecksRunning: string;
+  zatcaChecksPassed: string;
+  zatcaChecksFailed: string;
+  zatcaChecksNotRun: string;
+  zatcaChecksDocCol: string;
+  zatcaChecksStatusCol: string;
+  zatcaChecksAt: string;
+  zatcaChecksDocInvoice: string;
+  zatcaChecksDocCredit: string;
+  zatcaChecksDocDebit: string;
+  zatcaChecksKindSimplified: string;
+  zatcaChecksKindStandard: string;
   zatcaProductionTitle: string;
   zatcaProductionDesc: string;
   zatcaRequestProduction: string;
@@ -1362,6 +1377,21 @@ const translations: Record<Language, Translations> = {
     zatcaOtpPlaceholder: 'رمز التحقق من فاتورة',
     zatcaRequestCompliance: 'طلب شهادة الامتثال',
     zatcaRequestingCompliance: 'جاري إصدار الشهادة...',
+    zatcaChecksTitle: 'فحوصات الامتثال (Compliance Checks)',
+    zatcaChecksDesc: 'يجب اجتياز اختبار 6 مستندات نموذجية عبر منظومة فاتورة قبل إصدار شهادة الإنتاج.',
+    zatcaChecksRun: 'تشغيل فحوصات الامتثال',
+    zatcaChecksRunning: 'جاري إرسال المستندات النموذجية...',
+    zatcaChecksPassed: 'تم اجتياز جميع الفحوصات',
+    zatcaChecksFailed: 'لم يتم اجتياز بعض الفحوصات',
+    zatcaChecksNotRun: 'لم يتم تشغيل الفحوصات بعد',
+    zatcaChecksDocCol: 'المستند',
+    zatcaChecksStatusCol: 'النتيجة',
+    zatcaChecksAt: 'آخر فحص في',
+    zatcaChecksDocInvoice: 'فاتورة',
+    zatcaChecksDocCredit: 'إشعار دائن',
+    zatcaChecksDocDebit: 'إشعار مدين',
+    zatcaChecksKindSimplified: 'مبسطة',
+    zatcaChecksKindStandard: 'قياسية',
     zatcaProductionTitle: 'شهادة الإنتاج (Production CSID)',
     zatcaProductionDesc: 'بعد الحصول على شهادة الامتثال، اطلب شهادة الإنتاج النهائية بنفس الرمز.',
     zatcaRequestProduction: 'طلب شهادة الإنتاج',
@@ -2079,6 +2109,21 @@ const translations: Record<Language, Translations> = {
     zatcaOtpPlaceholder: 'Verification code from FATURA',
     zatcaRequestCompliance: 'Request Compliance CSID',
     zatcaRequestingCompliance: 'Issuing certificate...',
+    zatcaChecksTitle: 'Compliance Checks',
+    zatcaChecksDesc: 'ZATCA requires passing 6 sample documents via the FATURA gateway before a production CSID can be issued.',
+    zatcaChecksRun: 'Run Compliance Checks',
+    zatcaChecksRunning: 'Submitting sample documents...',
+    zatcaChecksPassed: 'All compliance checks passed',
+    zatcaChecksFailed: 'Some compliance checks failed',
+    zatcaChecksNotRun: 'Compliance checks not run yet',
+    zatcaChecksDocCol: 'Document',
+    zatcaChecksStatusCol: 'Result',
+    zatcaChecksAt: 'Last checked at',
+    zatcaChecksDocInvoice: 'Invoice',
+    zatcaChecksDocCredit: 'Credit note',
+    zatcaChecksDocDebit: 'Debit note',
+    zatcaChecksKindSimplified: 'Simplified',
+    zatcaChecksKindStandard: 'Standard',
     zatcaProductionTitle: 'Production CSID',
     zatcaProductionDesc: 'After obtaining the compliance certificate, request the final production certificate with the same code.',
     zatcaRequestProduction: 'Request Production CSID',

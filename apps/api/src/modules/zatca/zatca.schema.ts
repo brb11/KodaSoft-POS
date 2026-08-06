@@ -13,9 +13,15 @@ export const complianceCsidSchema = z.object({
   otp: z.string().min(1, 'OTP is required'),
 });
 
+export const complianceChecksSchema = z.object({
+  mode: zatcaModeSchema.optional().default('sandbox'),
+});
+
 export const productionCsidSchema = z.object({
   otp: z.string().min(1, 'OTP is required'),
 });
+
+export type ComplianceChecksDto = z.infer<typeof complianceChecksSchema>;
 
 export const setEnabledSchema = z.object({
   enabled: z.boolean(),

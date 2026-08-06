@@ -8,9 +8,10 @@
  *
  * Run: pnpm --filter @casheer/api exec ts-node-dev --transpile-only scripts/zatca-self-test.ts
  */
-import { generateEccKeyPair, buildCsr, buildSelfSignedCertificate, x509Info, sha256Hex, buildEcPublicKeySpki, pemToDer } from '../src/lib/zatca/crypto';
+import { generateEccKeyPair, buildCsr, buildSelfSignedCertificate, x509Info, sha256Hex, sha256Base64, buildEcPublicKeySpki, pemToDer } from '../src/lib/zatca/crypto';
 import { signInvoice, verifySignedInvoice } from '../src/lib/zatca/sign';
 import type { ZatcaInvoiceInput } from '../src/lib/zatca/xml';
+import { buildComplianceSamples } from '../src/lib/zatca/compliance-samples';
 import { zatcaQrBase64, isPhase2, formatZatcaTimestamp } from '../src/lib/zatca/qr';
 import { isValidVatNumber, validateInvoiceRules } from '../src/lib/zatca/validation';
 
@@ -46,7 +47,7 @@ async function main() {
   check(
     'CSR embeds certificateTemplateName + SAN (alt_names)',
     csrDer.includes(Buffer.from('PREZATCA-Code-Signing', 'ascii')) &&
-      csrDer.includes(Buffer.from('1-SA|2-simplified|3-', 'ascii')) &&
+      csrDer.includes(Buffer.from('1-KodaSoft|2-POS|3-', 'ascii')) &&
       csrDer.includes(Buffer.from('300000000000000', 'ascii')),
   );
 
@@ -84,17 +85,60 @@ async function main() {
   check('signature base64', /^[A-Za-z0-9+/=]+$/.test(signed.signatureValue));
   check('xml has UBLExtensions', signed.xml.includes('ext:UBLExtensions') && signed.xml.includes('ds:Signature'));
   check('xml has XADES', signed.xml.includes('xades:SignedProperties'));
+  check('xml embeds Phase-2 QR (ID "QR")', signed.xml.includes('>QR</cbc:ID>') && signed.xml.includes('mimeCode="text/plain"'));
 
   console.log('[5] Signature verification');
   const verified = verifySignedInvoice(signed.xml, certPem);
-  check('reference digest matches', verified.digestOk);
+  check('reference digest matches (body hash)', verified.digestOk);
   check('ECDSA signature verifies', verified.signatureOk);
   check('invoice hash deterministic', sha256Hex(signed.xml) === sha256Hex(signed.xml));
 
   console.log('[6] Hash/XML consistency');
   const verified2 = verifySignedInvoice(signed.xml, certPem);
-  check('invoice hash == hash of signed XML', verified2.invoiceHash === signed.invoiceHash);
+  check('invoiceHash == recomputed body hash (extensions+QR stripped)', verified2.invoiceHash === signed.invoiceHash);
   check('invoiceDigest == reference digest', verified2.digestOk);
+  check('invoiceHash != hash of full signed XML', verified2.invoiceHash !== sha256Base64(signed.xml));
+
+  console.log('[6b] Credit/debit notes (381/383 + billing reference)');
+  const creditInput: ZatcaInvoiceInput = {
+    ...input,
+    type: 'credit',
+    baseType: 'simplified',
+    billingReference: { uuid: input.uuid, invoiceNumber: input.invoiceNumber },
+    invoiceNumber: 'CN-20260805-000001',
+    notes: 'مستند إلكتروني للامتثال',
+  };
+  const credit = signInvoice(creditInput, { privateKeyPem: keyPair.privateKeyPem, certPem });
+  check('credit note type code 381', credit.xml.includes('name="0200000"') && credit.xml.includes('>381</cbc:InvoiceTypeCode>'));
+  check('credit note billing reference', credit.xml.includes('cac:BillingReference') && credit.xml.includes('>CN-20260805-000001<'));
+  check('credit note verifies', verifySignedInvoice(credit.xml, certPem).digestOk);
+  const debitInput: ZatcaInvoiceInput = {
+    ...input,
+    type: 'debit',
+    baseType: 'simplified',
+    billingReference: { uuid: input.uuid, invoiceNumber: input.invoiceNumber },
+    invoiceNumber: 'DN-20260805-000001',
+  };
+  const debit = signInvoice(debitInput, { privateKeyPem: keyPair.privateKeyPem, certPem });
+  check('debit note type code 383', debit.xml.includes('>383</cbc:InvoiceTypeCode>'));
+  check('debit note verifies', verifySignedInvoice(debit.xml, certPem).digestOk);
+
+  console.log('[6c] Compliance sample generator (6 mandatory docs)');
+  const samples = buildComplianceSamples(
+    { name: 'Test Store', vatNumber: '300000000000000' },
+    { privateKeyPem: keyPair.privateKeyPem, certPem },
+  );
+  check('6 samples generated', samples.length === 6);
+  check(
+    'all samples sign + verify',
+    samples.every((s) => verifySignedInvoice(s.xml, certPem).digestOk && verifySignedInvoice(s.xml, certPem).signatureOk),
+    samples.map((s) => s.name).join(', '),
+  );
+  check(
+    'standard samples chain PIH',
+    samples.every((s) => s.kind === 'simplified' || s.invoiceHash.length > 0),
+  );
+  check('unique invoice numbers', new Set(samples.map((s) => s.invoiceNumber)).size === 6);
 
   console.log('[7] QR codes');
   const qrPhase1 = zatcaQrBase64({

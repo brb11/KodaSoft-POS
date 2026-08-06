@@ -4,6 +4,7 @@ import { requireActiveSubscription } from '../billing/subscription.guard';
 import {
   generateCredentialsSchema,
   complianceCsidSchema,
+  complianceChecksSchema,
   productionCsidSchema,
   setEnabledSchema,
   submissionParamsSchema,
@@ -32,6 +33,13 @@ zatcaRouter.post('/credentials', async (req: AuthRequest, res: Response) => {
 zatcaRouter.post('/compliance', async (req: AuthRequest, res: Response) => {
   const dto = complianceCsidSchema.parse(req.body ?? {});
   const data = await zatcaService.issueComplianceCsid(req.user!.tenantId, dto);
+  res.json({ success: true, data });
+});
+
+// Run the mandatory FATURA compliance-invoice checks (6 sample documents).
+zatcaRouter.post('/compliance/checks', async (req: AuthRequest, res: Response) => {
+  const dto = complianceChecksSchema.parse(req.body ?? {});
+  const data = await zatcaService.runComplianceChecks(req.user!.tenantId, dto);
   res.json({ success: true, data });
 });
 

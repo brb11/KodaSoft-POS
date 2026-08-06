@@ -28,6 +28,14 @@ interface ZatcaCertInfo {
   validTo: string;
 }
 
+interface ComplianceCheckResult {
+  name: string;
+  kind: 'simplified' | 'standard';
+  documentType: 'simplified' | 'tax' | 'credit' | 'debit';
+  status: 'PASS' | 'ERROR';
+  response?: { error?: string };
+}
+
 interface ZatcaCredentialSummary {
   id: string;
   mode: ZatcaMode;
@@ -39,6 +47,9 @@ interface ZatcaCredentialSummary {
   complianceRequestId: string | null;
   complianceSerialNumber: string | null;
   complianceCert: ZatcaCertInfo | null;
+  complianceChecksStatus: 'PASS' | 'FAIL' | null;
+  complianceChecksResults: ComplianceCheckResult[] | null;
+  complianceChecksAt: string | null;
   hasProductionCsid: boolean;
   productionRequestId: string | null;
   productionSerialNumber: string | null;
@@ -101,6 +112,7 @@ export const ZatcaPage: React.FC = () => {
 
   const [generating, setGenerating] = useState(false);
   const [complianceBusy, setComplianceBusy] = useState(false);
+  const [checksBusy, setChecksBusy] = useState(false);
   const [productionBusy, setProductionBusy] = useState(false);
   const [enabling, setEnabling] = useState(false);
   const [revoking, setRevoking] = useState(false);
@@ -159,6 +171,20 @@ export const ZatcaPage: React.FC = () => {
       setMsg({ ok: false, text: fail(err) });
     } finally {
       setComplianceBusy(false);
+    }
+  };
+
+  const runComplianceChecks = async () => {
+    setChecksBusy(true);
+    setMsg(null);
+    try {
+      const res = await api.post('/zatca/compliance/checks', { mode });
+      setStatus(res.data.data as ZatcaStatus);
+      setMsg({ ok: true, text: t.zatcaDone });
+    } catch (err) {
+      setMsg({ ok: false, text: fail(err) });
+    } finally {
+      setChecksBusy(false);
     }
   };
 
@@ -244,6 +270,11 @@ export const ZatcaPage: React.FC = () => {
   const statusLabel = (s: string) => t[STATUS_LABEL_KEYS[s] ?? 'statusSubmitted'];
   const statusColor = (s: string) => STATUS_COLORS[s] ?? 'bg-slate-50 text-slate-600 border-slate-200';
   const typeLabel = (s: string) => (s === 'TAX' ? t.zatcaInvoiceTypeTax : t.zatcaInvoiceTypeSimplified);
+  const checksDocLabel = (r: ComplianceCheckResult) => {
+    const kind = r.kind === 'standard' ? t.zatcaChecksKindStandard : t.zatcaChecksKindSimplified;
+    const doc = r.documentType === 'credit' ? t.zatcaChecksDocCredit : r.documentType === 'debit' ? t.zatcaChecksDocDebit : t.zatcaChecksDocInvoice;
+    return `${kind} ${doc}`;
+  };
 
   const enabled = status?.enabled ?? false;
 
@@ -254,9 +285,13 @@ export const ZatcaPage: React.FC = () => {
     { label: t.statusFailed, value: status?.counts.failed ?? 0, color: 'text-rose-600 bg-rose-50 border-rose-200' },
   ];
 
-  const stepState = (step: 'keys' | 'compliance' | 'production' | 'enable') => {
+  const stepState = (step: 'keys' | 'compliance' | 'checks' | 'production' | 'enable') => {
     if (step === 'keys') return cred?.hasKeyPair ? 'done' : 'todo';
     if (step === 'compliance') return cred?.hasComplianceCsid ? 'done' : cred?.hasKeyPair ? 'current' : 'todo';
+    if (step === 'checks') {
+      if (cred?.complianceChecksStatus === 'PASS') return 'done';
+      return cred?.hasComplianceCsid ? 'current' : 'todo';
+    }
     if (step === 'production') {
       if (mode === 'production') return cred?.hasProductionCsid ? 'done' : cred?.hasComplianceCsid ? 'current' : 'todo';
       return 'skip';
@@ -478,11 +513,80 @@ export const ZatcaPage: React.FC = () => {
               </div>
             )}
 
-            {/* Step 3: Production CSID */}
+            {/* Step 3: Compliance checks */}
+            {cred?.hasComplianceCsid && (
+              <div className="rounded-2xl border border-slate-200 p-5">
+                <div className="flex items-center gap-3 mb-3">
+                  <StepBadge state={stepState('checks')} n="3" />
+                  <div>
+                    <h3 className="text-sm font-extrabold text-slate-900">{t.zatcaChecksTitle}</h3>
+                    <p className="text-[10px] text-slate-400 font-semibold">{t.zatcaChecksDesc}</p>
+                  </div>
+                </div>
+
+                {cred.complianceChecksStatus === 'PASS' ? (
+                  <div className="rounded-xl bg-emerald-50 border border-emerald-200 p-4 flex items-start gap-3">
+                    <CheckCircle2 className="w-5 h-5 text-emerald-500 shrink-0" />
+                    <div className="text-xs text-emerald-800">
+                      <p className="font-extrabold">{t.zatcaChecksPassed}</p>
+                      {cred.complianceChecksAt && (
+                        <p className="text-[10px] text-emerald-600 font-semibold mt-0.5">
+                          {t.zatcaChecksAt}: {formatDate(cred.complianceChecksAt)}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ) : cred.complianceChecksStatus === 'FAIL' ? (
+                  <div className="rounded-xl bg-rose-50 border border-rose-200 p-4 flex items-start gap-3">
+                    <AlertTriangle className="w-5 h-5 text-rose-500 shrink-0" />
+                    <div className="text-xs text-rose-800">
+                      <p className="font-extrabold">{t.zatcaChecksFailed}</p>
+                      {cred.complianceChecksAt && (
+                        <p className="text-[10px] text-rose-600 font-semibold mt-0.5">
+                          {t.zatcaChecksAt}: {formatDate(cred.complianceChecksAt)}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-xs text-slate-500 font-semibold mb-3">{t.zatcaChecksNotRun}</p>
+                )}
+
+                {cred.complianceChecksResults && cred.complianceChecksResults.length > 0 && (
+                  <div className="space-y-1.5 mb-3">
+                    {cred.complianceChecksResults.map((r) => (
+                      <div key={r.name} className="flex items-center justify-between rounded-lg border border-slate-200 px-3 py-2 text-xs">
+                        <span className="font-bold text-slate-700">{checksDocLabel(r)}</span>
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase border ${
+                            r.status === 'PASS'
+                              ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                              : 'bg-rose-50 text-rose-700 border-rose-200'
+                          }`}
+                        >
+                          {r.status === 'PASS' ? t.zatcaChecksPassed : r.status === 'ERROR' ? t.zatcaChecksFailed : t.zatcaChecksNotRun}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <button
+                  onClick={runComplianceChecks}
+                  disabled={checksBusy}
+                  className="w-full py-3 rounded-xl bg-gradient-to-r from-teal-500 to-cyan-600 text-white font-bold shadow-md shadow-teal-500/20 hover:from-teal-600 hover:to-cyan-700 transition-all disabled:opacity-50 flex items-center justify-center gap-2 text-sm"
+                >
+                  {checksBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileCheck2 className="w-4 h-4" />}
+                  {checksBusy ? t.zatcaChecksRunning : t.zatcaChecksRun}
+                </button>
+              </div>
+            )}
+
+            {/* Step 4: Production CSID */}
             {mode === 'production' && cred?.hasComplianceCsid && !cred?.hasProductionCsid && (
               <div className="rounded-2xl border border-slate-200 p-5">
                 <div className="flex items-center gap-3 mb-3">
-                  <StepBadge state={stepState('production')} n="3" />
+                  <StepBadge state={stepState('production')} n="4" />
                   <div>
                     <h3 className="text-sm font-extrabold text-slate-900">{t.zatcaProductionTitle}</h3>
                     <p className="text-[10px] text-slate-400 font-semibold">{t.zatcaProductionDesc}</p>
@@ -508,11 +612,11 @@ export const ZatcaPage: React.FC = () => {
               </div>
             )}
 
-            {/* Step 4: Enable */}
+            {/* Step 5: Enable */}
             {cred?.hasKeyPair && (
               <div className="rounded-2xl border border-slate-200 p-5">
                 <div className="flex items-center gap-3 mb-3">
-                  <StepBadge state={stepState('enable')} n="4" />
+                  <StepBadge state={stepState('enable')} n="5" />
                   <div>
                     <h3 className="text-sm font-extrabold text-slate-900">{t.zatcaEnableTitle}</h3>
                     <p className="text-[10px] text-slate-400 font-semibold">{t.zatcaEnableDesc}</p>

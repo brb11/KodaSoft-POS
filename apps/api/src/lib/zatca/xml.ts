@@ -1,6 +1,6 @@
 import { DOMImplementation } from '@xmldom/xmldom';
 import type { Document, Element, Node } from '@xmldom/xmldom';
-import { XMLNS, XMLNS_XSI, CURRENCY, ZATCA_CUSTOMIZATION_ID_SIMPLIFIED, ZATCA_CUSTOMIZATION_ID_TAX } from './const';
+import { XMLNS, XMLNS_XSI, CURRENCY, ZATCA_CUSTOMIZATION_ID_SIMPLIFIED, ZATCA_CUSTOMIZATION_ID_TAX, PROFILE_ID_REPORTING, PROFILE_ID_CLEARANCE, INVOICE_TYPE_CODE } from './const';
 
 // ─────────────────────────────────────────────
 // DOM helpers
@@ -94,12 +94,22 @@ export interface ZatcaParty {
   city?: string;
 }
 
+export type ZatcaDocumentType = 'simplified' | 'tax' | 'credit' | 'debit';
+
 export interface ZatcaInvoiceInput {
   uuid: string;
   invoiceNumber: string;
   issueDate: string;
   issueTime: string;
-  type: 'simplified' | 'tax';
+  /** simplified/tax = invoice (388), credit = credit note (381), debit = debit note (383). */
+  type: ZatcaDocumentType;
+  /**
+   * For credit/debit notes: whether the underlying (originating) document is
+   * a simplified or a standard (tax) invoice. Drives the customization ID.
+   */
+  baseType?: 'simplified' | 'tax';
+  /** Reference to the originating invoice, required for credit/debit notes. */
+  billingReference?: { uuid: string; invoiceNumber: string };
   currency?: string;
   seller: ZatcaParty;
   buyer?: ZatcaParty;
@@ -149,21 +159,41 @@ export function buildUnsignedInvoice(input: ZatcaInvoiceInput): { doc: Document;
   const { doc, root } = createXmlDocument();
   const cur = input.currency || CURRENCY;
 
-  const customizationId =
-    input.type === 'tax' ? ZATCA_CUSTOMIZATION_ID_TAX : ZATCA_CUSTOMIZATION_ID_SIMPLIFIED;
+  const standard = input.type === 'tax' || input.baseType === 'tax';
+  const customizationId = standard ? ZATCA_CUSTOMIZATION_ID_TAX : ZATCA_CUSTOMIZATION_ID_SIMPLIFIED;
+  const profileId = standard ? PROFILE_ID_CLEARANCE : PROFILE_ID_REPORTING;
+  const typeCode =
+    input.type === 'credit'
+      ? INVOICE_TYPE_CODE.CREDIT_NOTE
+      : input.type === 'debit'
+        ? INVOICE_TYPE_CODE.DEBIT_NOTE
+        : INVOICE_TYPE_CODE.SIMPLIFIED;
+  const typeName = standard ? '0100000' : '0200000';
 
   root.setAttributeNS(XMLNS_XSI, 'xsi:schemaLocation', `${XMLNS.ubl} ${XMLNS.ubl.replace(/Invoice-2$/, 'Invoice-2.xsd')}`);
 
   root.appendChild(el(doc, 'cbc:UBLVersionID', {}, ['2.1']));
   root.appendChild(el(doc, 'cbc:CustomizationID', {}, [customizationId]));
-  root.appendChild(el(doc, 'cbc:ProfileID', {}, ['reporting:1.0']));
+  root.appendChild(el(doc, 'cbc:ProfileID', {}, [profileId]));
   root.appendChild(el(doc, 'cbc:ID', {}, [input.invoiceNumber]));
   root.appendChild(el(doc, 'cbc:UUID', {}, [input.uuid]));
   root.appendChild(el(doc, 'cbc:IssueDate', {}, [input.issueDate]));
   root.appendChild(el(doc, 'cbc:IssueTime', {}, [input.issueTime]));
-  root.appendChild(el(doc, 'cbc:InvoiceTypeCode', { name: input.type === 'tax' ? '0100000' : '0200000' }, ['388']));
+  root.appendChild(el(doc, 'cbc:InvoiceTypeCode', { name: typeName }, [typeCode]));
   root.appendChild(el(doc, 'cbc:Note', { languageID: 'ar' }, [input.notes || 'بضاعة مباعة']));
   root.appendChild(el(doc, 'cbc:DocumentCurrencyCode', {}, [cur]));
+
+  // Reference to the originating invoice (mandatory for credit/debit notes).
+  if (input.billingReference) {
+    root.appendChild(
+      el(doc, 'cac:BillingReference', {}, [
+        el(doc, 'cac:InvoiceDocumentReference', {}, [
+          el(doc, 'cbc:ID', {}, [input.billingReference.invoiceNumber]),
+          el(doc, 'cbc:UUID', {}, [input.billingReference.uuid]),
+        ]),
+      ]),
+    );
+  }
 
   // Seller party
   root.appendChild(
@@ -186,8 +216,8 @@ export function buildUnsignedInvoice(input: ZatcaInvoiceInput): { doc: Document;
     ]),
   );
 
-  // Buyer party (tax invoices only)
-  if (input.type === 'tax' && input.buyer) {
+  // Buyer party (standard/tax documents only)
+  if (standard && input.buyer) {
     root.appendChild(
       el(doc, 'cac:AccountingCustomerParty', {}, [
         el(doc, 'cac:Party', {}, [
@@ -248,4 +278,46 @@ export function buildUnsignedInvoice(input: ZatcaInvoiceInput): { doc: Document;
   });
 
   return { doc, root };
+}
+
+function findChildByName(parent: Element, localName: string): Element | null {
+  for (const child of Array.from(parent.childNodes)) {
+    if (child.nodeType === 1 && (child as Element).tagName === localName) return child as Element;
+  }
+  return null;
+}
+
+/**
+ * Insert the Phase-2 QR code into the invoice as a UBL `AdditionalDocumentReference`
+ * with `cbc:ID` = "QR". Placed before BillingReference / the supplier party to keep
+ * the UBL sequence order valid. Returns the created element.
+ */
+export function attachQrReference(doc: Document, root: Element, qrBase64: string): Element {
+  const ref = el(doc, 'cac:AdditionalDocumentReference', {}, [
+    el(doc, 'cbc:ID', {}, ['QR']),
+    el(doc, 'cac:Attachment', {}, [
+      el(doc, 'cbc:EmbeddedDocumentBinaryObject', { mimeCode: 'text/plain' }, [qrBase64]),
+    ]),
+  ]);
+  const billingReference = findChildByName(root, 'cac:BillingReference');
+  if (billingReference) {
+    root.insertBefore(ref, billingReference);
+  } else {
+    root.insertBefore(ref, findChildByName(root, 'cac:AccountingSupplierParty') || root.firstChild!);
+  }
+  return ref;
+}
+
+/**
+ * Remove the QR `AdditionalDocumentReference` from an already-built invoice.
+ * Used when re-verifying the reference digest (the QR is excluded from the hash).
+ */
+export function detachQrReference(root: Element): void {
+  for (const child of Array.from(root.childNodes)) {
+    if (child.nodeType !== 1) continue;
+    const e = child as Element;
+    if (e.tagName !== 'cac:AdditionalDocumentReference') continue;
+    const id = findChildByName(e, 'cbc:ID');
+    if (id?.textContent === 'QR') root.removeChild(e);
+  }
 }

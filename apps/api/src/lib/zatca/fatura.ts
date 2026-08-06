@@ -102,6 +102,28 @@ export class FaturaClient {
   }
 
   /**
+   * POST /compliance/invoices — submit a single test invoice for FATURA
+   * compliance validation (required before a production CSID is issued).
+   * One sample per document type declared in the CSR must pass.
+   */
+  async submitComplianceInvoice(
+    input: { invoiceXmlBase64: string; invoiceHash: string; uuid: string },
+    credentials: { token: string; compliancePrivateKeyPem: string; serialNumber: string },
+  ): Promise<any> {
+    const body = JSON.stringify({
+      invoiceHash: input.invoiceHash,
+      uuid: input.uuid,
+      invoice: input.invoiceXmlBase64,
+    });
+    return this.request(FATURA_ENDPOINTS.complianceInvoices, {
+      body,
+      token: credentials.token,
+      signature: this.buildRequestSignature(body, credentials.compliancePrivateKeyPem),
+      serialNumber: credentials.serialNumber,
+    });
+  }
+
+  /**
    * Report or clear a single invoice.
    * - simplified invoices → reporting endpoint (200 on success).
    * - standard (tax) invoices → clearance endpoint (202 with a clearance status).
@@ -189,7 +211,11 @@ export class FaturaClient {
       }
     }
     if (!res.ok) {
-      throw new FaturaError(`FATURA ${path} responded ${res.status}: ${text.slice(0, 500)}`, res.status, json);
+      const errorMessage =
+        (json as { errorMessage?: string } | null)?.errorMessage ||
+        (json as { errors?: Array<{ message?: string }> } | null)?.errors?.map((e) => e.message).join('; ') ||
+        text.slice(0, 500);
+      throw new FaturaError(`FATURA ${path} responded ${res.status}: ${errorMessage}`, res.status, json);
     }
     return json;
   }

@@ -559,6 +559,9 @@ model ZatcaCredential {
   complianceSecret        String?
   complianceRequestId     String?
   complianceSerialNumber  String?
+  complianceChecksStatus  String?
+  complianceChecksResults Json?
+  complianceChecksAt      DateTime?
   productionToken         String?
   productionSecret        String?
   productionRequestId     String?

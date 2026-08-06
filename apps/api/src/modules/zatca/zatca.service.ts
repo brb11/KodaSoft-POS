@@ -11,6 +11,7 @@ import {
 } from '../../lib/zatca/crypto';
 import { signInvoice } from '../../lib/zatca/sign';
 import type { ZatcaInvoiceInput } from '../../lib/zatca/xml';
+import { buildComplianceSamples } from '../../lib/zatca/compliance-samples';
 import { FaturaClient, FaturaError } from '../../lib/zatca/fatura';
 import type { ZatcaInvoiceType } from '../../lib/zatca/fatura';
 import { zatcaQrBase64 } from '../../lib/zatca/qr';
@@ -62,6 +63,9 @@ function credentialSummary(cred: {
   complianceToken: string | null;
   complianceRequestId: string | null;
   complianceSerialNumber: string | null;
+  complianceChecksStatus: string | null;
+  complianceChecksResults: Prisma.JsonValue | null;
+  complianceChecksAt: Date | null;
   productionToken: string | null;
   productionRequestId: string | null;
   productionSerialNumber: string | null;
@@ -87,6 +91,9 @@ function credentialSummary(cred: {
           validTo: x509Info(complianceCert).validTo,
         }
       : null,
+    complianceChecksStatus: cred.complianceChecksStatus ?? null,
+    complianceChecksResults: cred.complianceChecksResults ?? null,
+    complianceChecksAt: cred.complianceChecksAt ?? null,
     hasProductionCsid: Boolean(cred.productionToken),
     productionRequestId: cred.productionRequestId ?? null,
     productionSerialNumber: cred.productionSerialNumber ?? null,
@@ -143,6 +150,8 @@ export async function generateCredentials(tenantId: string, dto: GenerateCredent
     invoiceType: dto.invoiceType === 'TAX' ? 'standard' : 'simplified',
     environment: dto.mode,
     registeredAddress: branch?.address || undefined,
+    solutionName: 'KodaSoft',
+    model: 'KodaSoft-POS',
   });
   const selfSignedCert = dto.mode === 'sandbox' ? buildSelfSignedCertificate(subject, keyPair) : null;
 
@@ -175,10 +184,18 @@ export async function issueComplianceCsid(tenantId: string, dto: ComplianceCsidD
     throw new AppError(400, 'Generate credentials first (POST /zatca/credentials)');
   }
   const client = new FaturaClient(dto.mode);
-  const res = await client.requestComplianceCsid({
-    csr: cred.csrPem,
-    otp: dto.otp,
-  });
+  let res: Awaited<ReturnType<FaturaClient['requestComplianceCsid']>>;
+  try {
+    res = await client.requestComplianceCsid({
+      csr: cred.csrPem,
+      otp: dto.otp,
+    });
+  } catch (err) {
+    if (err instanceof FaturaError) {
+      throw new AppError(400, `ZATCA compliance request rejected: ${err.message}`);
+    }
+    throw err;
+  }
   if (res.status !== 'OK') {
     throw new AppError(400, `ZATCA compliance request rejected: ${JSON.stringify(res.errors ?? res.status)}`);
   }
@@ -195,6 +212,91 @@ export async function issueComplianceCsid(tenantId: string, dto: ComplianceCsidD
     },
   });
   return { ...credentialSummary(updated), complianceRequestId: res.requestID };
+}
+
+function complianceDocStatus(res: { validationResults?: unknown[]; status?: string } | null | undefined): 'PASS' | 'ERROR' {
+  const vrs = Array.isArray(res?.validationResults) ? res.validationResults : [];
+  if (vrs.length === 0) {
+    return String(res?.status || '').toUpperCase() === 'PASS' ? 'PASS' : 'ERROR';
+  }
+  const hasError = vrs.some((v) => {
+    const vr = (v ?? {}) as { status?: string; errorMessages?: unknown[] };
+    return String(vr.status || '').toUpperCase() === 'ERROR' || (Array.isArray(vr.errorMessages) && vr.errorMessages.length > 0);
+  });
+  return hasError ? 'ERROR' : 'PASS';
+}
+
+/**
+ * Run the FATURA compliance-invoice checks: sign the six mandatory sample
+ * documents (simplified + standard, each with invoice/credit/debit) using the
+ * compliance CSID and submit each to POST /compliance/invoices. The result is
+ * persisted on the credential; a PASS is required before a production CSID
+ * can be issued.
+ */
+export async function runComplianceChecks(tenantId: string, dto: { mode: string }) {
+  const cred = await prisma.zatcaCredential.findFirst({ where: { tenantId, mode: dto.mode } });
+  if (!cred?.csrPem || !cred.privateKeyPem) {
+    throw new AppError(400, 'Generate credentials first (POST /zatca/credentials)');
+  }
+  if (!cred.complianceToken || !cred.complianceSecret) {
+    throw new AppError(400, 'Compliance CSID required before running compliance checks');
+  }
+  const certPem = certPemFromBinaryToken(cred.complianceToken);
+  if (!certPem) {
+    throw new AppError(400, 'Compliance certificate could not be parsed');
+  }
+  const privateKeyPem = cred.privateKeyPem;
+
+  const settings = await readSettings(tenantId);
+  const samples = buildComplianceSamples(
+    { name: settings.storeName, vatNumber: settings.vatNumber },
+    { privateKeyPem: cred.privateKeyPem, certPem },
+  );
+
+  const client = new FaturaClient(dto.mode as 'sandbox' | 'production');
+  const token = client.buildAuthToken(cred.complianceToken, cred.complianceSecret);
+  const serialNumber =
+    cred.complianceSerialNumber || formatSerialNumber(x509Info(certPem).serialNumberHex);
+
+  const results = await Promise.all(
+    samples.map(async (sample) => {
+      try {
+        const res = await client.submitComplianceInvoice(
+          { invoiceXmlBase64: sample.invoiceBase64, invoiceHash: sample.invoiceHash, uuid: sample.uuid.replace(/^urn:uuid:/, '') },
+          { token, compliancePrivateKeyPem: privateKeyPem, serialNumber },
+        );
+        return {
+          name: sample.name,
+          kind: sample.kind,
+          documentType: sample.documentType,
+          status: complianceDocStatus(res as { validationResults?: unknown[]; status?: string }),
+          response: res,
+        };
+      } catch (err) {
+        return {
+          name: sample.name,
+          kind: sample.kind,
+          documentType: sample.documentType,
+          status: 'ERROR',
+          response: { error: err instanceof FaturaError ? err.message : String((err as Error).message) },
+        };
+      }
+    }),
+  );
+
+  const allPass = results.every((r) => r.status === 'PASS');
+  const checkStatus = allPass ? 'PASS' : 'FAIL';
+
+  const updated = await prisma.zatcaCredential.update({
+    where: { id: cred.id },
+    data: {
+      complianceChecksStatus: checkStatus,
+      complianceChecksResults: results as unknown as Prisma.InputJsonValue,
+      complianceChecksAt: new Date(),
+    },
+  });
+
+  return { ...credentialSummary(updated), complianceChecks: results, complianceChecksStatus: checkStatus };
 }
 
 export async function issueProductionCsid(tenantId: string, dto: ProductionCsidDto) {

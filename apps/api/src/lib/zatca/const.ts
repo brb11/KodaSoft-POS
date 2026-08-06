@@ -23,13 +23,16 @@ export const PROFILE_ID_REPORTING = 'reporting:1.0';
 export const PROFILE_ID_CLEARANCE = 'clearance:1.0';
 
 export const INVOICE_TYPE_CODE = {
-  SIMPLIFIED: '388',
+  SIMPLIFIED: '388', // simplified invoice
   TAX: '388', // 388 = commercial invoice; tax invoices cleared by ZATCA use 388
+  CREDIT_NOTE: '381', // credit note
+  DEBIT_NOTE: '383', // debit note
 } as const;
 
 export const CURRENCY = 'SAR';
 
 export const CANONICALIZATION_METHOD_EXCLUSIVE = 'http://www.w3.org/2001/10/xml-exc-c14n#';
+export const CANONICALIZATION_METHOD_C14N = 'http://www.w3.org/TR/2001/REC-xml-c14n-20010315';
 export const SIGNATURE_METHOD_ECDSA_SHA256 = 'http://www.w3.org/2001/04/xmldsig-more#ecdsa-sha256';
 export const DIGEST_METHOD_SHA256 = 'http://www.w3.org/2001/04/xmlenc#sha256';
 export const XPATH_TRANSFORM = 'http://www.w3.org/TR/1999/REC-xpath-19991116';
@@ -50,6 +53,7 @@ export const FATURA_ACCEPT_LANGUAGE = 'en';
 
 export const FATURA_ENDPOINTS = {
   complianceCsid: '/compliance',
+  complianceInvoices: '/compliance/invoices',
   productionCsid: '/production/csids',
   productionCsidStatus: '/production/csids/{requestId}',
   reportInvoice: '/invoices/reporting/single',

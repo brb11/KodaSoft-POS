@@ -1,10 +1,11 @@
 import { DOMParser, XMLSerializer } from '@xmldom/xmldom';
 import type { Document, Element } from '@xmldom/xmldom';
-import { buildUnsignedInvoice, serializeXml, el } from './xml';
+import { buildUnsignedInvoice, serializeXml, el, attachQrReference, detachQrReference } from './xml';
 import type { ZatcaInvoiceInput } from './xml';
-import { sha256Base64, signDataBase64, verifyData, x509Info } from './crypto';
+import { sha256Base64, signDataBase64, verifyData, x509Info, buildEcPublicKeySpki } from './crypto';
 import type { ZatcaCertificateInfo } from './crypto';
-import { canonicalizeElement } from './canonical';
+import { canonicalizeElement, canonicalizeElementInclusive } from './canonical';
+import { zatcaQrBase64 } from './qr';
 import {
   CANONICALIZATION_METHOD_EXCLUSIVE,
   SIGNATURE_METHOD_ECDSA_SHA256,
@@ -17,11 +18,16 @@ export interface SignInvoiceResult {
   /** Full signed UBL 2.1 invoice XML (base64-encoded for FATURA). */
   xml: string;
   xmlBase64: string;
-  /** base64 SHA-256 of the canonicalized signed invoice (ZATCA invoice hash). */
+  /**
+   * base64 SHA-256 (inclusive C14N) of the invoice body — i.e. the signed
+   * invoice minus UBLExtensions, the QR reference and the signature. This is
+   * the value ZATCA validates, and it is also used as the ds:Reference digest
+   * and as the Phase-2 QR tag 6.
+   */
   invoiceHash: string;
   /** base64 DER ECDSA signature (also embedded in the XML). */
   signatureValue: string;
-  /** base64 SHA-256 of the canonicalized unsigned invoice (ds:Reference digest). */
+  /** base64 SHA-256 (inclusive C14N) of the invoice body (ds:Reference digest). */
   invoiceDigest: string;
   cert: ZatcaCertificateInfo;
 }
@@ -31,11 +37,15 @@ export interface SignInvoiceResult {
  *
  * Pipeline (matches the ZATCA Phase-2 requirements):
  *  1. build the unsigned invoice DOM;
- *  2. digest  = base64(sha256(exclusive-C14N(unsigned invoice)));
- *  3. digest of the SignedProperties element;
- *  4. build ds:SignedInfo, canonicalize and sign with ECDSA-SHA256;
+ *  2. invoiceHash = base64(sha256(inclusive-C14N(unsigned invoice))) — the
+ *     body has no UBLExtensions/QR/signature yet, so this is exactly the hash
+ *     ZATCA computes after stripping those three elements;
+ *  3. digest of the SignedProperties element (exclusive C14N);
+ *  4. build ds:SignedInfo, canonicalize (exclusive) and sign with ECDSA-SHA256;
  *  5. embed the signature in ext:UBLExtensions;
- *  6. invoiceHash = base64(sha256(exclusive-C14N(signed invoice))).
+ *  6. build the Phase-2 QR (invoiceHash = step-2 value) and embed it as a UBL
+ *     AdditionalDocumentReference (ID "QR");
+ *  7. serialize and self-verify.
  */
 export function signInvoice(
   input: ZatcaInvoiceInput,
@@ -44,8 +54,8 @@ export function signInvoice(
   const { doc, root } = buildUnsignedInvoice(input);
   const cert = x509Info(signingKey.certPem);
 
-  // 1. Digest of the unsigned invoice (the ds:Reference content).
-  const invoiceDigest = sha256Base64(canonicalizeElement(root));
+  // 1. Digest of the invoice body (ds:Reference content == invoice hash).
+  const invoiceDigest = sha256Base64(canonicalizeElementInclusive(root));
 
   // 2. Build the SignedProperties subtree and digest it.
   const signedProperties = buildSignedProperties(doc, input, cert);
@@ -61,15 +71,29 @@ export function signInvoice(
   const extensions = buildUblExtensions(doc, input, signature);
   root.insertBefore(extensions, root.firstChild);
 
-  const xml = serializeXml(root);
-  const invoiceHash = sha256Base64(canonicalizeElement(root));
+  // 5. Embed the Phase-2 QR code (tags 6-9) into the document.
+  const standard = input.type === 'tax' || input.baseType === 'tax';
+  const qr = zatcaQrBase64({
+    sellerName: input.seller.name,
+    vatNumber: input.seller.vatNumber,
+    timestamp: new Date(`${input.issueDate}T${input.issueTime}Z`),
+    total: input.total,
+    vat: input.taxAmount,
+    invoiceHash: invoiceDigest,
+    signature: signatureValue,
+    publicKey: buildEcPublicKeySpki(cert.publicKeyPem).toString('base64'),
+    previousInvoiceHash: standard ? input.previousInvoiceHash : undefined,
+  });
+  attachQrReference(doc, root, qr);
 
-  // 5. Verify what we just produced before returning it.
+  const xml = serializeXml(root);
+
+  // 6. Verify what we just produced before returning it.
   const canonicalSignedInfo = canonicalizeElement(signedInfo);
   const ok = verifyData(canonicalSignedInfo, Buffer.from(signatureValue, 'base64'), cert.publicKeyPem);
   if (!ok) throw new Error('ZATCA signature self-verification failed');
 
-  return { xml, xmlBase64: Buffer.from(xml, 'utf8').toString('base64'), invoiceHash, signatureValue, invoiceDigest, cert };
+  return { xml, xmlBase64: Buffer.from(xml, 'utf8').toString('base64'), invoiceHash: invoiceDigest, signatureValue, invoiceDigest, cert };
 }
 
 /**
@@ -91,11 +115,12 @@ export function verifySignedInvoice(xml: string, certPem?: string): { digestOk: 
   const canonicalSignedInfo = canonicalizeElement(signedInfo!);
   const signatureOk = verifyData(canonicalSignedInfo, Buffer.from(signatureValue, 'base64'), publicKeyPem);
 
-  // Recompute the reference digest over the doc minus UBLExtensions.
-  const invoiceHash = sha256Base64(canonicalizeElement(root));
+  // Recompute the reference digest over the doc minus UBLExtensions and the QR.
   const extensions = findElement(root, 'ext:UBLExtensions');
   if (extensions) root.removeChild(extensions);
-  const digestOk = sha256Base64(canonicalizeElement(root)) === findElement(signedInfo, 'ds:DigestValue')?.textContent;
+  detachQrReference(root);
+  const invoiceHash = sha256Base64(canonicalizeElementInclusive(root));
+  const digestOk = invoiceHash === findElement(signedInfo, 'ds:DigestValue')?.textContent;
 
   return { digestOk, signatureOk, invoiceHash };
 }
@@ -132,6 +157,9 @@ function buildSignedInfo(
       el(doc, 'ds:Transforms', {}, [
         el(doc, 'ds:Transform', { Algorithm: XPATH_TRANSFORM }, [
           el(doc, 'ds:XPath', {}, ['not(//ancestor-or-self::ext:UBLExtensions)']),
+        ]),
+        el(doc, 'ds:Transform', { Algorithm: XPATH_TRANSFORM }, [
+          el(doc, 'ds:XPath', {}, ['not(//ancestor-or-self::cac:AdditionalDocumentReference[cbc:ID=\'QR\'])']),
         ]),
       ]),
       el(doc, 'ds:DigestMethod', { Algorithm: DIGEST_METHOD_SHA256 }, []),
