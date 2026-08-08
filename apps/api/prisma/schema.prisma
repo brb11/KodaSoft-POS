@@ -117,9 +117,29 @@ model User {
   expenses      Expense[]
   notifications Notification[]
   customerPayments CustomerPayment[]
+  refreshSessions RefreshSession[]
 
   @@unique([tenantId, email])
   @@map("users")
+}
+
+// ─────────────────────────────────────────────
+// REFRESH SESSIONS
+// ─────────────────────────────────────────────
+model RefreshSession {
+  id        String    @id @default(uuid())
+  userId    String
+  tokenHash String    @unique
+  userAgent String?
+  ip        String?
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("refresh_sessions")
 }
 
 // ─────────────────────────────────────────────

@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api } from '../../lib/api';
+import { api, apiLogout } from '../../lib/api';
 import { useAuthStore } from '../../stores/authStore';
 import { useLanguageStore } from '../../stores/languageStore';
 import { LanguageSwitcher } from '../../components/common/LanguageSwitcher';
@@ -70,7 +70,6 @@ export const SaasConsole: React.FC = () => {
   const [notice, setNotice] = useState('');
 
   const user = useAuthStore((s) => s.user);
-  const logout = useAuthStore((s) => s.logout);
   const { t, language } = useLanguageStore();
   const navigate = useNavigate();
 
@@ -154,7 +153,7 @@ export const SaasConsole: React.FC = () => {
     new Intl.DateTimeFormat(language === 'ar' ? 'ar-SA' : 'en-US', { dateStyle: 'medium' }).format(new Date(d));
 
   const handleLogout = () => {
-    logout();
+    apiLogout();
     navigate('/login');
   };
 

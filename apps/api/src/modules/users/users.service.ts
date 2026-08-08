@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs';
 import { prisma } from '../../lib/prisma';
 import { assertPlanLimit } from '../billing/plans';
 import { AppError } from '../../middleware/error.middleware';
+import { revokeUserSessions } from '../auth/auth.service';
 
 export async function getUsers(tenantId: string) {
   return prisma.user.findMany({
@@ -75,6 +76,8 @@ export async function updateUser(
     branchId: data.branchId || null
   };
 
+  const credentialsChanged = Boolean(data.password || data.pin);
+
   if (data.password) {
     updateData.passwordHash = await bcrypt.hash(data.password, 10);
   }
@@ -84,10 +87,18 @@ export async function updateUser(
     updateData.pinHash = await bcrypt.hash(data.pin, 10);
   }
 
-  return prisma.user.update({
+  const user = await prisma.user.update({
     where: { id, tenantId },
     data: updateData
   });
+
+  // Force re-login everywhere when credentials change: all existing refresh
+  // sessions become invalid immediately.
+  if (credentialsChanged) {
+    await revokeUserSessions(id);
+  }
+
+  return user;
 }
 
 export async function deleteUser(tenantId: string, id: string, actingUserId: string) {

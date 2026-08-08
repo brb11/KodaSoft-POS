@@ -21,10 +21,6 @@ export const pinLoginSchema = z.object({
   branchId: z.string().uuid(),
 });
 
-export const refreshSchema = z.object({
-  refreshToken: z.string().min(1),
-});
-
 export type LoginDto = z.infer<typeof loginSchema>;
 export type SignupDto = z.infer<typeof signupSchema>;
 export type PinLoginDto = z.infer<typeof pinLoginSchema>;

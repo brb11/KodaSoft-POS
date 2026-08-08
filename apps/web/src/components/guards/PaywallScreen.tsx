@@ -4,12 +4,11 @@ import { useNavigate } from 'react-router-dom';
 import { useLanguageStore } from '../../stores/languageStore';
 import { useAuthStore } from '../../stores/authStore';
 import { useBillingStore } from '../../stores/billingStore';
-import { api } from '../../lib/api';
+import { api, apiLogout } from '../../lib/api';
 import { Lock, CreditCard, LogOut, Loader2, RefreshCw } from 'lucide-react';
 
 export const PaywallScreen: React.FC = () => {
   const { t } = useLanguageStore();
-  const logout = useAuthStore((s) => s.logout);
   const user = useAuthStore((s) => s.user);
   const navigate = useNavigate();
   const data = useBillingStore((s) => s.data);
@@ -81,7 +80,7 @@ export const PaywallScreen: React.FC = () => {
           </Link>
           <button
             onClick={() => {
-              logout();
+              apiLogout();
               navigate('/login');
             }}
             className="w-full py-2.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors flex items-center justify-center gap-2 text-xs font-bold"

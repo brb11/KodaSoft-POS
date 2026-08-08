@@ -3,6 +3,7 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
 import { useLanguageStore } from '../../stores/languageStore';
 import { useSettingsStore } from '../../stores/settingsStore';
+import { apiLogout } from '../../lib/api';
 import { LanguageSwitcher } from '../common/LanguageSwitcher';
 import {
   Package,
@@ -23,7 +24,6 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
   const location = useLocation();
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
-  const logout = useAuthStore((s) => s.logout);
   const { t } = useLanguageStore();
   const trackInventory = useSettingsStore((s) => s.settings?.trackInventory);
   const loadSettings = useSettingsStore((s) => s.load);
@@ -107,7 +107,7 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
             </div>
             <button
               onClick={() => {
-                logout();
+                apiLogout();
                 navigate('/login');
               }}
               className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors"

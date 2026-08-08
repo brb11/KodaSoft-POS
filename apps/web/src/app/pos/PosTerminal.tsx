@@ -7,7 +7,7 @@ import { useSyncStore } from '../../stores/syncStore';
 import { useLanguageStore, translate, localizedName } from '../../stores/languageStore';
 import { useBarcodeScanner } from '../../hooks/useBarcodeScanner';
 import { LanguageSwitcher } from '../../components/common/LanguageSwitcher';
-import { api } from '../../lib/api';
+import { api, apiLogout } from '../../lib/api';
 import { ReceiptContent } from './components/ReceiptContent';
 import { OrderHistoryModal } from './components/OrderHistoryModal';
 import { CustomerModal } from './components/CustomerModal';
@@ -95,7 +95,6 @@ export const PosTerminal: React.FC = () => {
   });
 
   const user = useAuthStore((s) => s.user);
-  const logout = useAuthStore((s) => s.logout);
   const { isOnline, pendingOrders } = useSyncStore();
   const { t } = useLanguageStore();
 
@@ -557,7 +556,7 @@ export const PosTerminal: React.FC = () => {
           </div>
 
           <button
-            onClick={logout}
+            onClick={apiLogout}
             className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors"
             title={t.logout}
           >
