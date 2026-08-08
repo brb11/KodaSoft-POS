@@ -3,8 +3,9 @@ import { Link } from 'react-router-dom';
 import { useNavigate } from 'react-router-dom';
 import { useLanguageStore } from '../../stores/languageStore';
 import { useAuthStore } from '../../stores/authStore';
-import { useBillingStore } from '../../stores/billingStore';
+import { useBillingStore, type CheckoutInfo } from '../../stores/billingStore';
 import { api, apiLogout } from '../../lib/api';
+import { CheckoutModal } from '../billing/CheckoutModal';
 import { Lock, CreditCard, LogOut, Loader2, RefreshCw } from 'lucide-react';
 
 export const PaywallScreen: React.FC = () => {
@@ -15,6 +16,7 @@ export const PaywallScreen: React.FC = () => {
   const refresh = useBillingStore((s) => s.refresh);
   const [renewing, setRenewing] = useState(false);
   const [error, setError] = useState('');
+  const [checkout, setCheckout] = useState<CheckoutInfo | null>(null);
 
   const trialExpired = data?.status === 'TRIAL';
   const message = trialExpired ? t.paywallTrialEnded : t.paywallPastDue;
@@ -24,13 +26,19 @@ export const PaywallScreen: React.FC = () => {
     setRenewing(true);
     setError('');
     try {
-      await api.post('/billing/renew');
-      await refresh();
+      // Payment-driven flow: Checkout → Payment Provider → Webhook → ACTIVE.
+      const res = await api.post('/billing/checkout', {});
+      setCheckout(res.data.data as CheckoutInfo);
     } catch {
       setError(t.renewFailed);
     } finally {
       setRenewing(false);
     }
+  };
+
+  const handleProcessed = async () => {
+    setCheckout(null);
+    await refresh();
   };
 
   return (
@@ -90,6 +98,8 @@ export const PaywallScreen: React.FC = () => {
           </button>
         </div>
       </div>
+
+      <CheckoutModal checkout={checkout} onClose={() => setCheckout(null)} onProcessed={handleProcessed} />
     </div>
   );
 };

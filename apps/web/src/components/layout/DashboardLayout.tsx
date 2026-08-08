@@ -1,10 +1,13 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
-import { useLanguageStore } from '../../stores/languageStore';
+import { useLanguageStore, translate } from '../../stores/languageStore';
 import { useSettingsStore } from '../../stores/settingsStore';
+import { useBillingStore } from '../../stores/billingStore';
+import { useNotificationsStore } from '../../stores/notificationsStore';
 import { apiLogout } from '../../lib/api';
 import { LanguageSwitcher } from '../common/LanguageSwitcher';
+import { NotificationBell } from './NotificationBell';
 import {
   Package,
   FolderTree,
@@ -17,7 +20,9 @@ import {
   Store,
   Contact,
   HandCoins,
-  ShieldCheck
+  ShieldCheck,
+  AlertTriangle,
+  X
 } from 'lucide-react';
 
 export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -27,10 +32,51 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
   const { t } = useLanguageStore();
   const trackInventory = useSettingsStore((s) => s.settings?.trackInventory);
   const loadSettings = useSettingsStore((s) => s.load);
+  const billingData = useBillingStore((s) => s.data);
+  const refreshBilling = useBillingStore((s) => s.refresh);
+  const resetNotifications = useNotificationsStore((s) => s.reset);
 
   useEffect(() => {
     if (trackInventory === undefined) loadSettings();
   }, [trackInventory, loadSettings]);
+
+  useEffect(() => {
+    if (!billingData) refreshBilling();
+  }, [billingData, refreshBilling]);
+
+  // Dismissible "plan expiring soon" banner (7-day window), keyed to the current
+  // period end so it reappears after renewal with a new date.
+  const [dismissed, setDismissed] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem('casheer:expiry-banner-dismissed');
+    } catch {
+      return null;
+    }
+  });
+
+  const periodEnd = billingData?.periodEnd ?? null;
+  const status = billingData?.status ?? null;
+  const daysLeft = periodEnd
+    ? Math.ceil((new Date(periodEnd).getTime() - Date.now()) / 86400000)
+    : Infinity;
+  const showExpiryBanner =
+    !!periodEnd &&
+    (status === 'TRIAL' || status === 'ACTIVE') &&
+    daysLeft <= 7 &&
+    dismissed !== periodEnd;
+  const expiryDate = periodEnd
+    ? new Date(periodEnd).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
+    : '';
+  const isTrialBanner = status === 'TRIAL';
+
+  const dismissBanner = () => {
+    try {
+      localStorage.setItem('casheer:expiry-banner-dismissed', periodEnd ?? '');
+    } catch {
+      // Ignore storage errors (private mode etc.).
+    }
+    setDismissed(periodEnd);
+  };
 
   const navItems = [
     { label: t.posTerminal, path: '/pos', icon: Store },
@@ -107,6 +153,7 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
             </div>
             <button
               onClick={() => {
+                resetNotifications();
                 apiLogout();
                 navigate('/login');
               }}
@@ -123,8 +170,43 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
       <main className="flex-1 flex flex-col min-w-0 overflow-y-auto">
         <header className="bg-white border-b border-slate-200/80 px-8 py-3.5 flex items-center justify-between shadow-xs">
           <span className="text-xs font-extrabold text-slate-500 tracking-wider">{t.enterprisePosHeader}</span>
-          <LanguageSwitcher />
+          <div className="flex items-center gap-2">
+            <NotificationBell />
+            <LanguageSwitcher />
+          </div>
         </header>
+        {showExpiryBanner && (
+          <div className="bg-gradient-to-r from-amber-50 to-orange-50 border-b border-amber-200/80 px-8 py-3 flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3 min-w-0">
+              <span className="shrink-0 w-9 h-9 rounded-xl bg-amber-100 text-amber-600 flex items-center justify-center">
+                <AlertTriangle className="w-4.5 h-4.5" />
+              </span>
+              <div className="min-w-0">
+                <p className="text-xs font-extrabold text-amber-900">
+                  {isTrialBanner ? t.bannerTrialExpiringTitle : t.bannerPlanExpiringTitle}
+                </p>
+                <p className="text-[11px] font-medium text-amber-700 truncate">
+                  {translate(isTrialBanner ? t.bannerTrialExpiringDesc : t.bannerPlanExpiringDesc, { date: expiryDate })}
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <button
+                onClick={() => navigate('/dashboard/settings')}
+                className="text-[11px] font-extrabold bg-amber-500 hover:bg-amber-600 text-white px-3.5 py-2 rounded-xl transition-colors shadow-sm"
+              >
+                {t.bannerRenew}
+              </button>
+              <button
+                onClick={dismissBanner}
+                className="p-2 text-amber-500 hover:text-amber-700 hover:bg-amber-100 rounded-xl transition-colors"
+                title={t.bannerDismiss}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
         <div className="p-8 flex-1">{children}</div>
       </main>
     </div>

@@ -32,6 +32,7 @@ model Tenant {
   notifications   Notification[]
   subscription    Subscription?
   customerPayments CustomerPayment[]
+  subscriptionPayments SubscriptionPayment[]
   zatcaCredentials ZatcaCredential[]
   invoiceSubmissions InvoiceSubmission[]
 
@@ -58,6 +59,35 @@ model Subscription {
   tenant Tenant @relation(fields: [tenantId], references: [id])
 
   @@map("subscriptions")
+}
+
+// ─────────────────────────────────────────────
+// SUBSCRIPTION PAYMENTS (checkout ledger)
+// ─────────────────────────────────────────────
+model SubscriptionPayment {
+  id            String   @id @default(uuid())
+  tenantId      String
+  subscriptionId String?
+  plan          String
+  amount        Decimal  @db.Decimal(10, 2)
+  currency      String   @default("USD")
+  mode          String   @default("sandbox") // sandbox | live
+  provider      String   @default("sandbox") // sandbox | paytabs | moyasar | stripe
+  status        String   @default("PENDING") // PENDING | PAID | FAILED | CANCELED
+  providerRef   String?
+  checkoutUrl   String?
+  customerEmail String?
+  metadata      Json?
+  paidAt        DateTime?
+  expiresAt     DateTime?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tenant Tenant @relation(fields: [tenantId], references: [id])
+
+  @@index([tenantId, status])
+  @@index([provider, providerRef])
+  @@map("subscription_payments")
 }
 
 // ─────────────────────────────────────────────

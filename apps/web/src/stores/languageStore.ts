@@ -607,6 +607,29 @@ export interface Translations {
   renewSuccess: string;
   renewFailed: string;
 
+  // Checkout / payment flow
+  checkoutTitle: string;
+  checkoutDesc: string;
+  checkoutPlanLabel: string;
+  checkoutAmount: string;
+  checkoutProvider: string;
+  checkoutMode: string;
+  checkoutSandboxBadge: string;
+  checkoutSandboxNote: string;
+  checkoutApprove: string;
+  checkoutDecline: string;
+  checkoutProcessing: string;
+  checkoutStarting: string;
+  checkoutSuccess: string;
+  checkoutFailed: string;
+  checkoutCancelled: string;
+  paymentHistory: string;
+  paymentHistoryEmpty: string;
+  paymentStatusPaid: string;
+  paymentStatusPending: string;
+  paymentStatusFailed: string;
+  paymentStatusCanceled: string;
+
   // ZATCA e-Invoicing
   zatcaNav: string;
   zatcaTitle: string;
@@ -735,6 +758,24 @@ export interface Translations {
   debtsSettlementsDesc: string;
   settlementsCount: string;
   settlementsTotal: string;
+
+  // Notifications
+  notificationsTitle: string;
+  notificationsEmpty: string;
+  markAllRead: string;
+  notificationsUnread: string;
+  notifTrialExpiringTitle: string;
+  notifTrialExpiringBody: string;
+  notifSubscriptionExpiringTitle: string;
+  notifSubscriptionExpiringBody: string;
+  notifExpiredTitle: string;
+  notifExpiredBody: string;
+  bannerTrialExpiringTitle: string;
+  bannerTrialExpiringDesc: string;
+  bannerPlanExpiringTitle: string;
+  bannerPlanExpiringDesc: string;
+  bannerRenew: string;
+  bannerDismiss: string;
 }
 
 export function translate(
@@ -1353,6 +1394,29 @@ const translations: Record<Language, Translations> = {
     renewSuccess: 'تم تجديد الاشتراك بنجاح',
     renewFailed: 'فشل التجديد، حاول مرة أخرى',
 
+    // Checkout / payment flow
+    checkoutTitle: 'إتمام الدفع',
+    checkoutDesc: 'راجع تفاصيل العملية ثم أكد الدفع لتفعيل اشتراكك.',
+    checkoutPlanLabel: 'الباقة',
+    checkoutAmount: 'المبلغ',
+    checkoutProvider: 'مزوّد الدفع',
+    checkoutMode: 'الوضع',
+    checkoutSandboxBadge: 'تجريبي (Sandbox)',
+    checkoutSandboxNote: 'أنت في وضع الاختبار: لا يتم خصم أي مبلغ حقيقي. اضغط "موافقة" لمحاكاة نجاح الدفع.',
+    checkoutApprove: 'موافقة (محاكاة نجاح)',
+    checkoutDecline: 'رفض (محاكاة فشل)',
+    checkoutProcessing: 'جاري معالجة الدفع...',
+    checkoutStarting: 'جاري إنشاء جلسة الدفع...',
+    checkoutSuccess: 'تم الدفع وتفعيل الاشتراك بنجاح',
+    checkoutFailed: 'فشل الدفع، حاول مرة أخرى',
+    checkoutCancelled: 'تم إلغاء الدفع',
+    paymentHistory: 'سجل المدفوعات',
+    paymentHistoryEmpty: 'لا توجد مدفوعات بعد',
+    paymentStatusPaid: 'مدفوع',
+    paymentStatusPending: 'قيد الانتظار',
+    paymentStatusFailed: 'فشل',
+    paymentStatusCanceled: 'ملغي',
+
     // ZATCA e-Invoicing
     zatcaNav: 'الفاتورة الإلكترونية (زاتكا)',
     zatcaTitle: 'الفاتورة الإلكترونية (زاتكا)',
@@ -1481,6 +1545,24 @@ const translations: Record<Language, Translations> = {
     debtsSettlementsDesc: 'الدفعات المسجلة ضد ديون العملاء خلال الفترة',
     settlementsCount: 'عدد الدفعات',
     settlementsTotal: 'إجمالي التحصيلات',
+
+    // Notifications
+    notificationsTitle: 'الإشعارات',
+    notificationsEmpty: 'لا توجد إشعارات',
+    markAllRead: 'تعليم الكل كمقروء',
+    notificationsUnread: '{count} غير مقروء',
+    notifTrialExpiringTitle: 'تنتهي الفترة التجريبية قريبًا',
+    notifTrialExpiringBody: 'تنتهي الفترة التجريبية في {date}. اختر باقة لتجنب انقطاع الخدمة.',
+    notifSubscriptionExpiringTitle: 'استحقاق التجديد قريبًا',
+    notifSubscriptionExpiringBody: 'يتم تجديد اشتراكك في باقة {plan} بتاريخ {date}.',
+    notifExpiredTitle: 'انتهى الاشتراك',
+    notifExpiredBody: 'تم تعليق الوصول إلى النظام. جدّد الآن للمتابعة.',
+    bannerTrialExpiringTitle: 'اقتربت نهاية الفترة التجريبية',
+    bannerTrialExpiringDesc: 'تنتهي الفترة التجريبية في {date}. اختر باقة لمواصلة استخدام النظام.',
+    bannerPlanExpiringTitle: 'اقترب موعد انتهاء باقتك',
+    bannerPlanExpiringDesc: 'سيتم التجديد بتاريخ {date}. جدّد الآن لتجنب انقطاع الخدمة.',
+    bannerRenew: 'جدّد الآن',
+    bannerDismiss: 'إخفاء',
   },
   en: {
     // Navigation & Common
@@ -2090,6 +2172,29 @@ const translations: Record<Language, Translations> = {
     renewSuccess: 'Subscription renewed successfully',
     renewFailed: 'Renewal failed, please try again',
 
+    // Checkout / payment flow
+    checkoutTitle: 'Checkout',
+    checkoutDesc: 'Review the payment details and approve to activate your subscription.',
+    checkoutPlanLabel: 'Plan',
+    checkoutAmount: 'Amount',
+    checkoutProvider: 'Payment provider',
+    checkoutMode: 'Mode',
+    checkoutSandboxBadge: 'Sandbox',
+    checkoutSandboxNote: 'You are in sandbox mode: no real payment is charged. Press "Approve" to simulate a successful payment.',
+    checkoutApprove: 'Approve (simulate success)',
+    checkoutDecline: 'Decline (simulate failure)',
+    checkoutProcessing: 'Processing payment...',
+    checkoutStarting: 'Creating checkout session...',
+    checkoutSuccess: 'Payment successful, subscription activated',
+    checkoutFailed: 'Payment failed, please try again',
+    checkoutCancelled: 'Payment cancelled',
+    paymentHistory: 'Payment history',
+    paymentHistoryEmpty: 'No payments yet',
+    paymentStatusPaid: 'Paid',
+    paymentStatusPending: 'Pending',
+    paymentStatusFailed: 'Failed',
+    paymentStatusCanceled: 'Cancelled',
+
     // ZATCA e-Invoicing
     zatcaNav: 'ZATCA e-Invoicing',
     zatcaTitle: 'ZATCA e-Invoicing',
@@ -2218,6 +2323,24 @@ const translations: Record<Language, Translations> = {
     debtsSettlementsDesc: 'Payments recorded against customer debts in the period',
     settlementsCount: 'Payments count',
     settlementsTotal: 'Total collected',
+
+    // Notifications
+    notificationsTitle: 'Notifications',
+    notificationsEmpty: 'No notifications',
+    markAllRead: 'Mark all as read',
+    notificationsUnread: '{count} unread',
+    notifTrialExpiringTitle: 'Your trial ends soon',
+    notifTrialExpiringBody: 'Your trial ends on {date}. Choose a plan to avoid interruption.',
+    notifSubscriptionExpiringTitle: 'Renewal due soon',
+    notifSubscriptionExpiringBody: 'Your {plan} subscription renews on {date}.',
+    notifExpiredTitle: 'Subscription ended',
+    notifExpiredBody: 'Your access has been suspended. Renew now to continue.',
+    bannerTrialExpiringTitle: 'Your trial is about to end',
+    bannerTrialExpiringDesc: 'Trial ends on {date}. Choose a plan to keep using the system.',
+    bannerPlanExpiringTitle: 'Your plan is about to expire',
+    bannerPlanExpiringDesc: 'It renews on {date}. Renew now to avoid service interruption.',
+    bannerRenew: 'Renew now',
+    bannerDismiss: 'Dismiss',
   },
 };
 

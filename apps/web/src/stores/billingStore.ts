@@ -23,19 +23,58 @@ export function isSubscriptionActive(data: BillingOverview): boolean {
   return true;
 }
 
+export interface CheckoutPayment {
+  id: string;
+  plan: string;
+  planName: string;
+  amount: number;
+  currency: string;
+  status: string;
+  provider: string;
+  mode: string;
+  sandbox: boolean;
+  checkoutUrl: string | null;
+  approveUrl: string | null;
+  declineUrl: string | null;
+}
+
+export interface CheckoutInfo {
+  payment: CheckoutPayment;
+}
+
+export interface PaymentRecord {
+  id: string;
+  plan: string;
+  amount: number;
+  currency: string;
+  mode: string;
+  provider: string;
+  status: string;
+  providerRef: string | null;
+  checkoutUrl: string | null;
+  paidAt: string | null;
+  createdAt: string;
+}
+
 interface BillingState {
   data: BillingOverview | null;
   loading: boolean;
   isActive: boolean;
+  payments: PaymentRecord[];
+  paymentsTotal: number;
   fetch: () => Promise<void>;
   refresh: () => Promise<void>;
   markInactive: () => void;
+  checkout: (plan?: string) => Promise<CheckoutInfo>;
+  fetchPayments: () => Promise<void>;
 }
 
 export const useBillingStore = create<BillingState>((set, get) => ({
   data: null,
   loading: false,
   isActive: true,
+  payments: [],
+  paymentsTotal: 0,
 
   fetch: async () => {
     if (get().data) return;
@@ -54,6 +93,21 @@ export const useBillingStore = create<BillingState>((set, get) => ({
   },
 
   markInactive: () => set({ isActive: false }),
+
+  checkout: async (plan?: string) => {
+    const res = await api.post('/billing/checkout', { plan });
+    return res.data.data as CheckoutInfo;
+  },
+
+  fetchPayments: async () => {
+    try {
+      const res = await api.get('/billing/payments');
+      const data = res.data.data as { items: PaymentRecord[]; total: number };
+      set({ payments: data.items, paymentsTotal: data.total });
+    } catch {
+      set({ payments: [], paymentsTotal: 0 });
+    }
+  },
 }));
 
 if (typeof window !== 'undefined') {

@@ -27,6 +27,9 @@ import { inventoryRouter } from './modules/inventory/inventory.router';
 import { debtsRouter } from './modules/debts/debts.router';
 import { heldOrdersRouter } from './modules/heldOrders/held-orders.router';
 import { zatcaRouter } from './modules/zatca/zatca.router';
+import { billingWebhookRouter } from './modules/billing/billing.webhook.router';
+import { notificationsRouter } from './modules/notifications/notifications.router';
+import { startNotificationScheduler } from './modules/notifications/notifications.service';
 
 const app = express();
 
@@ -38,6 +41,11 @@ app.use(
     credentials: true,
   })
 );
+
+// Payment gateway webhooks need the RAW body for signature verification, so the
+// router is mounted before the JSON body parser consumes the stream.
+app.use('/api/v1/billing/webhook', billingWebhookRouter);
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 app.use(cookieParser());
@@ -77,6 +85,7 @@ app.use('/api/v1/debts', debtsRouter);
 app.use('/api/v1/held-orders', heldOrdersRouter);
 app.use('/api/v1/zatca', zatcaRouter);
 app.use('/api/v1/saas', saasRouter);
+app.use('/api/v1/notifications', notificationsRouter);
 
 // Error Handling
 app.use(notFound);
@@ -85,6 +94,7 @@ app.use(errorHandler);
 async function start() {
   try {
     await connectDB();
+    startNotificationScheduler();
     app.listen(env.PORT, () => {
       console.log(`🚀 KodaSoft-POS API server running on http://localhost:${env.PORT}`);
     });

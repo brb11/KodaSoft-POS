@@ -2,8 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { api } from '../../lib/api';
 import { useLanguageStore } from '../../stores/languageStore';
 import { useAuthStore } from '../../stores/authStore';
-import { useBillingStore } from '../../stores/billingStore';
+import { useBillingStore, type CheckoutInfo, type PaymentRecord } from '../../stores/billingStore';
 import { useSettingsStore } from '../../stores/settingsStore';
+import { CheckoutModal } from '../../components/billing/CheckoutModal';
 import {
   Settings,
   Store,
@@ -15,6 +16,7 @@ import {
   Loader2,
   Crown,
   AlertTriangle,
+  History,
 } from 'lucide-react';
 
 interface BillingOverview {
@@ -47,6 +49,9 @@ export const SettingsPage: React.FC = () => {
   const [renewing, setRenewing] = useState(false);
   const [planMsg, setPlanMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
+  const [checkout, setCheckout] = useState<CheckoutInfo | null>(null);
+  const [payments, setPayments] = useState<PaymentRecord[]>([]);
+
   const { t, language } = useLanguageStore();
   const user = useAuthStore((s) => s.user);
 
@@ -64,6 +69,11 @@ export const SettingsPage: React.FC = () => {
       .then((res) => setBilling(res.data.data))
       .catch(() => setPlanMsg({ ok: false, text: t.planChangeFailed }))
       .finally(() => setLoadingBilling(false));
+
+    api
+      .get('/billing/payments')
+      .then((res) => setPayments(res.data.data.items))
+      .catch(() => setPayments([]));
   }, []);
 
   const saveSettings = async (e: React.FormEvent) => {
@@ -87,10 +97,9 @@ export const SettingsPage: React.FC = () => {
     setChanging(planKey);
     setPlanMsg(null);
     try {
-      const res = await api.put('/billing/plan', { plan: planKey });
-      setBilling(res.data.data);
-      await useBillingStore.getState().refresh();
-      setPlanMsg({ ok: true, text: t.planChangeSuccess });
+      // Payment-driven flow: Checkout → Payment Provider → Webhook → ACTIVE.
+      const res = await api.post('/billing/checkout', { plan: planKey });
+      setCheckout(res.data.data as CheckoutInfo);
     } catch (err: any) {
       setPlanMsg({ ok: false, text: err.response?.data?.message || t.planChangeFailed });
     } finally {
@@ -102,14 +111,29 @@ export const SettingsPage: React.FC = () => {
     setRenewing(true);
     setPlanMsg(null);
     try {
-      const res = await api.post('/billing/renew');
-      setBilling(res.data.data);
-      await useBillingStore.getState().refresh();
-      setPlanMsg({ ok: true, text: t.renewSuccess });
+      // Renew runs the same checkout flow (no plan = keep the current plan).
+      const res = await api.post('/billing/checkout', {});
+      setCheckout(res.data.data as CheckoutInfo);
     } catch {
       setPlanMsg({ ok: false, text: t.renewFailed });
     } finally {
       setRenewing(false);
+    }
+  };
+
+  const handleCheckoutProcessed = async () => {
+    setCheckout(null);
+    try {
+      const [plan, pay] = await Promise.all([
+        api.get('/billing/plan'),
+        api.get('/billing/payments'),
+      ]);
+      setBilling(plan.data.data);
+      setPayments(pay.data.data.items);
+      await useBillingStore.getState().refresh();
+      setPlanMsg({ ok: true, text: t.checkoutSuccess });
+    } catch {
+      setPlanMsg({ ok: false, text: t.checkoutFailed });
     }
   };
 
@@ -131,6 +155,25 @@ export const SettingsPage: React.FC = () => {
       default: return status;
     }
   };
+
+  const paymentStatusLabel = (status: string) => {
+    switch (status) {
+      case 'PAID': return t.paymentStatusPaid;
+      case 'PENDING': return t.paymentStatusPending;
+      case 'FAILED': return t.paymentStatusFailed;
+      case 'CANCELED': return t.paymentStatusCanceled;
+      default: return status;
+    }
+  };
+
+  const paymentStatusColor = (status: string) =>
+    status === 'PAID'
+      ? 'bg-emerald-100 text-emerald-700'
+      : status === 'PENDING'
+      ? 'bg-cyan-100 text-cyan-700'
+      : status === 'FAILED'
+      ? 'bg-rose-100 text-rose-700'
+      : 'bg-slate-100 text-slate-600';
 
   const formatDate = (d: string | null) =>
     d
@@ -423,8 +466,58 @@ export const SettingsPage: React.FC = () => {
               </div>
             </div>
           )}
+
+          {/* Payment history */}
+          {billing && (
+            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6">
+              <div className="flex items-center gap-2.5 mb-4">
+                <div className="w-9 h-9 rounded-xl bg-slate-50 text-slate-600 flex items-center justify-center border border-slate-200">
+                  <History className="w-4.5 h-4.5" />
+                </div>
+                <div>
+                  <h3 className="text-xs font-extrabold text-slate-900">{t.paymentHistory}</h3>
+                  <p className="text-[10px] text-slate-400 font-semibold">{t.planBillingDesc}</p>
+                </div>
+              </div>
+
+              {payments.length === 0 ? (
+                <p className="text-xs font-semibold text-slate-400 py-4 text-center">{t.paymentHistoryEmpty}</p>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left">
+                    <thead>
+                      <tr className="text-[10px] uppercase tracking-wider text-slate-400 font-bold border-b border-slate-100">
+                        <th className="py-2 pr-3">{t.checkoutPlanLabel}</th>
+                        <th className="py-2 pr-3">{t.checkoutAmount}</th>
+                        <th className="py-2 pr-3">{t.checkoutProvider}</th>
+                        <th className="py-2 pr-3">{t.status}</th>
+                        <th className="py-2">{t.exportedOn}</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-50">
+                      {payments.map((p) => (
+                        <tr key={p.id}>
+                          <td className="py-2.5 pr-3 text-xs font-bold text-slate-800">{planLabel(p.plan)}</td>
+                          <td className="py-2.5 pr-3 text-xs font-extrabold text-slate-800">{formatMoney(p.amount)}</td>
+                          <td className="py-2.5 pr-3 text-xs font-semibold text-slate-500">{p.provider}</td>
+                          <td className="py-2.5 pr-3">
+                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${paymentStatusColor(p.status)}`}>
+                              {paymentStatusLabel(p.status)}
+                            </span>
+                          </td>
+                          <td className="py-2.5 text-xs text-slate-500">{formatDate(p.createdAt)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       </div>
+
+      <CheckoutModal checkout={checkout} onClose={() => setCheckout(null)} onProcessed={handleCheckoutProcessed} />
     </div>
   );
 };
