@@ -1,6 +1,6 @@
 import { prisma } from '../../lib/prisma';
 import { AppError } from '../../middleware/error.middleware';
-import { PLANS, getPlan, PLAN_FEATURE_LABELS } from './plans';
+import { PLANS, getPlan, PLAN_FEATURE_LABELS, BillingCycle } from './plans';
 import {
   getPaymentProvider,
   getPaymentProviderName,
@@ -41,6 +41,7 @@ export async function getBillingOverview(tenantId: string) {
     trialStarted: tenant.subscription?.trialStarted ?? null,
     periodEnd: tenant.subscription?.periodEnd ?? null,
     autoRenew: tenant.subscription?.autoRenew ?? true,
+    billingCycle: (tenant.subscription?.billingCycle as BillingCycle) ?? 'monthly',
     limits: plan.limits,
     usage: { users, branches, products },
     features: Object.entries(plan.features)
@@ -60,11 +61,18 @@ export async function getBillingOverview(tenantId: string) {
   };
 }
 
-const PERIOD_DAYS = 30;
 const CHECKOUT_TTL_MS = 60 * 60 * 1000; // 1 hour to complete payment
 
-function nextPeriodEnd(): Date {
-  return new Date(Date.now() + PERIOD_DAYS * 24 * 60 * 60 * 1000);
+export function periodDays(cycle: BillingCycle): number {
+  return cycle === 'yearly' ? 365 : 30;
+}
+
+function nextPeriodEnd(cycle: BillingCycle = 'monthly'): Date {
+  return new Date(Date.now() + periodDays(cycle) * 24 * 60 * 60 * 1000);
+}
+
+export function isBillingCycle(value: string | undefined | null): value is BillingCycle {
+  return value === 'monthly' || value === 'yearly';
 }
 
 export async function assertDowngradeSafe(tenantId: string, planKey: string): Promise<void> {
@@ -88,9 +96,10 @@ export async function assertDowngradeSafe(tenantId: string, planKey: string): Pr
   }
 }
 
-export async function changePlan(tenantId: string, planKey: string) {
+export async function changePlan(tenantId: string, planKey: string, billingCycle?: BillingCycle) {
   const target = getPlan(planKey);
   await assertDowngradeSafe(tenantId, planKey);
+  const cycle = billingCycle ?? 'monthly';
 
   await prisma.$transaction(async (tx) => {
     const sub = await tx.subscription.findUnique({ where: { tenantId } });
@@ -101,17 +110,19 @@ export async function changePlan(tenantId: string, planKey: string) {
       where: { tenantId },
       update: {
         plan: target.key,
+        billingCycle: cycle,
         ...(inactive
-          ? { status: 'ACTIVE', periodStart: new Date(), periodEnd: nextPeriodEnd(), autoRenew: true }
+          ? { status: 'ACTIVE', periodStart: new Date(), periodEnd: nextPeriodEnd(cycle), autoRenew: true }
           : {}),
       },
       create: {
         tenantId,
         plan: target.key,
         status: 'ACTIVE',
+        billingCycle: cycle,
         trialStarted: new Date(),
         periodStart: new Date(),
-        periodEnd: nextPeriodEnd(),
+        periodEnd: nextPeriodEnd(cycle),
         autoRenew: true,
       },
     });
@@ -127,6 +138,8 @@ export async function changePlan(tenantId: string, planKey: string) {
 export interface CheckoutOptions {
   /** Target plan key. Omitted = pay/renew the current plan. */
   plan?: string;
+  /** Billing cycle for the payment. Defaults to the subscription's current cycle. */
+  billingCycle?: BillingCycle;
 }
 
 async function resolveOwnerEmail(tenantId: string): Promise<string | null> {
@@ -151,6 +164,8 @@ export async function createCheckout(tenantId: string, opts: CheckoutOptions = {
   const currentPlan = tenant.plan ?? tenant.subscription?.plan ?? 'starter';
   const targetPlanKey = opts.plan ?? currentPlan;
   const target = getPlan(targetPlanKey);
+  const billingCycle: BillingCycle =
+    opts.billingCycle ?? (isBillingCycle(tenant.subscription?.billingCycle) ? tenant.subscription!.billingCycle : 'monthly');
 
   // If the customer explicitly picks a different plan, make sure a downgrade
   // won't strand them above the new limits — before any money is charged.
@@ -160,17 +175,19 @@ export async function createCheckout(tenantId: string, opts: CheckoutOptions = {
 
   const provider = getPaymentProvider();
   const customerEmail = await resolveOwnerEmail(tenantId);
+  const amount = billingCycle === 'yearly' ? target.priceYearly : target.priceMonthly;
 
   const payment = await prisma.subscriptionPayment.create({
     data: {
       tenantId,
       subscriptionId: tenant.subscription?.id,
       plan: target.key,
-      amount: target.priceMonthly,
+      amount,
       currency: target.currency,
       mode: isSandbox() ? 'sandbox' : 'live',
       provider: provider.name,
       status: 'PENDING',
+      billingCycle,
       customerEmail,
       expiresAt: new Date(Date.now() + CHECKOUT_TTL_MS),
     },
@@ -207,6 +224,7 @@ export async function createCheckout(tenantId: string, opts: CheckoutOptions = {
       status: 'PENDING',
       provider: provider.name,
       mode: isSandbox() ? 'sandbox' : 'live',
+      billingCycle,
       sandbox: isSandbox(),
       checkoutUrl: checkout.checkoutUrl ?? null,
       approveUrl: isSandbox() ? `/api/v1/billing/checkout/${payment.id}/sandbox/approve` : null,
@@ -230,6 +248,7 @@ export async function activateFromPayment(paymentId: string): Promise<ReturnType
   }
 
   const now = new Date();
+  const cycle: BillingCycle = isBillingCycle(payment.billingCycle) ? payment.billingCycle : 'monthly';
   await prisma.$transaction(async (tx) => {
     const sub = await tx.subscription.findUnique({ where: { tenantId: payment.tenantId } });
 
@@ -240,8 +259,9 @@ export async function activateFromPayment(paymentId: string): Promise<ReturnType
         plan: payment.plan,
         status: 'ACTIVE',
         periodStart: now,
-        periodEnd: nextPeriodEnd(),
+        periodEnd: nextPeriodEnd(cycle),
         autoRenew: true,
+        billingCycle: cycle,
         provider: payment.provider,
         providerRef: payment.providerRef,
       },
@@ -251,8 +271,9 @@ export async function activateFromPayment(paymentId: string): Promise<ReturnType
         status: 'ACTIVE',
         trialStarted: now,
         periodStart: now,
-        periodEnd: nextPeriodEnd(),
+        periodEnd: nextPeriodEnd(cycle),
         autoRenew: true,
+        billingCycle: cycle,
         provider: payment.provider,
         providerRef: payment.providerRef,
       },
@@ -341,6 +362,7 @@ export async function listPayments(tenantId: string, page = 1, limit = 20) {
       mode: p.mode,
       provider: p.provider,
       status: p.status,
+      billingCycle: (p.billingCycle as BillingCycle) ?? 'monthly',
       providerRef: p.providerRef,
       checkoutUrl: p.checkoutUrl,
       paidAt: p.paidAt,
@@ -358,7 +380,7 @@ export async function listPayments(tenantId: string, page = 1, limit = 20) {
  * callers keep getting the billing overview (same shape as before). In live
  * mode the caller receives a checkout session to redirect the customer to.
  */
-export async function renewSubscription(tenantId: string) {
+export async function renewSubscription(tenantId: string, billingCycle?: BillingCycle) {
   const tenant = await prisma.tenant.findUnique({
     where: { id: tenantId },
     include: { subscription: true },
@@ -371,7 +393,9 @@ export async function renewSubscription(tenantId: string) {
   const inactive = !!sub && (sub.status === 'PAST_DUE' || sub.status === 'CANCELED' || trialExpired);
   if (!inactive) return getBillingOverview(tenantId);
 
-  const checkout = await createCheckout(tenantId, {});
+  const cycle: BillingCycle =
+    billingCycle ?? (isBillingCycle(sub?.billingCycle) ? sub!.billingCycle : 'monthly');
+  const checkout = await createCheckout(tenantId, { billingCycle: cycle });
   if (isSandbox()) {
     return sandboxApprove(tenantId, checkout.payment.id);
   }

@@ -23,6 +23,8 @@ export function isSubscriptionActive(data: BillingOverview): boolean {
   return true;
 }
 
+export type BillingCycle = 'monthly' | 'yearly';
+
 export interface CheckoutPayment {
   id: string;
   plan: string;
@@ -32,6 +34,7 @@ export interface CheckoutPayment {
   status: string;
   provider: string;
   mode: string;
+  billingCycle: BillingCycle;
   sandbox: boolean;
   checkoutUrl: string | null;
   approveUrl: string | null;
@@ -50,6 +53,7 @@ export interface PaymentRecord {
   mode: string;
   provider: string;
   status: string;
+  billingCycle: BillingCycle;
   providerRef: string | null;
   checkoutUrl: string | null;
   paidAt: string | null;
@@ -65,7 +69,8 @@ interface BillingState {
   fetch: () => Promise<void>;
   refresh: () => Promise<void>;
   markInactive: () => void;
-  checkout: (plan?: string) => Promise<CheckoutInfo>;
+  checkout: (plan?: string, billingCycle?: BillingCycle) => Promise<CheckoutInfo>;
+  renew: (billingCycle?: BillingCycle) => Promise<CheckoutInfo>;
   fetchPayments: () => Promise<void>;
 }
 
@@ -94,8 +99,13 @@ export const useBillingStore = create<BillingState>((set, get) => ({
 
   markInactive: () => set({ isActive: false }),
 
-  checkout: async (plan?: string) => {
-    const res = await api.post('/billing/checkout', { plan });
+  checkout: async (plan?: string, billingCycle?: BillingCycle) => {
+    const res = await api.post('/billing/checkout', { plan, billingCycle });
+    return res.data.data as CheckoutInfo;
+  },
+
+  renew: async (billingCycle?: BillingCycle) => {
+    const res = await api.post('/billing/renew', { billingCycle });
     return res.data.data as CheckoutInfo;
   },
 

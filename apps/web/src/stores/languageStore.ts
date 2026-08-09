@@ -776,6 +776,13 @@ export interface Translations {
   bannerPlanExpiringDesc: string;
   bannerRenew: string;
   bannerDismiss: string;
+
+  // Billing cycle
+  billingCycleLabel: string;
+  billingMonthly: string;
+  billingYearly: string;
+  saasPerYear: string;
+  yearlySaveNote: string;
 }
 
 export function translate(
@@ -1563,6 +1570,13 @@ const translations: Record<Language, Translations> = {
     bannerPlanExpiringDesc: 'سيتم التجديد بتاريخ {date}. جدّد الآن لتجنب انقطاع الخدمة.',
     bannerRenew: 'جدّد الآن',
     bannerDismiss: 'إخفاء',
+
+    // Billing cycle
+    billingCycleLabel: 'دورة الفوترة',
+    billingMonthly: 'شهري',
+    billingYearly: 'سنوي',
+    saasPerYear: 'سنوياً',
+    yearlySaveNote: 'وفّر شهرين',
   },
   en: {
     // Navigation & Common
@@ -2341,6 +2355,13 @@ const translations: Record<Language, Translations> = {
     bannerPlanExpiringDesc: 'It renews on {date}. Renew now to avoid service interruption.',
     bannerRenew: 'Renew now',
     bannerDismiss: 'Dismiss',
+
+    // Billing cycle
+    billingCycleLabel: 'Billing cycle',
+    billingMonthly: 'Monthly',
+    billingYearly: 'Yearly',
+    saasPerYear: 'per year',
+    yearlySaveNote: 'Save 2 months',
   },
 };
 

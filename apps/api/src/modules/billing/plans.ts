@@ -1,6 +1,8 @@
 import { prisma } from '../../lib/prisma';
 import { AppError } from '../../middleware/error.middleware';
 
+export type BillingCycle = 'monthly' | 'yearly';
+
 export interface PlanLimits {
   branches: number;
   users: number;
@@ -28,9 +30,9 @@ export const PLANS: Plan[] = [
   {
     key: 'starter',
     name: 'Starter',
-    priceMonthly: 29,
-    priceYearly: 290,
-    currency: 'USD',
+    priceMonthly: 99,
+    priceYearly: 990,
+    currency: 'SAR',
     trialDays: 14,
     limits: { branches: 1, users: 5, products: 500 },
     features: { offline: false, advancedReports: false, multiBranch: false, zatca: true, customerDebts: false },
@@ -38,9 +40,9 @@ export const PLANS: Plan[] = [
   {
     key: 'pro',
     name: 'Professional',
-    priceMonthly: 79,
-    priceYearly: 790,
-    currency: 'USD',
+    priceMonthly: 199,
+    priceYearly: 1990,
+    currency: 'SAR',
     trialDays: 14,
     limits: { branches: 3, users: 20, products: 5000 },
     features: { offline: true, advancedReports: true, multiBranch: true, zatca: true, customerDebts: true },
@@ -48,9 +50,9 @@ export const PLANS: Plan[] = [
   {
     key: 'enterprise',
     name: 'Enterprise',
-    priceMonthly: 199,
-    priceYearly: 1990,
-    currency: 'USD',
+    priceMonthly: 499,
+    priceYearly: 4990,
+    currency: 'SAR',
     trialDays: 14,
     limits: { branches: -1, users: -1, products: -1 },
     features: { offline: true, advancedReports: true, multiBranch: true, zatca: true, customerDebts: true },

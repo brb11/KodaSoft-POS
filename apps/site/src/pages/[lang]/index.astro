@@ -1,6 +1,7 @@
 ---
 import SiteLayout from '../../layouts/SiteLayout.astro';
 import PricingCard from '../../components/PricingCard.astro';
+import PricingToggle from '../../components/PricingToggle.astro';
 import Icon from '../../components/Icon.astro';
 import { t, locales, type Locale } from '../../lib/i18n';
 import { APP_URL } from '../../lib/app';
@@ -124,7 +125,11 @@ const faqs = [
         <p class="mx-auto mt-3 max-w-xl text-sm leading-relaxed text-slate-400 sm:text-base">{t(lang, 'pricingSubtitle')}</p>
       </div>
 
-      <div class="mt-14 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+      <div class="mt-12 flex justify-center">
+        <PricingToggle lang={lang} dark />
+      </div>
+
+      <div class="mt-10 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
         {plans.map((plan) => <PricingCard plan={plan} lang={lang} />)}
       </div>
     </div>
@@ -170,3 +175,8 @@ const faqs = [
     </div>
   </section>
 </SiteLayout>
+
+<script>
+  import { initPricingToggle } from '../../scripts/pricingToggle';
+  initPricingToggle();
+</script>

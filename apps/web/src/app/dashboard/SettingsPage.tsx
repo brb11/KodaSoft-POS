@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { api } from '../../lib/api';
 import { useLanguageStore } from '../../stores/languageStore';
 import { useAuthStore } from '../../stores/authStore';
-import { useBillingStore, type CheckoutInfo, type PaymentRecord } from '../../stores/billingStore';
+import { useBillingStore, type CheckoutInfo, type PaymentRecord, type BillingCycle } from '../../stores/billingStore';
 import { useSettingsStore } from '../../stores/settingsStore';
 import { CheckoutModal } from '../../components/billing/CheckoutModal';
 import {
@@ -32,6 +32,7 @@ interface BillingOverview {
   limits: { users: number; branches: number; products: number };
   usage: { users: number; branches: number; products: number };
   features: string[];
+  billingCycle: BillingCycle;
   plans: { key: string; name: string; priceMonthly: number; priceYearly: number; trialDays: number }[];
 }
 
@@ -51,6 +52,7 @@ export const SettingsPage: React.FC = () => {
 
   const [checkout, setCheckout] = useState<CheckoutInfo | null>(null);
   const [payments, setPayments] = useState<PaymentRecord[]>([]);
+  const [cycle, setCycle] = useState<BillingCycle>('monthly');
 
   const { t, language } = useLanguageStore();
   const user = useAuthStore((s) => s.user);
@@ -66,7 +68,11 @@ export const SettingsPage: React.FC = () => {
   useEffect(() => {
     api
       .get('/billing/plan')
-      .then((res) => setBilling(res.data.data))
+      .then((res) => {
+        const data = res.data.data;
+        setBilling(data);
+        if (data?.billingCycle) setCycle(data.billingCycle);
+      })
       .catch(() => setPlanMsg({ ok: false, text: t.planChangeFailed }))
       .finally(() => setLoadingBilling(false));
 
@@ -98,7 +104,7 @@ export const SettingsPage: React.FC = () => {
     setPlanMsg(null);
     try {
       // Payment-driven flow: Checkout → Payment Provider → Webhook → ACTIVE.
-      const res = await api.post('/billing/checkout', { plan: planKey });
+      const res = await api.post('/billing/checkout', { plan: planKey, billingCycle: cycle });
       setCheckout(res.data.data as CheckoutInfo);
     } catch (err: any) {
       setPlanMsg({ ok: false, text: err.response?.data?.message || t.planChangeFailed });
@@ -112,7 +118,7 @@ export const SettingsPage: React.FC = () => {
     setPlanMsg(null);
     try {
       // Renew runs the same checkout flow (no plan = keep the current plan).
-      const res = await api.post('/billing/checkout', {});
+      const res = await api.post('/billing/renew', { billingCycle: cycle });
       setCheckout(res.data.data as CheckoutInfo);
     } catch {
       setPlanMsg({ ok: false, text: t.renewFailed });
@@ -128,7 +134,9 @@ export const SettingsPage: React.FC = () => {
         api.get('/billing/plan'),
         api.get('/billing/payments'),
       ]);
-      setBilling(plan.data.data);
+      const data = plan.data.data;
+      setBilling(data);
+      if (data?.billingCycle) setCycle(data.billingCycle);
       setPayments(pay.data.data.items);
       await useBillingStore.getState().refresh();
       setPlanMsg({ ok: true, text: t.checkoutSuccess });
@@ -330,8 +338,8 @@ export const SettingsPage: React.FC = () => {
                       </div>
                     </div>
                     <div className="text-right">
-                      <p className="text-2xl font-extrabold">{formatMoney(billing.priceMonthly)}</p>
-                      <p className="text-[10px] text-indigo-200 font-bold">{t.saasPerMonth}</p>
+                      <p className="text-2xl font-extrabold">{formatMoney(billing.billingCycle === 'yearly' ? billing.priceYearly : billing.priceMonthly)}</p>
+                      <p className="text-[10px] text-indigo-200 font-bold">{billing.billingCycle === 'yearly' ? t.saasPerYear : t.saasPerMonth}</p>
                     </div>
                   </div>
                   <div className="mt-4 pt-4 border-t border-white/15 flex items-center justify-between text-xs font-semibold flex-wrap gap-2">
@@ -417,7 +425,31 @@ export const SettingsPage: React.FC = () => {
           {billing && (
             <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6">
               <h3 className="text-xs font-extrabold text-slate-900 mb-1">{t.changePlan}</h3>
-              <p className="text-[11px] text-slate-400 font-semibold mb-5">{t.choosePlanDesc}</p>
+              <p className="text-[11px] text-slate-400 font-semibold mb-4">{t.choosePlanDesc}</p>
+
+              <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100 w-fit mb-5">
+                <button
+                  type="button"
+                  onClick={() => setCycle('monthly')}
+                  className={`px-4 py-1.5 rounded-lg text-xs font-extrabold transition-all ${
+                    cycle === 'monthly' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  {t.billingMonthly}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCycle('yearly')}
+                  className={`px-4 py-1.5 rounded-lg text-xs font-extrabold transition-all flex items-center gap-1.5 ${
+                    cycle === 'yearly' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                  }`}
+                >
+                  {t.billingYearly}
+                  <span className="px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[9px] font-extrabold">
+                    {t.yearlySaveNote}
+                  </span>
+                </button>
+              </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {PLAN_ORDER.map((key) => {
@@ -445,8 +477,10 @@ export const SettingsPage: React.FC = () => {
                         )}
                       </div>
                       <p className="text-2xl font-extrabold text-slate-900">
-                        {formatMoney(plan.priceMonthly)}
-                        <span className="text-[11px] text-slate-400 font-bold">{t.saasPerMonth}</span>
+                        {formatMoney(cycle === 'yearly' ? plan.priceYearly : plan.priceMonthly)}
+                        <span className="text-[11px] text-slate-400 font-bold">
+                          {cycle === 'yearly' ? ` / ${t.saasPerYear}` : t.saasPerMonth}
+                        </span>
                       </p>
                       <button
                         onClick={() => changePlan(key)}
@@ -489,6 +523,7 @@ export const SettingsPage: React.FC = () => {
                       <tr className="text-[10px] uppercase tracking-wider text-slate-400 font-bold border-b border-slate-100">
                         <th className="py-2 pr-3">{t.checkoutPlanLabel}</th>
                         <th className="py-2 pr-3">{t.checkoutAmount}</th>
+                        <th className="py-2 pr-3">{t.billingCycleLabel}</th>
                         <th className="py-2 pr-3">{t.checkoutProvider}</th>
                         <th className="py-2 pr-3">{t.status}</th>
                         <th className="py-2">{t.exportedOn}</th>
@@ -499,6 +534,11 @@ export const SettingsPage: React.FC = () => {
                         <tr key={p.id}>
                           <td className="py-2.5 pr-3 text-xs font-bold text-slate-800">{planLabel(p.plan)}</td>
                           <td className="py-2.5 pr-3 text-xs font-extrabold text-slate-800">{formatMoney(p.amount)}</td>
+                          <td className="py-2.5 pr-3 text-xs font-semibold text-slate-500">
+                            <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-extrabold uppercase">
+                              {p.billingCycle === 'yearly' ? t.billingYearly : t.billingMonthly}
+                            </span>
+                          </td>
                           <td className="py-2.5 pr-3 text-xs font-semibold text-slate-500">{p.provider}</td>
                           <td className="py-2.5 pr-3">
                             <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${paymentStatusColor(p.status)}`}>

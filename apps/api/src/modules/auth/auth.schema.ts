@@ -14,6 +14,7 @@ export const signupSchema = z.object({
   branchName: z.string().min(1).optional(),
   branchAddress: z.string().optional(),
   plan: z.string().optional(),
+  billingCycle: z.enum(['monthly', 'yearly']).optional(),
 });
 
 export const pinLoginSchema = z.object({

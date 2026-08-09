@@ -4,11 +4,12 @@ import { useAuthStore } from '../../stores/authStore';
 import { useLanguageStore } from '../../stores/languageStore';
 import { api } from '../../lib/api';
 import { Store, Mail, Lock, User, Phone, ArrowRight, Building2, Sparkles, Zap, Crown, Check } from 'lucide-react';
+import type { BillingCycle } from '../../stores/billingStore';
 
 const SIGNUP_PLANS = [
-  { key: 'starter', price: 29, icon: Sparkles },
-  { key: 'pro', price: 79, icon: Zap },
-  { key: 'enterprise', price: 199, icon: Crown },
+  { key: 'starter', monthly: 99, yearly: 990, icon: Sparkles },
+  { key: 'pro', monthly: 199, yearly: 1990, icon: Zap },
+  { key: 'enterprise', monthly: 499, yearly: 4990, icon: Crown },
 ];
 
 export const RegisterPage: React.FC = () => {
@@ -19,6 +20,7 @@ export const RegisterPage: React.FC = () => {
   const [phone, setPhone] = useState('');
   const [branchName, setBranchName] = useState('');
   const [plan, setPlan] = useState('starter');
+  const [billingCycle, setBillingCycle] = useState<BillingCycle>('monthly');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -40,6 +42,7 @@ export const RegisterPage: React.FC = () => {
         phone: phone || undefined,
         branchName: branchName || undefined,
         plan,
+        billingCycle,
       });
       const { user, accessToken } = res.data.data;
       setAuth(user, accessToken);
@@ -181,6 +184,31 @@ export const RegisterPage: React.FC = () => {
               <span className="text-[10px] text-emerald-600 font-bold">{t.signupTrialNote}</span>
             </div>
             <p className="text-[11px] text-slate-400 font-semibold mb-2.5">{t.signupPlanDesc}</p>
+
+            <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100 w-fit mb-3">
+              <button
+                type="button"
+                onClick={() => setBillingCycle('monthly')}
+                className={`px-3 py-1 rounded-lg text-[11px] font-extrabold transition-all ${
+                  billingCycle === 'monthly' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                {t.billingMonthly}
+              </button>
+              <button
+                type="button"
+                onClick={() => setBillingCycle('yearly')}
+                className={`px-3 py-1 rounded-lg text-[11px] font-extrabold transition-all flex items-center gap-1 ${
+                  billingCycle === 'yearly' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                }`}
+              >
+                {t.billingYearly}
+                <span className="px-1 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[8px] font-extrabold">
+                  {t.yearlySaveNote}
+                </span>
+              </button>
+            </div>
+
             <div className="grid grid-cols-3 gap-2">
               {SIGNUP_PLANS.map((p) => {
                 const Icon = p.icon;
@@ -206,8 +234,10 @@ export const RegisterPage: React.FC = () => {
                       {p.key === 'starter' ? t.saasStarter : p.key === 'pro' ? t.saasPro : t.saasEnterprise}
                     </p>
                     <p className="text-sm font-extrabold text-slate-900">
-                      ${p.price}
-                      <span className="text-[9px] font-bold text-slate-400">{t.saasPerMonth}</span>
+                      {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'SAR', maximumFractionDigits: 0 }).format(billingCycle === 'yearly' ? p.yearly : p.monthly)}
+                      <span className="text-[9px] font-bold text-slate-400">
+                        {billingCycle === 'yearly' ? ` / ${t.saasPerYear}` : t.saasPerMonth}
+                      </span>
                     </p>
                   </button>
                 );

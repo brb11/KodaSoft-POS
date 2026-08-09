@@ -1,6 +1,7 @@
 ---
 import SiteLayout from '../../layouts/SiteLayout.astro';
 import PricingCard from '../../components/PricingCard.astro';
+import PricingToggle from '../../components/PricingToggle.astro';
 import Icon from '../../components/Icon.astro';
 import { t, locales, type Locale } from '../../lib/i18n';
 import { APP_URL } from '../../lib/app';
@@ -40,7 +41,12 @@ const featureTKeys: Record<string, string> = {
   </section>
 
   <section class="mx-auto max-w-7xl px-4 pb-20 sm:px-6 lg:px-8" dir={lang === 'ar' ? 'rtl' : 'ltr'}>
-    <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
+    <!-- Billing cycle toggle -->
+    <div class="pb-10">
+      <PricingToggle lang={lang} />
+    </div>
+
+    <div class="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
       {plans.map((plan) => <PricingCard plan={plan} lang={lang} />)}
     </div>
 
@@ -113,3 +119,8 @@ const featureTKeys: Record<string, string> = {
     </div>
   </section>
 </SiteLayout>
+
+<script>
+  import { initPricingToggle } from '../../scripts/pricingToggle';
+  initPricingToggle();
+</script>

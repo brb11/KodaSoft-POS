@@ -79,6 +79,7 @@ export async function signup(dto: SignupDto, req?: Request) {
   const planKey = dto.plan ?? 'starter';
   if (!PLANS.some((p) => p.key === planKey)) throw new AppError(422, 'Invalid plan selected');
   const plan = getPlan(planKey);
+  const billingCycle = dto.billingCycle ?? 'monthly';
   const periodEnd = new Date(Date.now() + plan.trialDays * 24 * 60 * 60 * 1000);
   const slug = await generateUniqueSlug(dto.storeName);
   const passwordHash = await bcrypt.hash(dto.password, 10);
@@ -110,6 +111,7 @@ export async function signup(dto: SignupDto, req?: Request) {
         trialStarted: new Date(),
         periodStart: new Date(),
         periodEnd,
+        billingCycle,
       },
     });
 
@@ -146,6 +148,7 @@ export async function signup(dto: SignupDto, req?: Request) {
       plan: plan.key,
       status: plan.trialDays > 0 ? 'TRIAL' : 'ACTIVE',
       periodEnd,
+      billingCycle,
     },
   };
 }

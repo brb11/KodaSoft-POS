@@ -1,0 +1,44 @@
+---
+import { t, type Locale } from '../lib/i18n';
+
+interface Props {
+  lang: Locale;
+  dark?: boolean;
+}
+
+const { lang, dark = false } = Astro.props;
+
+const track = dark
+  ? 'border-slate-700 bg-slate-800'
+  : 'border-slate-200 bg-white';
+const monthlyOn = 'bg-white text-slate-900 shadow-sm';
+const monthlyOff = dark ? 'text-slate-400 hover:text-slate-200' : 'text-slate-500 hover:text-slate-700';
+const yearlyOn = monthlyOn;
+const yearlyOff = monthlyOff;
+---
+
+<div class="flex justify-center" data-pricing-toggle>
+  <div class:list={['flex items-center gap-1 rounded-xl border p-1 shadow-sm', track]}>
+    <button
+      type="button"
+      data-cycle="monthly"
+      data-on={monthlyOn}
+      data-off={monthlyOff}
+      class:list={['rounded-lg px-4 py-1.5 text-sm font-extrabold transition-all', monthlyOn]}
+    >
+      {t(lang, 'billingMonthly')}
+    </button>
+    <button
+      type="button"
+      data-cycle="yearly"
+      data-on={yearlyOn}
+      data-off={yearlyOff}
+      class:list={['flex items-center gap-1.5 rounded-lg px-4 py-1.5 text-sm font-extrabold transition-all', yearlyOff]}
+    >
+      {t(lang, 'billingYearly')}
+      <span class="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-extrabold text-emerald-700">
+        {t(lang, 'saveYearly')}
+      </span>
+    </button>
+  </div>
+</div>
