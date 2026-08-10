@@ -13,7 +13,7 @@ interface ReceiptContentProps {
 
 export const ReceiptContent = forwardRef<HTMLDivElement, ReceiptContentProps>(
   ({ orderNumber, cashierName, paymentMethod, amountPaid, storeSettings }, ref) => {
-    const { items, getSubtotal, getTaxAmount, getTotal } = useCartStore();
+    const { items, getSubtotal, getTaxAmount, getDiscountAmount, getTotal } = useCartStore();
     const { t } = useLanguageStore();
     const date = new Date().toLocaleString();
 
@@ -87,6 +87,12 @@ export const ReceiptContent = forwardRef<HTMLDivElement, ReceiptContentProps>(
             <span>{t.vatCol}</span>
             <span>{t.currency} {getTaxAmount().toFixed(2)}</span>
           </div>
+          {getDiscountAmount() > 0 && (
+            <div className="flex justify-between">
+              <span>{t.discountLabel}</span>
+              <span>- {t.currency} {getDiscountAmount().toFixed(2)}</span>
+            </div>
+          )}
           <div className="flex justify-between font-bold text-sm pt-1 border-t border-dashed border-gray-300 mt-1">
             <span>{t.totalColValue}</span>
             <span>{t.currency} {getTotal().toFixed(2)}</span>

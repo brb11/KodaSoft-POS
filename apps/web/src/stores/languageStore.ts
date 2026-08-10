@@ -125,6 +125,12 @@ export interface Translations {
   viewDetails: string;
   invoiceDetails: string;
   discountLabel: string;
+  discountTitle: string;
+  discountPercent: string;
+  discountFixed: string;
+  discountRemove: string;
+  discountHint: string;
+  discountApplied: string;
   notesLabel: string;
   paymentCol: string;
   selectCustomer: string;
@@ -915,6 +921,12 @@ const translations: Record<Language, Translations> = {
     viewDetails: 'تفاصيل الفاتورة',
     invoiceDetails: 'تفاصيل الفاتورة',
     discountLabel: 'الخصم',
+    discountTitle: 'خصم الطلب',
+    discountPercent: 'نسبة مئوية',
+    discountFixed: 'مبلغ ثابت',
+    discountRemove: 'إزالة الخصم',
+    discountHint: 'يُحسب الخصم على السعر قبل الضريبة',
+    discountApplied: 'الخصم المطبق',
     notesLabel: 'الملاحظات',
     paymentCol: 'الدفع',
     selectCustomer: 'تحديد العميل',
@@ -1700,6 +1712,12 @@ const translations: Record<Language, Translations> = {
     viewDetails: 'View Details',
     invoiceDetails: 'Invoice Details',
     discountLabel: 'Discount',
+    discountTitle: 'Order discount',
+    discountPercent: 'Percent',
+    discountFixed: 'Fixed amount',
+    discountRemove: 'Remove discount',
+    discountHint: 'Discount is applied before tax',
+    discountApplied: 'Applied discount',
     notesLabel: 'Notes',
     paymentCol: 'Payment',
     selectCustomer: 'Select Customer',

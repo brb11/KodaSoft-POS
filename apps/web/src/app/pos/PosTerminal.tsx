@@ -11,6 +11,7 @@ import { api, apiLogout } from '../../lib/api';
 import { ReceiptContent } from './components/ReceiptContent';
 import { OrderHistoryModal } from './components/OrderHistoryModal';
 import { CustomerModal } from './components/CustomerModal';
+import { DiscountModal } from './components/DiscountModal';
 import { BarcodeCameraModal } from './components/BarcodeCameraModal';
 import { HeldOrdersModal } from './components/HeldOrdersModal';
 import {
@@ -33,7 +34,8 @@ import {
   ScanBarcode,
   Pause,
   PauseCircle,
-  XCircle
+  XCircle,
+  BadgePercent
 } from 'lucide-react';
 
 interface Product {
@@ -81,6 +83,7 @@ export const PosTerminal: React.FC = () => {
   const [showOrderHistory, setShowOrderHistory] = useState(false);
   const [showHeldOrders, setShowHeldOrders] = useState(false);
   const [showCustomerModal, setShowCustomerModal] = useState(false);
+  const [showDiscountModal, setShowDiscountModal] = useState(false);
   const [showCameraScan, setShowCameraScan] = useState(false);
   const [scanFeedback, setScanFeedback] = useState<{ id: number; ok: boolean; text: string } | null>(null);
   const feedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -287,6 +290,7 @@ export const PosTerminal: React.FC = () => {
       idempotencyKey,
       subtotal: getSubtotal(),
       discountAmount: getDiscountAmount(),
+      discountType,
       taxAmount: getTaxAmount(),
       total: getTotal(),
       paidAmount: getTotal(),
@@ -774,6 +778,23 @@ export const PosTerminal: React.FC = () => {
                 <span>{t.vat}</span>
                 <span className="text-slate-700 font-semibold">{t.currency} {getTaxAmount().toFixed(2)}</span>
               </div>
+              <button
+                onClick={() => setShowDiscountModal(true)}
+                className="w-full flex justify-between items-center py-1.5 px-2 -mx-2 rounded-lg hover:bg-slate-100 transition-colors text-left"
+              >
+                <span className="flex items-center gap-1.5">
+                  <BadgePercent className="w-3.5 h-3.5" />
+                  {t.discountLabel}
+                </span>
+                {getDiscountAmount() > 0 ? (
+                  <span className="text-rose-600 font-extrabold">
+                    - {t.currency} {getDiscountAmount().toFixed(2)}
+                    {discountType === 'percent' ? ` (${discount}%)` : ''}
+                  </span>
+                ) : (
+                  <span className="text-slate-400"><Plus className="w-3.5 h-3.5 inline" /></span>
+                )}
+              </button>
               <div className="flex justify-between font-extrabold text-sm text-slate-900 pt-2 border-t border-slate-200">
                 <span>{t.totalAmount}</span>
                 <span className="text-cyan-600">{t.currency} {getTotal().toFixed(2)}</span>
@@ -909,6 +930,12 @@ export const PosTerminal: React.FC = () => {
       <CustomerModal
         open={showCustomerModal}
         onClose={() => setShowCustomerModal(false)}
+      />
+
+      {/* Discount Modal */}
+      <DiscountModal
+        open={showDiscountModal}
+        onClose={() => setShowDiscountModal(false)}
       />
 
       {/* Barcode Camera Scanner */}
