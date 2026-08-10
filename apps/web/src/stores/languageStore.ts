@@ -22,6 +22,8 @@ export interface Translations {
   loading: string;
   save: string;
   cancel: string;
+  remove: string;
+  payNow: string;
   active: string;
   inactive: string;
   status: string;
@@ -65,6 +67,17 @@ export interface Translations {
   payCard: string;
   payMada: string;
   payVisa: string;
+  splitPayment: string;
+  paySplit: string;
+  totalDue: string;
+  remainingDue: string;
+  addPaymentMethod: string;
+  payRemainder: string;
+  splitEvenly: string;
+  payAllCash: string;
+  payAllCard: string;
+  paymentTotalMismatch: string;
+  paymentCreditHint: string;
   payMastercard: string;
   payApplePay: string;
   payStcPay: string;
@@ -300,6 +313,49 @@ export interface Translations {
   shiftOpen: string;
   shiftClosed: string;
   noShifts: string;
+  expensesTitle: string;
+  expensesDesc: string;
+  addExpense: string;
+  expenseCategory: string;
+  expenseAmount: string;
+  expenseDescription: string;
+  expenseDescriptionPlaceholder: string;
+  catGeneral: string;
+  catSupplies: string;
+  catUtilities: string;
+  catWithdrawal: string;
+  catOther: string;
+  expenseRecorded: string;
+  expenseRecordFailed: string;
+  expenseDeleteFailed: string;
+  expenseDeleteBlocked: string;
+  todayExpenses: string;
+  todayTotals: string;
+  noExpensesYet: string;
+  withdrawalManagerOnly: string;
+  paidFromCashLabel: string;
+  paidFromCashHint: string;
+  paidFromCashOffHint: string;
+  withdrawalAlwaysCash: string;
+  cashBadge: string;
+  nonCashBadge: string;
+  reportExpenses: string;
+  reportExpensesDesc: string;
+  expTotalExpenses: string;
+  expTotalWithdrawals: string;
+  expNonCashTotal: string;
+  expPaidFromCol: string;
+  expByCategory: string;
+  expCategoryCol: string;
+  expAmountCol: string;
+  expDescCol: string;
+  expBranchCol: string;
+  expCashierCol: string;
+  expDateCol: string;
+  expCountCol: string;
+  expWithdrawalLabel: string;
+  expDeleteConfirm: string;
+  nonCashNote: string;
 
   // Products Management
   productsManagement: string;
@@ -818,6 +874,8 @@ const translations: Record<Language, Translations> = {
     loading: 'جاري التحميل...',
     save: 'حفظ',
     cancel: 'إلغاء',
+    remove: 'حذف',
+    payNow: 'دفع الآن',
     active: 'نشط',
     inactive: 'غير نشط',
     status: 'الحالة',
@@ -865,6 +923,17 @@ const translations: Record<Language, Translations> = {
     payApplePay: 'أبل باي',
     payStcPay: 'إس تي سي باي',
     payBankTransfer: 'تحويل بنكي',
+    splitPayment: 'دفع مقسّم',
+    paySplit: 'الدفع المقسّم',
+    totalDue: 'إجمالي المطلوب',
+    remainingDue: 'المتبقي',
+    addPaymentMethod: 'إضافة طريقة دفع',
+    payRemainder: 'دفع المتبقي',
+    splitEvenly: 'تقسيم بالتساوي',
+    payAllCash: 'الكل نقداً',
+    payAllCard: 'الكل بالبطاقة',
+    paymentTotalMismatch: 'إجمالي الدفعات يجب أن يساوي المطلوب',
+    paymentCreditHint: 'البيع على الحساب يتطلب اختيار عميل',
     orderCompleted: 'تم إكمال الطلب بنجاح!',
     offlineMode: 'وضع العمل دون إنترنت',
     pending: 'معلق',
@@ -1096,6 +1165,51 @@ const translations: Record<Language, Translations> = {
     shiftOpen: 'مفتوحة',
     shiftClosed: 'مغلقة',
     noShifts: 'لا توجد ورديات في هذه الفترة',
+
+    // Expenses / Cash Payouts
+    expensesTitle: 'المصروفات والسحب من الصندوق',
+    expensesDesc: 'تسجيل المصروفات والسحوبات النقدية أثناء الوردية',
+    addExpense: 'تسجيل مصروف / سحب',
+    expenseCategory: 'التصنيف',
+    expenseAmount: 'المبلغ',
+    expenseDescription: 'الوصف',
+    expenseDescriptionPlaceholder: 'مثال: مشتريات مستلزمات، فواتير، سحب نقدي...',
+    catGeneral: 'عام',
+    catSupplies: 'مستلزمات',
+    catUtilities: 'فواتير ومرافق',
+    catWithdrawal: 'سحب من الصندوق',
+    catOther: 'أخرى',
+    expenseRecorded: 'تم تسجيل المصروف بنجاح',
+    expenseRecordFailed: 'فشل تسجيل المصروف',
+    expenseDeleteFailed: 'فشل حذف المصروف',
+    expenseDeleteBlocked: 'لا يمكن حذف مصروف من وردية مغلقة',
+    todayExpenses: 'مصروفات اليوم',
+    todayTotals: 'الإجمالي',
+    noExpensesYet: 'لا توجد مصروفات مسجلة',
+    withdrawalManagerOnly: 'السحب من الصندوق يتطلب صلاحية مدير أو مالك',
+    paidFromCashLabel: 'مصروف نقدي من الصندوق',
+    paidFromCashHint: 'يُخصم من النقد المتوقع للوردية في نهاية الشفت',
+    paidFromCashOffHint: 'مصروف غير نقدي (كارت/حوالة) — يُسجّل لكنه لا يُخصم من النقد المتوقع',
+    withdrawalAlwaysCash: 'السحب النقدي يكون دائمًا من الصندوق ويُخصم من النقد المتوقع',
+    cashBadge: 'نقدي',
+    nonCashBadge: 'غير نقدي',
+    reportExpenses: 'المصروفات والسحوبات',
+    reportExpensesDesc: 'جميع المصروفات والسحوبات النقدية من الصندوق خلال الفترة',
+    expTotalExpenses: 'إجمالي المصروفات',
+    expTotalWithdrawals: 'إجمالي السحوبات',
+    expNonCashTotal: 'مصروفات غير نقدية',
+    expPaidFromCol: 'المصدر',
+    expByCategory: 'حسب التصنيف',
+    expCategoryCol: 'التصنيف',
+    expAmountCol: 'المبلغ',
+    expDescCol: 'الوصف',
+    expBranchCol: 'الفرع',
+    expCashierCol: 'بواسطة',
+    expDateCol: 'التاريخ',
+    expCountCol: 'العدد',
+    expWithdrawalLabel: 'سحب نقدي',
+    expDeleteConfirm: 'هل أنت متأكد من حذف هذا المصروف؟',
+    nonCashNote: 'غير نقدي',
 
     // Products Management
     productsManagement: 'إدارة المنتجات',
@@ -1609,6 +1723,8 @@ const translations: Record<Language, Translations> = {
     loading: 'Loading...',
     save: 'Save',
     cancel: 'Cancel',
+    remove: 'Remove',
+    payNow: 'Pay Now',
     active: 'ACTIVE',
     inactive: 'INACTIVE',
     status: 'Status',
@@ -1656,6 +1772,17 @@ const translations: Record<Language, Translations> = {
     payApplePay: 'Apple Pay',
     payStcPay: 'STC Pay',
     payBankTransfer: 'Bank Transfer',
+    splitPayment: 'Split payment',
+    paySplit: 'Split / Mixed payment',
+    totalDue: 'Total due',
+    remainingDue: 'Remaining',
+    addPaymentMethod: 'Add payment method',
+    payRemainder: 'Pay remainder',
+    splitEvenly: 'Split evenly',
+    payAllCash: 'All cash',
+    payAllCard: 'All card',
+    paymentTotalMismatch: 'Payments total must equal the order total',
+    paymentCreditHint: 'On-account payment requires a selected customer',
     orderCompleted: 'Order Completed Successfully!',
     offlineMode: 'Offline Mode',
     pending: 'Pending',
@@ -1887,6 +2014,51 @@ const translations: Record<Language, Translations> = {
     shiftOpen: 'Open',
     shiftClosed: 'Closed',
     noShifts: 'No shifts in this period',
+
+    // Expenses / Cash Payouts
+    expensesTitle: 'Expenses & Cash Payouts',
+    expensesDesc: 'Record expenses and cash payouts during a shift',
+    addExpense: 'Record expense / payout',
+    expenseCategory: 'Category',
+    expenseAmount: 'Amount',
+    expenseDescription: 'Description',
+    expenseDescriptionPlaceholder: 'e.g. supplies, utilities, cash payout...',
+    catGeneral: 'General',
+    catSupplies: 'Supplies',
+    catUtilities: 'Utilities',
+    catWithdrawal: 'Cash withdrawal',
+    catOther: 'Other',
+    expenseRecorded: 'Expense recorded successfully',
+    expenseRecordFailed: 'Failed to record expense',
+    expenseDeleteFailed: 'Failed to delete expense',
+    expenseDeleteBlocked: 'Cannot delete an expense from a closed shift',
+    todayExpenses: "Today's expenses",
+    todayTotals: 'Totals',
+    noExpensesYet: 'No expenses recorded yet',
+    withdrawalManagerOnly: 'Cash withdrawals require Owner/Manager permission',
+    paidFromCashLabel: 'Paid from cash drawer',
+    paidFromCashHint: "Deducted from the shift's expected cash at close",
+    paidFromCashOffHint: 'Non-cash expense (card/transfer) — recorded but NOT deducted from expected cash',
+    withdrawalAlwaysCash: 'Withdrawals are always cash from the drawer and reduce expected cash',
+    cashBadge: 'Cash',
+    nonCashBadge: 'Non-cash',
+    reportExpenses: 'Expenses & Payouts',
+    reportExpensesDesc: 'All expenses and cash payouts from the drawer during the period',
+    expTotalExpenses: 'Total expenses',
+    expTotalWithdrawals: 'Total payouts',
+    expNonCashTotal: 'Non-cash expenses',
+    expPaidFromCol: 'Paid from',
+    expByCategory: 'By category',
+    expCategoryCol: 'Category',
+    expAmountCol: 'Amount',
+    expDescCol: 'Description',
+    expBranchCol: 'Branch',
+    expCashierCol: 'By',
+    expDateCol: 'Date',
+    expCountCol: 'Count',
+    expWithdrawalLabel: 'Cash payout',
+    expDeleteConfirm: 'Are you sure you want to delete this expense?',
+    nonCashNote: 'non-cash',
 
     // Products Management
     productsManagement: 'Products Management',
@@ -2435,6 +2607,7 @@ export function paymentMethodLabel(method?: string): string {
     case 'CASH': return t.payCash;
     case 'CARD': return t.payCard;
     case 'STORE_CREDIT': return t.payOnAccount;
+    case 'SPLIT': return t.paySplit;
     default: return method || '';
   }
 }

@@ -1,5 +1,6 @@
 import { prisma } from '../../lib/prisma';
 import { AppError } from '../../middleware/error.middleware';
+import { computeExpectedCash, cashExpenseTotal } from './expectedCash';
 
 export async function getActiveShift(tenantId: string, branchId: string, userId: string) {
   if (!branchId) return null;
@@ -51,15 +52,17 @@ export async function closeShift(tenantId: string, shiftId: string, closingCash:
     _sum: { amount: true }
   });
 
-  // Calculate cash payouts (expenses) during shift
-  const expenses = await prisma.expense.aggregate({
+  // Cash outflows during the shift: only expenses actually paid from the cash
+  // drawer reduce expected cash. Non-cash expenses are recorded but never
+  // deducted from the drawer.
+  const shiftExpenses = await prisma.expense.findMany({
     where: { shiftId },
-    _sum: { amount: true }
+    select: { amount: true, paidFromCash: true },
   });
+  const totalCashExpenses = cashExpenseTotal(shiftExpenses);
 
   const totalCashSales = Number(cashPayments._sum.amount || 0);
-  const totalExpenses = Number(expenses._sum.amount || 0);
-  const expectedCash = Number(shift.openingCash) + totalCashSales - totalExpenses;
+  const expectedCash = computeExpectedCash(Number(shift.openingCash), totalCashSales, totalCashExpenses);
 
   return prisma.shift.update({
     where: { id: shiftId },

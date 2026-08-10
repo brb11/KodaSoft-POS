@@ -2,10 +2,11 @@ import * as XLSX from 'xlsx';
 import { api } from './api';
 import { localizedName, paymentMethodLabel, useLanguageStore, type Translations } from '../stores/languageStore';
 import { toQuery, type ReportFilters } from '../app/dashboard/reports/ReportFilters';
-export type ReportKey = 'sales' | 'vat' | 'invoices' | 'payments' | 'inventory' | 'shifts' | 'debts';
+import { expenseCategoryLabel } from '../app/pos/components/ExpensesModal';
+export type ReportKey = 'sales' | 'vat' | 'invoices' | 'payments' | 'inventory' | 'shifts' | 'debts' | 'expenses';
 export type ExportFormat = 'csv' | 'excel' | 'pdf';
 
-export const REPORT_KEYS: ReportKey[] = ['sales', 'vat', 'invoices', 'payments', 'inventory', 'shifts', 'debts'];
+export const REPORT_KEYS: ReportKey[] = ['sales', 'vat', 'invoices', 'payments', 'inventory', 'shifts', 'debts', 'expenses'];
 
 export interface ReportSection {
   title?: string;
@@ -31,6 +32,7 @@ function reportTitle(t: Translations, key: ReportKey): string {
     inventory: 'reportInventory',
     shifts: 'reportShifts',
     debts: 'reportDebts',
+    expenses: 'reportExpenses',
   };
   return t[map[key]] as string;
 }
@@ -191,7 +193,7 @@ export function reportToSections(key: ReportKey, t: Translations, data: any): Re
           t.shiftCashier, t.shiftBranch, t.shiftOpenedAt, t.shiftClosedAt,
           t.statusCol, t.shiftOpeningCash, t.shiftCashSales, t.shiftCardSales,
           t.shiftTotalSales, t.shiftReturns, t.shiftExpenses, t.shiftWithdrawals,
-          t.shiftExpectedCash, t.shiftClosingCash, t.shiftDifference, t.shiftOrders,
+          t.expPaidFromCol, t.shiftExpectedCash, t.shiftClosingCash, t.shiftDifference, t.shiftOrders,
         ],
         rows: (data?.rows ?? []).map((s: any) => [
           s.cashier, s.branchName, fmtDate(s.openedAt), fmtDate(s.closedAt),
@@ -199,6 +201,7 @@ export function reportToSections(key: ReportKey, t: Translations, data: any): Re
           money(t, s.openingCash), money(t, s.cashSales), money(t, s.cardSales),
           money(t, s.totalSales), money(t, s.refunds), money(t, s.expenses),
           money(t, s.withdrawals),
+          s.nonCashExpenses > 0 ? money(t, s.nonCashExpenses) : '',
           s.expectedCash != null ? money(t, s.expectedCash) : '',
           s.closingCash != null ? money(t, s.closingCash) : '',
           s.difference != null ? money(t, s.difference) : '',
@@ -231,6 +234,45 @@ export function reportToSections(key: ReportKey, t: Translations, data: any): Re
             r.creditLimit != null ? money(t, r.creditLimit) : '—',
             money(t, r.aging.current), money(t, r.aging.d30),
             money(t, r.aging.d60), money(t, r.aging.d90), money(t, r.overdue),
+          ]),
+        });
+      }
+      break;
+    }
+
+    case 'expenses': {
+      const totals = data?.totals;
+      sections.push({
+        pairs: [
+          [t.expTotalExpenses, money(t, totals?.totalExpenses)],
+          [t.expTotalWithdrawals, money(t, totals?.totalWithdrawals)],
+          [t.expNonCashTotal, money(t, totals?.nonCashExpenses)],
+          [t.expCountCol, String(totals?.count ?? 0)],
+        ],
+      });
+      if (data?.byCategory?.length) {
+        sections.push({
+          title: t.expByCategory,
+          headers: [t.expCategoryCol, t.expCountCol, t.expAmountCol],
+          rows: (data.byCategory as any[]).map((c) => [
+            expenseCategoryLabel(t, c.category),
+            String(c.count),
+            money(t, c.total),
+          ]),
+        });
+      }
+      if (data?.rows?.length) {
+        sections.push({
+          title: t.breakdown,
+          headers: [t.expDateCol, t.expCategoryCol, t.expDescCol, t.expPaidFromCol, t.expBranchCol, t.expCashierCol, t.expAmountCol],
+          rows: (data.rows as any[]).map((r) => [
+            fmtDate(r.createdAt),
+            expenseCategoryLabel(t, r.category),
+            r.description || '',
+            r.paidFromCash !== false ? t.cashBadge : t.nonCashBadge,
+            r.branchName,
+            r.cashier,
+            money(t, r.amount),
           ]),
         });
       }

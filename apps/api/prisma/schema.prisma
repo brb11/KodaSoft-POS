@@ -523,12 +523,13 @@ model Expense {
   id          String   @id @default(uuid())
   branchId    String
   shiftId     String?
-  category    String
-  amount      Decimal  @db.Decimal(10, 2)
-  description String?
-  receiptUrl  String?
-  createdBy   String
-  createdAt   DateTime @default(now())
+  category      String
+  amount        Decimal  @db.Decimal(10, 2)
+  description   String?
+  receiptUrl    String?
+  paidFromCash  Boolean  @default(true)
+  createdBy     String
+  createdAt     DateTime @default(now())
 
   branch        Branch  @relation(fields: [branchId], references: [id])
   shift         Shift?  @relation(fields: [shiftId], references: [id])

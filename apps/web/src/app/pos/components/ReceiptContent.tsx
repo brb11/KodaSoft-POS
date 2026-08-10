@@ -7,15 +7,18 @@ interface ReceiptContentProps {
   orderNumber: string;
   cashierName: string;
   paymentMethod: string;
+  payments?: { method: string; amount: number }[];
   amountPaid: number;
   storeSettings?: any;
 }
 
 export const ReceiptContent = forwardRef<HTMLDivElement, ReceiptContentProps>(
-  ({ orderNumber, cashierName, paymentMethod, amountPaid, storeSettings }, ref) => {
+  ({ orderNumber, cashierName, paymentMethod, payments, amountPaid, storeSettings }, ref) => {
     const { items, getSubtotal, getTaxAmount, getDiscountAmount, getTotal } = useCartStore();
     const { t } = useLanguageStore();
     const date = new Date().toLocaleString();
+
+    const showBreakdown = payments && payments.length > 1;
 
     return (
       <div
@@ -101,10 +104,22 @@ export const ReceiptContent = forwardRef<HTMLDivElement, ReceiptContentProps>(
 
         {/* Payment Info */}
         <div className="text-xs mb-6 space-y-1">
-          <div className="flex justify-between">
-            <span>{translate(t.paidBy, { method: paymentMethodLabel(paymentMethod) })}</span>
-            <span>{t.currency} {amountPaid.toFixed(2)}</span>
-          </div>
+          {showBreakdown ? (
+            <>
+              <p className="font-bold">{t.paymentsBreakdown}</p>
+              {payments!.map((p, idx) => (
+                <div key={idx} className="flex justify-between">
+                  <span>{paymentMethodLabel(p.method)}</span>
+                  <span>{t.currency} {Number(p.amount).toFixed(2)}</span>
+                </div>
+              ))}
+            </>
+          ) : (
+            <div className="flex justify-between">
+              <span>{translate(t.paidBy, { method: paymentMethodLabel(paymentMethod) })}</span>
+              <span>{t.currency} {amountPaid.toFixed(2)}</span>
+            </div>
+          )}
           <div className="flex justify-between font-bold">
             <span>{t.change}</span>
             <span>{t.currency} {(amountPaid - getTotal()).toFixed(2)}</span>

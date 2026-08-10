@@ -9,6 +9,7 @@ import { PaymentsTab } from './reports/PaymentsTab';
 import { InventoryTab } from './reports/InventoryTab';
 import { ShiftsTab } from './reports/ShiftsTab';
 import { DebtsTab } from './reports/DebtsTab';
+import { ExpensesTab } from './reports/ExpensesTab';
 import {
   BarChart3,
   ReceiptText,
@@ -20,10 +21,11 @@ import {
   CalendarDays,
   Download,
   HandCoins,
+  Flame,
 } from 'lucide-react';
 import { ExportModal } from './reports/ExportModal';
 
-type TabKey = 'sales' | 'vat' | 'invoices' | 'payments' | 'inventory' | 'shifts' | 'debts';
+type TabKey = 'sales' | 'vat' | 'invoices' | 'payments' | 'inventory' | 'shifts' | 'debts' | 'expenses';
 
 const TABS: { key: TabKey; icon: React.ReactNode; labelKey: string; descKey: string }[] = [
   { key: 'sales', icon: <BarChart3 className="w-4 h-4" />, labelKey: 'reportSales', descKey: 'reportSalesDesc' },
@@ -33,6 +35,7 @@ const TABS: { key: TabKey; icon: React.ReactNode; labelKey: string; descKey: str
   { key: 'inventory', icon: <Boxes className="w-4 h-4" />, labelKey: 'reportInventory', descKey: 'reportInventoryDesc' },
   { key: 'shifts', icon: <Clock className="w-4 h-4" />, labelKey: 'reportShifts', descKey: 'reportShiftsDesc' },
   { key: 'debts', icon: <HandCoins className="w-4 h-4" />, labelKey: 'reportDebts', descKey: 'reportDebtsDesc' },
+  { key: 'expenses', icon: <Flame className="w-4 h-4" />, labelKey: 'reportExpenses', descKey: 'reportExpensesDesc' },
 ];
 
 const PERIODS = ['periodToday', 'periodWeek', 'periodMonth', 'periodYear', 'periodCustom', 'periodAll'];
@@ -177,6 +180,7 @@ export const ReportsPage: React.FC = () => {
         {tab === 'inventory' && <InventoryTab filters={appliedFilters} />}
         {tab === 'shifts' && <ShiftsTab filters={appliedFilters} />}
         {tab === 'debts' && <DebtsTab filters={appliedFilters} />}
+        {tab === 'expenses' && <ExpensesTab filters={appliedFilters} />}
       </div>
 
       {showExport && <ExportModal filters={appliedFilters} onClose={() => setShowExport(false)} />}

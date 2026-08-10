@@ -1,4 +1,5 @@
 import { prisma } from '../../lib/prisma';
+import { cashExpenseTotal, nonCashExpenseTotal } from '../shifts/expectedCash';
 
 type Period = 'today' | 'week' | 'month' | 'year' | 'all' | 'custom';
 
@@ -470,6 +471,10 @@ export async function getShiftReport(tenantId: string, opts: { from?: string; to
         .reduce((sum, o) => sum + refundedGross(o), 0);
     const expenses = s.expenses.reduce((sum, e) => sum + Number(e.amount), 0);
     const withdrawals = s.expenses.filter((e) => e.category === 'WITHDRAWAL').reduce((sum, e) => sum + Number(e.amount), 0);
+    const nonCashExpenses = nonCashExpenseTotal(s.expenses);
+    // Cash outflows other than withdrawals (withdrawals are always cash and
+    // are already counted in `allCash`).
+    const cashExpenses = +(cashExpenseTotal(s.expenses) - withdrawals).toFixed(2);
     const expectedCash = s.expectedCash ? Number(s.expectedCash) : null;
 
     return {
@@ -488,6 +493,8 @@ export async function getShiftReport(tenantId: string, opts: { from?: string; to
       totalSales: +(cashSales + cardSales).toFixed(2),
       refunds: +refunds.toFixed(2),
       expenses: +expenses.toFixed(2),
+      cashExpenses: +cashExpenses.toFixed(2),
+      nonCashExpenses: +nonCashExpenses.toFixed(2),
       withdrawals: +withdrawals.toFixed(2),
       orderCount: s.orders.length,
     };
@@ -639,4 +646,57 @@ export async function getRecentOrders(tenantId: string, limit: number = 15) {
     orderBy: { createdAt: 'desc' },
     take: limit,
   });
+}
+
+// ─────────────────────────────────────────────
+// 9. EXPENSES & CASH PAYOUTS REPORT
+// ─────────────────────────────────────────────
+export async function getExpensesReport(tenantId: string, opts: { from?: string; to?: string; branchId?: string }) {
+  const where: any = { branch: { tenantId } };
+  if (opts.branchId) where.branchId = opts.branchId;
+  const createdAt = periodWhere('custom', opts.from, opts.to);
+  if (createdAt) where.createdAt = createdAt;
+
+  const expenses = await prisma.expense.findMany({
+    where,
+    include: {
+      branch: { select: { name: true } },
+      shift: { select: { id: true } },
+      createdByUser: { select: { name: true } },
+    },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  const totalExpenses = +expenses.reduce((s, e) => s + Number(e.amount), 0).toFixed(2);
+  const totalWithdrawals = +expenses
+    .filter((e) => e.category === 'WITHDRAWAL')
+    .reduce((s, e) => s + Number(e.amount), 0)
+    .toFixed(2);
+  const nonCashExpenses = nonCashExpenseTotal(expenses);
+  const cashExpenses = cashExpenseTotal(expenses);
+
+  const byCategory = ['GENERAL', 'SUPPLIES', 'UTILITIES', 'WITHDRAWAL', 'OTHER'].map((category) => {
+    const rows = expenses.filter((e) => e.category === category);
+    return {
+      category,
+      total: +rows.reduce((s, e) => s + Number(e.amount), 0).toFixed(2),
+      count: rows.length,
+    };
+  }).filter((c) => c.count > 0);
+
+  return {
+    totals: { totalExpenses, totalWithdrawals, cashExpenses, nonCashExpenses, count: expenses.length },
+    byCategory,
+    rows: expenses.map((e) => ({
+      id: e.id,
+      category: e.category,
+      amount: Number(e.amount),
+      description: e.description,
+      paidFromCash: e.paidFromCash,
+      branchName: e.branch.name,
+      shiftId: e.shift?.id ?? null,
+      cashier: e.createdByUser.name,
+      createdAt: e.createdAt,
+    })),
+  };
 }

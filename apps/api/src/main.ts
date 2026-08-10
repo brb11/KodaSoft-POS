@@ -29,6 +29,7 @@ import { heldOrdersRouter } from './modules/heldOrders/held-orders.router';
 import { zatcaRouter } from './modules/zatca/zatca.router';
 import { billingWebhookRouter } from './modules/billing/billing.webhook.router';
 import { notificationsRouter } from './modules/notifications/notifications.router';
+import { expensesRouter } from './modules/expenses/expenses.router';
 import { startNotificationScheduler } from './modules/notifications/notifications.service';
 
 const app = express();
@@ -86,6 +87,7 @@ app.use('/api/v1/held-orders', heldOrdersRouter);
 app.use('/api/v1/zatca', zatcaRouter);
 app.use('/api/v1/saas', saasRouter);
 app.use('/api/v1/notifications', notificationsRouter);
+app.use('/api/v1/expenses', expensesRouter);
 
 // Error Handling
 app.use(notFound);

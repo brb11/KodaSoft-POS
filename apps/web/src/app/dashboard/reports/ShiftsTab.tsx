@@ -85,6 +85,11 @@ export const ShiftsTab: React.FC<{ filters: ReportFilters }> = ({ filters }) => 
               <div className="bg-slate-50 border border-slate-100 rounded-xl p-4">
                 <p className="text-[11px] font-bold text-slate-500 uppercase flex items-center gap-1.5"><Flame className="w-3.5 h-3.5" /> {t.shiftExpenses}</p>
                 <p className="text-lg font-black text-rose-600 mt-1">{t.currency} {s.expenses}</p>
+                {s.nonCashExpenses > 0 && (
+                  <p className="text-[10px] font-bold text-amber-600 mt-0.5">
+                    {t.nonCashNote}: {t.currency} {s.nonCashExpenses}
+                  </p>
+                )}
               </div>
               <div className="bg-slate-50 border border-slate-100 rounded-xl p-4">
                 <p className="text-[11px] font-bold text-slate-500 uppercase flex items-center gap-1.5"><ArrowUpRight className="w-3.5 h-3.5" /> {t.shiftWithdrawals}</p>

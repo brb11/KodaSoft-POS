@@ -79,3 +79,9 @@ reportsRouter.get('/debts', async (req: AuthRequest, res: Response) => {
   const data = await debtsService.getDebtsReport(req.user!.tenantId, { from, to, branchId });
   res.json({ success: true, data });
 });
+
+reportsRouter.get('/expenses', async (req: AuthRequest, res: Response) => {
+  const { from, to, branchId } = req.query as any;
+  const data = await reportsService.getExpensesReport(req.user!.tenantId, { from, to, branchId });
+  res.json({ success: true, data });
+});

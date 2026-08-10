@@ -52,6 +52,7 @@ export const ExportModal: React.FC<Props> = ({ filters, onClose }) => {
       inventory: t.reportInventory,
       shifts: t.reportShifts,
       debts: t.reportDebts,
+      expenses: t.reportExpenses,
     };
     return map[key];
   };

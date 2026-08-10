@@ -12,8 +12,10 @@ import { ReceiptContent } from './components/ReceiptContent';
 import { OrderHistoryModal } from './components/OrderHistoryModal';
 import { CustomerModal } from './components/CustomerModal';
 import { DiscountModal } from './components/DiscountModal';
+import { PaymentModal, type PaymentInput, type PaymentMethod } from './components/PaymentModal';
 import { BarcodeCameraModal } from './components/BarcodeCameraModal';
 import { HeldOrdersModal } from './components/HeldOrdersModal';
+import { ExpensesModal } from './components/ExpensesModal';
 import {
   Search,
   ShoppingCart,
@@ -35,7 +37,9 @@ import {
   Pause,
   PauseCircle,
   XCircle,
-  BadgePercent
+  BadgePercent,
+  Split,
+  Flame
 } from 'lucide-react';
 
 interface Product {
@@ -73,6 +77,7 @@ export const PosTerminal: React.FC = () => {
     orderNumber: '',
     paymentMethod: '',
     amountPaid: 0,
+    payments: [] as { method: PaymentMethod; amount: number }[],
   });
 
   const [activeShift, setActiveShift] = useState<any>(null);
@@ -84,6 +89,8 @@ export const PosTerminal: React.FC = () => {
   const [showHeldOrders, setShowHeldOrders] = useState(false);
   const [showCustomerModal, setShowCustomerModal] = useState(false);
   const [showDiscountModal, setShowDiscountModal] = useState(false);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showExpensesModal, setShowExpensesModal] = useState(false);
   const [showCameraScan, setShowCameraScan] = useState(false);
   const [scanFeedback, setScanFeedback] = useState<{ id: number; ok: boolean; text: string } | null>(null);
   const feedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -257,10 +264,16 @@ export const PosTerminal: React.FC = () => {
     return true;
   };
 
-  const handleCheckout = async (paymentMethod: 'CASH' | 'CARD' | 'STORE_CREDIT') => {
-    if (items.length === 0) return;
+  const handleCheckout = async (payments: PaymentInput[]) => {
+    if (items.length === 0 || payments.length === 0) return;
 
-    if (paymentMethod === 'STORE_CREDIT') {
+    const paymentMethod: PaymentMethod | 'SPLIT' = payments.length === 1 ? payments[0].method : 'SPLIT';
+
+    const creditTotalAmount = payments
+      .filter((p) => p.method === 'STORE_CREDIT')
+      .reduce((s, p) => s + p.amount, 0);
+
+    if (creditTotalAmount > 0) {
       if (!customer) {
         alert(t.selectCustomerRequired);
         return;
@@ -283,6 +296,8 @@ export const PosTerminal: React.FC = () => {
     // lost response never create duplicate orders on the server.
     const idempotencyKey = crypto.randomUUID();
 
+    const paidAmount = Math.round((payments.reduce((s, p) => s + p.amount, 0) + Number.EPSILON) * 100) / 100;
+
     const payload = {
       branchId,
       shiftId: activeShift?.id,
@@ -293,7 +308,7 @@ export const PosTerminal: React.FC = () => {
       discountType,
       taxAmount: getTaxAmount(),
       total: getTotal(),
-      paidAmount: getTotal(),
+      paidAmount,
       items: items.map((i) => ({
         productId: i.productId,
         name: localizedName(i.name, i.nameAr),
@@ -301,12 +316,7 @@ export const PosTerminal: React.FC = () => {
         unitPrice: i.price,
         subtotal: i.price * i.quantity,
       })),
-      payments: [
-        {
-          method: paymentMethod,
-          amount: getTotal(),
-        },
-      ],
+      payments,
     };
 
     try {
@@ -318,6 +328,7 @@ export const PosTerminal: React.FC = () => {
           orderNumber: `OFFLINE-${randomNum}`,
           paymentMethod,
           amountPaid: getTotal(),
+          payments,
         });
         setOrderSuccess(true);
         setTimeout(() => handlePrint(), 500);
@@ -329,6 +340,7 @@ export const PosTerminal: React.FC = () => {
           orderNumber: order.orderNumber,
           paymentMethod,
           amountPaid: Number(order.total),
+          payments,
         });
         setOrderSuccess(true);
         refreshStock();
@@ -346,7 +358,7 @@ export const PosTerminal: React.FC = () => {
       if (!status || status >= 500) {
         useSyncStore.getState().addPendingOrder(payload);
         const randomNum = Math.floor(Math.random() * 9000) + 1000;
-        setLastOrderDetails({ orderNumber: `SYNC-${randomNum}`, paymentMethod, amountPaid: getTotal() });
+        setLastOrderDetails({ orderNumber: `SYNC-${randomNum}`, paymentMethod, amountPaid: getTotal(), payments });
         setOrderSuccess(true);
         setTimeout(() => handlePrint(), 500);
       } else {
@@ -537,6 +549,15 @@ export const PosTerminal: React.FC = () => {
           >
             <PauseCircle className="w-4 h-4 text-amber-500" />
             {t.heldOrders}
+          </button>
+
+          <button
+            onClick={() => setShowExpensesModal(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-rose-50 text-slate-700 rounded-xl text-xs font-bold transition border border-slate-200 shadow-sm"
+            title={t.expensesTitle}
+          >
+            <Flame className="w-4 h-4 text-rose-500" />
+            {t.expensesTitle}
           </button>
 
           {activeShift && (
@@ -805,7 +826,7 @@ export const PosTerminal: React.FC = () => {
               {user?.role === 'OWNER' || user?.role === 'MANAGER' ? (
                 <button
                   disabled={items.length === 0 || processingOrder || !customer}
-                  onClick={() => handleCheckout('STORE_CREDIT')}
+                  onClick={() => handleCheckout([{ method: 'STORE_CREDIT', amount: getTotal() }])}
                   className="w-full py-3 bg-emerald-50 hover:bg-emerald-100 border-2 border-dashed border-emerald-300 text-emerald-700 font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition-all disabled:opacity-40 shadow-sm"
                   title={t.payOnAccount}
                 >
@@ -832,7 +853,7 @@ export const PosTerminal: React.FC = () => {
             <div className="grid grid-cols-2 gap-2 pt-1">
               <button
                 disabled={items.length === 0 || processingOrder}
-                onClick={() => handleCheckout('CASH')}
+                onClick={() => handleCheckout([{ method: 'CASH', amount: getTotal() }])}
                 className="py-3 bg-white hover:bg-slate-100 border border-slate-200 text-slate-800 font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition-all disabled:opacity-40 shadow-sm"
               >
                 <Banknote className="w-4 h-4 text-emerald-600" />
@@ -840,11 +861,19 @@ export const PosTerminal: React.FC = () => {
               </button>
               <button
                 disabled={items.length === 0 || processingOrder}
-                onClick={() => handleCheckout('CARD')}
+                onClick={() => handleCheckout([{ method: 'CARD', amount: getTotal() }])}
                 className="py-3 bg-white hover:bg-slate-100 border border-slate-200 text-slate-800 font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition-all disabled:opacity-40 shadow-sm"
               >
                 <CreditCard className="w-4 h-4 text-blue-600" />
                 {t.payCard}
+              </button>
+              <button
+                disabled={items.length === 0 || processingOrder}
+                onClick={() => setShowPaymentModal(true)}
+                className="col-span-2 py-3 bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-700 hover:to-teal-700 text-white font-extrabold rounded-xl text-xs flex items-center justify-center gap-2 transition-all disabled:opacity-40 shadow-md shadow-cyan-600/20"
+              >
+                <Split className="w-4 h-4" />
+                {t.paySplit}
               </button>
             </div>
           </div>
@@ -921,6 +950,7 @@ export const PosTerminal: React.FC = () => {
           orderNumber={lastOrderDetails.orderNumber}
           cashierName={user?.name || t.cashier}
           paymentMethod={lastOrderDetails.paymentMethod}
+          payments={lastOrderDetails.payments}
           amountPaid={lastOrderDetails.amountPaid}
           storeSettings={settings}
         />
@@ -936,6 +966,27 @@ export const PosTerminal: React.FC = () => {
       <DiscountModal
         open={showDiscountModal}
         onClose={() => setShowDiscountModal(false)}
+      />
+
+      {/* Split / Mixed Payment Modal */}
+      <PaymentModal
+        open={showPaymentModal}
+        onClose={() => setShowPaymentModal(false)}
+        total={getTotal()}
+        canUseCredit={user?.role === 'OWNER' || user?.role === 'MANAGER'}
+        hasCustomer={!!customer}
+        onPay={(payments) => {
+          setShowPaymentModal(false);
+          handleCheckout(payments);
+        }}
+      />
+
+      {/* Expenses / Cash Payouts Modal */}
+      <ExpensesModal
+        open={showExpensesModal}
+        onClose={() => setShowExpensesModal(false)}
+        branchId={resolvedBranchId || user?.branchId || null}
+        activeShift={activeShift}
       />
 
       {/* Barcode Camera Scanner */}
