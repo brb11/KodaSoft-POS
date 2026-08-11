@@ -93,9 +93,9 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
   ];
 
   return (
-    <div className="min-h-screen bg-slate-100 text-slate-800 flex">
+    <div className="h-screen overflow-hidden bg-slate-100 text-slate-800 flex">
       {/* Sidebar */}
-      <aside className="w-64 bg-white border-r border-slate-200/80 flex flex-col justify-between shadow-sm">
+      <aside className="w-64 shrink-0 bg-white border-r border-slate-200/80 flex flex-col justify-between shadow-sm">
         <div>
           {/* Logo Branding */}
           <div className="p-6 border-b border-slate-200/80 flex items-center gap-3">

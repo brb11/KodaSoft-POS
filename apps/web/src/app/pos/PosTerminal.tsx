@@ -94,6 +94,39 @@ export const PosTerminal: React.FC = () => {
   const [showCameraScan, setShowCameraScan] = useState(false);
   const [scanFeedback, setScanFeedback] = useState<{ id: number; ok: boolean; text: string } | null>(null);
   const feedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    // Focus search on mount
+    setTimeout(() => {
+      searchInputRef.current?.focus();
+    }, 100);
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      switch (e.key) {
+        case ' ':
+          if (!searchInputRef.current?.value.trim() && useCartStore.getState().items.length > 0) {
+            e.preventDefault();
+            setShowPaymentModal(true);
+          }
+          break;
+        case 'F2':
+          e.preventDefault();
+          setShowCustomerModal(true);
+          break;
+        case 'F4':
+          e.preventDefault();
+          searchInputRef.current?.focus();
+          break;
+        case 'F7':
+          e.preventDefault();
+          setShowDiscountModal(true);
+          break;
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   const handlePrint = useReactToPrint({
     contentRef: receiptRef,
@@ -101,6 +134,7 @@ export const PosTerminal: React.FC = () => {
     onAfterPrint: () => {
       setOrderSuccess(false);
       clearCart();
+      setTimeout(() => searchInputRef.current?.focus(), 100);
     }
   });
 
@@ -114,6 +148,7 @@ export const PosTerminal: React.FC = () => {
     addItem,
     removeItem,
     updateQuantity,
+    updatePrice,
     clearCart,
     getSubtotal,
     getDiscountAmount,
@@ -419,45 +454,51 @@ export const PosTerminal: React.FC = () => {
   };
 
   const handleScanCode = async (code: string) => {
-    const trimmed = code.trim();
-    if (!trimmed) return;
-
-    const local = products.find((p) => p.barcode && p.barcode.trim() === trimmed);
-    if (local) {
-      addProductToCart(local);
-      setSearchQuery('');
-      flashScan(true, `${t.scanAdded}: ${localizedName(local.name, local.nameAr)}`);
-      return;
-    }
-
-    // Not in the loaded list (catalog is paginated) — fall back to the exact
-    // barcode lookup endpoint.
     try {
-      const res = await api.get(`/products/barcode/${encodeURIComponent(trimmed)}`);
-      const p = res.data?.data;
-      if (p && p.id) {
-        const product: Product = {
-          id: p.id,
-          name: p.name,
-          nameAr: p.nameAr,
-          price: Number(p.price),
-          sku: p.sku,
-          barcode: p.barcode,
-          category: p.category,
-          taxRate: p.taxRate,
-          trackInventory: p.trackInventory,
-          inventory: p.inventory || [],
-        };
-        setProducts((prev) => (prev.some((x) => x.id === product.id) ? prev : [...prev, product]));
-        if (!tryAddToCart(product)) return;
-        addItem(product);
+      const trimmed = code.trim();
+      if (!trimmed) return;
+
+      const local = products.find((p) => p.barcode && p.barcode.trim() === trimmed);
+      if (local) {
+        addProductToCart(local);
         setSearchQuery('');
-        flashScan(true, `${t.scanAdded}: ${localizedName(product.name, product.nameAr)}`);
+        flashScan(true, `${t.scanAdded}: ${localizedName(local.name, local.nameAr)}`);
         return;
       }
-      flashScan(false, t.barcodeNotFound);
-    } catch (err) {
-      flashScan(false, t.barcodeNotFound);
+
+      // Not in the loaded list (catalog is paginated) — fall back to the exact
+      // barcode lookup endpoint.
+      try {
+        const res = await api.get(`/products/barcode/${encodeURIComponent(trimmed)}`);
+        const p = res.data?.data;
+        if (p && p.id) {
+          const product: Product = {
+            id: p.id,
+            name: p.name,
+            nameAr: p.nameAr,
+            price: Number(p.price),
+            sku: p.sku,
+            barcode: p.barcode,
+            category: p.category,
+            taxRate: p.taxRate,
+            trackInventory: p.trackInventory,
+            inventory: p.inventory || [],
+          };
+          setProducts((prev) => (prev.some((x) => x.id === product.id) ? prev : [...prev, product]));
+          if (!tryAddToCart(product)) return;
+          addItem(product);
+          setSearchQuery('');
+          flashScan(true, `${t.scanAdded}: ${localizedName(product.name, product.nameAr)}`);
+          return;
+        }
+        flashScan(false, t.barcodeNotFound);
+      } catch (err) {
+        flashScan(false, t.barcodeNotFound);
+      }
+    } finally {
+      setTimeout(() => {
+        searchInputRef.current?.focus();
+      }, 50);
     }
   };
 
@@ -599,10 +640,17 @@ export const PosTerminal: React.FC = () => {
             <div className="flex-1 relative">
               <Search className="absolute ltr:left-3.5 rtl:right-3.5 top-3 w-4 h-4 text-slate-400" />
               <input
+                ref={searchInputRef}
                 type="text"
                 placeholder={t.searchPlaceholder}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && searchQuery.trim()) {
+                    e.preventDefault();
+                    handleScanCode(searchQuery);
+                  }
+                }}
                 className="w-full bg-white border border-slate-200 rounded-2xl ltr:pl-10 ltr:pr-4 rtl:pr-10 rtl:pl-4 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-cyan-500 placeholder-slate-400 shadow-sm transition-all"
               />
             </div>
@@ -758,19 +806,42 @@ export const PosTerminal: React.FC = () => {
                     <h4 className="text-xs font-bold text-slate-800 line-clamp-1">
                       {localizedName(item.name, item.nameAr)}
                     </h4>
-                    <span className="text-[11px] text-slate-500 font-mono">
-                      {t.currency} {item.price.toFixed(2)} × {item.quantity}
-                    </span>
+                    <div className="flex items-center gap-1 mt-0.5 text-[11px] text-slate-500 font-mono">
+                      <span>{t.currency}</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        value={item.price === 0 ? '' : item.price}
+                        onChange={(e) => updatePrice(item.productId, parseFloat(e.target.value) || 0)}
+                        className="w-14 bg-white border border-slate-200 rounded px-1 py-0.5 text-center focus:outline-none focus:border-cyan-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+                      <span>× {item.quantity}</span>
+                    </div>
                   </div>
 
                   <div className="flex items-center gap-1.5">
+                    <button
+                      onClick={() => removeItem(item.productId)}
+                      className="w-6 h-6 rounded-lg bg-rose-50 text-rose-500 hover:bg-rose-100 flex items-center justify-center transition-colors shadow-xs ltr:mr-2 rtl:ml-2"
+                      title={t.clear}
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                     <button
                       onClick={() => updateQuantity(item.productId, item.quantity - 1)}
                       className="w-6 h-6 rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 flex items-center justify-center shadow-xs"
                     >
                       <Minus className="w-3 h-3" />
                     </button>
-                    <span className="text-xs font-extrabold w-4 text-center text-slate-800">{item.quantity}</span>
+                    <input
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={item.quantity === 0 ? '' : item.quantity}
+                      onChange={(e) => updateQuantity(item.productId, parseInt(e.target.value, 10) || 0)}
+                      className="text-xs font-extrabold w-8 text-center text-slate-800 bg-transparent border border-transparent hover:border-slate-200 focus:border-cyan-500 focus:bg-white rounded py-0.5 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                    />
                     <button
                       onClick={() => {
                         const p = products.find((x) => x.id === item.productId);
