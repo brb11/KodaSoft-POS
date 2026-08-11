@@ -13,7 +13,7 @@ export const dict: Record<Locale, DictNode> = {
     startFree: 'Start free trial',
 
     // hero
-    heroBadge: 'Cloud POS for Saudi retail',
+    heroBadge: 'Cloud POS for modern retail',
     heroTitle1: 'Your store,',
     heroTitleAccent: 'selling smarter',
     heroSubtitle:
@@ -108,7 +108,7 @@ export const dict: Record<Locale, DictNode> = {
     startFree: 'ابدأ الفترة التجريبية',
 
     // hero
-    heroBadge: 'نقطة بيع سحابية لتجارة التجزئة في السعودية',
+    heroBadge: 'نقطة بيع سحابية لتجارة التجزئة الحديثة',
     heroTitle1: 'متجرك،',
     heroTitleAccent: 'يبيع بذكاء أكبر',
     heroSubtitle:

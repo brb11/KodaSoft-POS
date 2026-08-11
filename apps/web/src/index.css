@@ -5,12 +5,24 @@
 @layer base {
   body {
     @apply bg-slate-100 text-slate-800 antialiased;
-    font-family: 'Plus Jakarta Sans', system-ui, sans-serif;
+    font-family: 'Almarai', 'Plus Jakarta Sans', system-ui, sans-serif;
     font-feature-settings: "rlig" 1, "calt" 1;
   }
 
-  [dir="rtl"] body {
-    font-family: 'Almarai', 'Plus Jakarta Sans', system-ui, sans-serif;
+  [dir="rtl"] body,
+  [dir="rtl"] button,
+  [dir="rtl"] input,
+  [dir="rtl"] select,
+  [dir="rtl"] textarea,
+  [dir="rtl"] div,
+  [dir="rtl"] span,
+  [dir="rtl"] h1,
+  [dir="rtl"] h2,
+  [dir="rtl"] h3,
+  [dir="rtl"] h4,
+  [dir="rtl"] h5,
+  [dir="rtl"] h6 {
+    font-family: 'Almarai', system-ui, sans-serif !important;
   }
 }
 

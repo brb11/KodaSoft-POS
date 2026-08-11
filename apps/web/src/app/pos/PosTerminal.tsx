@@ -16,12 +16,13 @@ import { PaymentModal, type PaymentInput, type PaymentMethod } from './component
 import { BarcodeCameraModal } from './components/BarcodeCameraModal';
 import { HeldOrdersModal } from './components/HeldOrdersModal';
 import { ExpensesModal } from './components/ExpensesModal';
+import { ProductCard } from './components/ProductCard';
+import { CartItemRow } from './components/CartItemRow';
+import { LiveClock } from './components/LiveClock';
 import {
   Search,
   ShoppingCart,
   Trash2,
-  Plus,
-  Minus,
   CreditCard,
   Banknote,
   LogOut,
@@ -29,7 +30,6 @@ import {
   Coffee,
   LayoutDashboard,
   CheckCircle2,
-  WifiOff,
   CloudOff,
   History,
   HandCoins,
@@ -39,7 +39,22 @@ import {
   XCircle,
   BadgePercent,
   Split,
-  Flame
+  Flame,
+  LayoutGrid,
+  List,
+  Keyboard,
+  X,
+  Zap,
+  PackageCheck,
+  Receipt,
+  Building2,
+  Sun,
+  Cloud,
+  CloudRain,
+  Wind,
+  Box,
+  ShoppingBasket,
+  Wallet
 } from 'lucide-react';
 
 interface Product {
@@ -67,9 +82,48 @@ export const PosTerminal: React.FC = () => {
   const [categories, setCategories] = useState<Category[]>([]);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // ── Branch name is resolved from user or API ──────────────────────────────
+  const [branchName, setBranchName] = useState<string>('');
+
+  // ── Weather (browser Geolocation → OpenMeteo) ────────────────────────────
+  const [weather, setWeather] = useState<{ temp: number; code: number } | null>(null);
+
+  const weatherDesc = (code: number) => {
+    if (code === 0) return { label: t.weatherSunny, icon: <Sun className="w-3.5 h-3.5 text-amber-500" /> };
+    if (code <= 3) return { label: t.weatherCloudy, icon: <Cloud className="w-3.5 h-3.5 text-slate-400" /> };
+    if (code <= 67) return { label: t.weatherRainy, icon: <CloudRain className="w-3.5 h-3.5 text-blue-500" /> };
+    return { label: t.weatherWindy, icon: <Wind className="w-3.5 h-3.5 text-slate-500" /> };
+  };
+
+  useEffect(() => {
+    navigator.geolocation?.getCurrentPosition(
+      async ({ coords }) => {
+        try {
+          const res = await fetch(
+            `https://api.open-meteo.com/v1/forecast?latitude=${coords.latitude}&longitude=${coords.longitude}&current=temperature_2m,weathercode`
+          );
+          const data = await res.json();
+          setWeather({
+            temp: Math.round(data.current.temperature_2m),
+            code: data.current.weathercode,
+          });
+        } catch {/* ignore weather errors */}
+      },
+      () => {/* geolocation denied – no weather shown */}
+    );
+  }, []);
+
+
   const [loading, setLoading] = useState(true);
   const [processingOrder, setProcessingOrder] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState(false);
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [showCatalogModal, setShowCatalogModal] = useState(false);
+  const [catalogQuery, setCatalogQuery] = useState('');
+  const [catalogCategory, setCatalogCategory] = useState<string | null>(null);
+  const [recentlyScannedId, setRecentlyScannedId] = useState<string | null>(null);
+  const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
   
   // Printing state
   const receiptRef = useRef<HTMLDivElement>(null);
@@ -85,6 +139,17 @@ export const PosTerminal: React.FC = () => {
   const [shiftAmount, setShiftAmount] = useState('');
   const [shiftAction, setShiftAction] = useState<'OPEN'|'CLOSE'>('OPEN');
   const [resolvedBranchId, setResolvedBranchId] = useState<string | null>(useAuthStore.getState().user?.branchId || null);
+
+  // Fetch branch name after resolvedBranchId is available
+  useEffect(() => {
+    if (!resolvedBranchId) return;
+    api.get('/branches').then(res => {
+      const branches: any[] = res.data.data || [];
+      const found = branches.find((b: any) => b.id === resolvedBranchId);
+      if (found) setBranchName(found.name || '');
+    }).catch(() => {});
+  }, [resolvedBranchId]);
+
   const [showOrderHistory, setShowOrderHistory] = useState(false);
   const [showHeldOrders, setShowHeldOrders] = useState(false);
   const [showCustomerModal, setShowCustomerModal] = useState(false);
@@ -93,35 +158,52 @@ export const PosTerminal: React.FC = () => {
   const [showExpensesModal, setShowExpensesModal] = useState(false);
   const [showCameraScan, setShowCameraScan] = useState(false);
   const [scanFeedback, setScanFeedback] = useState<{ id: number; ok: boolean; text: string } | null>(null);
+  
   const feedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scanHighlightTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    // Focus search on mount
     setTimeout(() => {
       searchInputRef.current?.focus();
-    }, 100);
+    }, 150);
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      switch (e.key) {
-        case ' ':
-          if (!searchInputRef.current?.value.trim() && useCartStore.getState().items.length > 0) {
-            e.preventDefault();
-            setShowPaymentModal(true);
-          }
-          break;
-        case 'F2':
+      if (e.key === ' ' && useCartStore.getState().items.length > 0) {
+        const ae = document.activeElement as HTMLElement | null;
+        const interactive =
+          !!ae &&
+          (['INPUT', 'TEXTAREA', 'SELECT', 'BUTTON', 'A'].includes(ae.tagName) ||
+            ae.isContentEditable ||
+            !!ae.closest('button, a'));
+        if (!interactive) {
           e.preventDefault();
-          setShowCustomerModal(true);
-          break;
-        case 'F4':
-          e.preventDefault();
-          searchInputRef.current?.focus();
-          break;
-        case 'F7':
-          e.preventDefault();
-          setShowDiscountModal(true);
-          break;
+          setShowPaymentModal(true);
+        }
+      } else if (e.key === 'F2') {
+        e.preventDefault();
+        setShowCustomerModal(true);
+      } else if (e.key === 'F4') {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
+      } else if (e.key === 'F5') {
+        e.preventDefault();
+        setShowPaymentModal(true);
+      } else if (e.key === 'F7') {
+        e.preventDefault();
+        setShowDiscountModal(true);
+      } else if (e.key === 'F3') {
+        e.preventDefault();
+        setShowOrderHistory(true);
+      } else if (e.key === 'F6') {
+        e.preventDefault();
+        setShowHeldOrders(true);
+      } else if (e.key === 'Escape') {
+        setShowCatalogModal(false);
+        setShowShortcutsHelp(false);
+        setShowCameraScan(false);
+        setShowPaymentModal(false);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -166,8 +248,6 @@ export const PosTerminal: React.FC = () => {
     resolveBranch();
   }, [user]);
 
-  // Resolve the active branch automatically instead of falling back to a
-  // hard-coded placeholder that breaks order creation.
   const resolveBranch = async () => {
     if (user?.branchId) {
       setResolvedBranchId(user.branchId);
@@ -235,7 +315,7 @@ export const PosTerminal: React.FC = () => {
       const [prodRes, catRes, setRes] = await Promise.all([
         api.get('/products?isActive=true&limit=1000'),
         api.get('/categories'),
-        api.get('/settings').catch(() => ({ data: { data: null } })) // Fallback safe
+        api.get('/settings').catch(() => ({ data: { data: null } }))
       ]);
       setProducts((prodRes.data.data.items || []).map(mapProduct));
       setCategories(catRes.data.data || []);
@@ -249,8 +329,6 @@ export const PosTerminal: React.FC = () => {
     }
   };
 
-  // Refresh product stock after a sale so the client-side stock guard stays
-  // accurate for the next order.
   const refreshStock = async () => {
     try {
       const prodRes = await api.get('/products?isActive=true&limit=1000');
@@ -263,15 +341,23 @@ export const PosTerminal: React.FC = () => {
   const filteredProducts = products.filter((p) => {
     const matchesCategory = !selectedCategory || p.category?.name === selectedCategory;
     const matchesSearch =
+      !searchQuery.trim() ||
       p.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       p.barcode?.includes(searchQuery) ||
       p.sku?.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesCategory && matchesSearch;
   });
 
-  // ─── Client-side stock guard ──────────────────────────────────────────────
-  // When inventory tracking is enabled (globally and per product), block
-  // adding a product once the cart quantity would exceed the branch stock.
+  const catalogFiltered = products.filter((p) => {
+    const matchesCategory = !catalogCategory || p.category?.name === catalogCategory;
+    const q = catalogQuery.trim().toLowerCase();
+    const matchesSearch =
+      !q ||
+      p.name.toLowerCase().includes(q) ||
+      p.barcode?.includes(q) ||
+      p.sku?.toLowerCase().includes(q);
+    return matchesCategory && matchesSearch;
+  });
 
   const inventoryEnabled = settings?.trackInventory !== false;
 
@@ -298,6 +384,104 @@ export const PosTerminal: React.FC = () => {
     }
     return true;
   };
+
+  const playBeep = (ok: boolean) => {
+    try {
+      const Ctx: any = window.AudioContext || (window as any).webkitAudioContext;
+      if (!Ctx) return;
+      const ctx = new Ctx();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = ok ? 'square' : 'sawtooth';
+      osc.frequency.value = ok ? 1568 : 220;
+      const dur = ok ? 0.18 : 0.4;
+      gain.gain.setValueAtTime(0.06, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + dur);
+      osc.start();
+      osc.stop(ctx.currentTime + dur);
+      osc.onended = () => ctx.close().catch(() => {});
+    } catch {
+      /* Audio fallback */
+    }
+  };
+
+  const flashScan = (ok: boolean, text: string) => {
+    setScanFeedback({ id: Date.now(), ok, text });
+    playBeep(ok);
+    if (feedbackTimer.current) clearTimeout(feedbackTimer.current);
+    feedbackTimer.current = setTimeout(() => setScanFeedback(null), 1800);
+  };
+
+  const triggerScanHighlight = (productId: string) => {
+    setRecentlyScannedId(productId);
+    if (scanHighlightTimer.current) clearTimeout(scanHighlightTimer.current);
+    scanHighlightTimer.current = setTimeout(() => setRecentlyScannedId(null), 1400);
+  };
+
+  const addProductToCart = (p: Product) => {
+    if (!tryAddToCart(p)) return;
+    addItem({
+      id: p.id,
+      name: p.name,
+      nameAr: p.nameAr,
+      price: Number(p.price),
+      sku: p.sku,
+      taxRate: p.taxRate,
+    });
+    triggerScanHighlight(p.id);
+  };
+
+  const handleScanCode = async (code: string) => {
+    try {
+      const trimmed = code.trim();
+      if (!trimmed) return;
+
+      const local = products.find((p) => p.barcode && p.barcode.trim() === trimmed);
+      if (local) {
+        addProductToCart(local);
+        setSearchQuery('');
+        flashScan(true, `${t.scanAdded}: ${localizedName(local.name, local.nameAr)}`);
+        return;
+      }
+
+      try {
+        const res = await api.get(`/products/barcode/${encodeURIComponent(trimmed)}`);
+        const p = res.data?.data;
+        if (p && p.id) {
+          const product: Product = {
+            id: p.id,
+            name: p.name,
+            nameAr: p.nameAr,
+            price: Number(p.price),
+            sku: p.sku,
+            barcode: p.barcode,
+            category: p.category,
+            taxRate: p.taxRate,
+            trackInventory: p.trackInventory,
+            inventory: p.inventory || [],
+          };
+          setProducts((prev) => (prev.some((x) => x.id === product.id) ? prev : [...prev, product]));
+          if (!tryAddToCart(product)) return;
+          addItem(product);
+          triggerScanHighlight(product.id);
+          setSearchQuery('');
+          flashScan(true, `${t.scanAdded}: ${localizedName(product.name, product.nameAr)}`);
+          return;
+        }
+        flashScan(false, t.barcodeNotFound);
+      } catch (err) {
+        flashScan(false, t.barcodeNotFound);
+      }
+    } finally {
+      setTimeout(() => {
+        searchInputRef.current?.focus();
+      }, 50);
+    }
+  };
+
+  useBarcodeScanner(handleScanCode);
 
   const handleCheckout = async (payments: PaymentInput[]) => {
     if (items.length === 0 || payments.length === 0) return;
@@ -326,11 +510,7 @@ export const PosTerminal: React.FC = () => {
     }
 
     setProcessingOrder(true);
-
-    // Client-generated idempotency key so offline replays and retries after a
-    // lost response never create duplicate orders on the server.
     const idempotencyKey = crypto.randomUUID();
-
     const paidAmount = Math.round((payments.reduce((s, p) => s + p.amount, 0) + Number.EPSILON) * 100) / 100;
 
     const payload = {
@@ -356,7 +536,6 @@ export const PosTerminal: React.FC = () => {
 
     try {
       if (!isOnline) {
-        // Enqueue offline order
         useSyncStore.getState().addPendingOrder(payload);
         const randomNum = Math.floor(Math.random() * 9000) + 1000;
         setLastOrderDetails({
@@ -368,7 +547,6 @@ export const PosTerminal: React.FC = () => {
         setOrderSuccess(true);
         setTimeout(() => handlePrint(), 500);
       } else {
-        // Online order: the server recomputes prices and returns authoritative totals
         const res = await api.post('/orders', payload);
         const order = res.data.data;
         setLastOrderDetails({
@@ -388,8 +566,6 @@ export const PosTerminal: React.FC = () => {
         alert(t.insufficientStock);
         return;
       }
-      // Only fall back to the offline queue for network / server errors,
-      // never for validation failures (4xx).
       if (!status || status >= 500) {
         useSyncStore.getState().addPendingOrder(payload);
         const randomNum = Math.floor(Math.random() * 9000) + 1000;
@@ -403,106 +579,6 @@ export const PosTerminal: React.FC = () => {
       setProcessingOrder(false);
     }
   };
-
-  // ─── Barcode scanning (keyboard-wedge + camera) ───────────────────────────
-
-  const playBeep = (ok: boolean) => {
-    try {
-      const Ctx: any = window.AudioContext || (window as any).webkitAudioContext;
-      if (!Ctx) return;
-      const ctx = new Ctx();
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.type = ok ? 'square' : 'sawtooth';
-      osc.frequency.value = ok ? 1568 : 220;
-      const dur = ok ? 0.18 : 0.4;
-      gain.gain.setValueAtTime(0.06, ctx.currentTime);
-      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + dur);
-      osc.start();
-      osc.stop(ctx.currentTime + dur);
-      osc.onended = () => ctx.close().catch(() => {});
-    } catch {
-      /* audio unavailable — visual feedback still shows */
-    }
-  };
-
-  const flashScan = (ok: boolean, text: string) => {
-    setScanFeedback({ id: Date.now(), ok, text });
-    playBeep(ok);
-    if (feedbackTimer.current) clearTimeout(feedbackTimer.current);
-    feedbackTimer.current = setTimeout(() => setScanFeedback(null), 1600);
-  };
-
-  useEffect(() => {
-    return () => {
-      if (feedbackTimer.current) clearTimeout(feedbackTimer.current);
-    };
-  }, []);
-
-  const addProductToCart = (p: Product) => {
-    if (!tryAddToCart(p)) return;
-    addItem({
-      id: p.id,
-      name: p.name,
-      nameAr: p.nameAr,
-      price: Number(p.price),
-      sku: p.sku,
-      taxRate: p.taxRate,
-    });
-  };
-
-  const handleScanCode = async (code: string) => {
-    try {
-      const trimmed = code.trim();
-      if (!trimmed) return;
-
-      const local = products.find((p) => p.barcode && p.barcode.trim() === trimmed);
-      if (local) {
-        addProductToCart(local);
-        setSearchQuery('');
-        flashScan(true, `${t.scanAdded}: ${localizedName(local.name, local.nameAr)}`);
-        return;
-      }
-
-      // Not in the loaded list (catalog is paginated) — fall back to the exact
-      // barcode lookup endpoint.
-      try {
-        const res = await api.get(`/products/barcode/${encodeURIComponent(trimmed)}`);
-        const p = res.data?.data;
-        if (p && p.id) {
-          const product: Product = {
-            id: p.id,
-            name: p.name,
-            nameAr: p.nameAr,
-            price: Number(p.price),
-            sku: p.sku,
-            barcode: p.barcode,
-            category: p.category,
-            taxRate: p.taxRate,
-            trackInventory: p.trackInventory,
-            inventory: p.inventory || [],
-          };
-          setProducts((prev) => (prev.some((x) => x.id === product.id) ? prev : [...prev, product]));
-          if (!tryAddToCart(product)) return;
-          addItem(product);
-          setSearchQuery('');
-          flashScan(true, `${t.scanAdded}: ${localizedName(product.name, product.nameAr)}`);
-          return;
-        }
-        flashScan(false, t.barcodeNotFound);
-      } catch (err) {
-        flashScan(false, t.barcodeNotFound);
-      }
-    } finally {
-      setTimeout(() => {
-        searchInputRef.current?.focus();
-      }, 50);
-    }
-  };
-
-  useBarcodeScanner(handleScanCode);
 
   const handleHoldOrder = async () => {
     if (items.length === 0) return;
@@ -537,10 +613,16 @@ export const PosTerminal: React.FC = () => {
     flashScan(true, t.orderResumed);
   };
 
+  const openCatalogModal = () => {
+    setCatalogQuery('');
+    setCatalogCategory(null);
+    setShowCatalogModal(true);
+  };
+
   return (
-    <div className="h-screen bg-slate-100 text-slate-800 flex flex-col overflow-hidden">
-      {/* Top Header */}
-      <header className="bg-white border-b border-slate-200/80 px-6 py-3 flex items-center justify-between shadow-sm">
+    <div className="h-screen bg-slate-100 text-slate-800 flex flex-col overflow-hidden font-sans select-none antialiased">
+      {/* ── Top Header Bar (Light Theme) ────────────────────────────────── */}
+      <header className="bg-white border-b border-slate-200/80 px-6 py-3 flex items-center justify-between shadow-sm z-20 shrink-0">
         <div className="flex items-center gap-3">
           <img
             src="/logo_transparent.png"
@@ -557,7 +639,17 @@ export const PosTerminal: React.FC = () => {
           </div>
         </div>
 
+        {/* Header Action Tools */}
         <div className="flex items-center gap-3">
+          {/* Scanner Active Indicator */}
+          <div
+            className="flex items-center gap-1.5 px-3 py-1.5 bg-cyan-50 text-cyan-700 border border-cyan-200 rounded-xl text-xs font-bold shadow-xs animate-pulse"
+            title={t.barcodeScannerHint}
+          >
+            <Zap className="w-3.5 h-3.5 text-cyan-600 fill-cyan-500/20" />
+            <span className="hidden md:inline">{t.scannerActive}</span>
+          </div>
+
           <LanguageSwitcher />
 
           {!isOnline && (
@@ -566,20 +658,22 @@ export const PosTerminal: React.FC = () => {
               {translate(t.offlinePending, { count: pendingOrders.length })}
             </div>
           )}
+
           <Link
             to="/dashboard/products"
             className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all border border-slate-200"
           >
             <LayoutDashboard className="w-4 h-4 text-cyan-600" />
-            {t.adminDashboard}
+            <span className="hidden lg:inline">{t.adminDashboard}</span>
           </Link>
 
           <button
             onClick={() => setShowOrderHistory(true)}
             className="flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold transition-all border border-slate-200 shadow-sm"
+            title={t.orderHistory}
           >
             <History className="w-4 h-4 text-cyan-600" />
-            {t.orderHistory}
+            <span className="hidden lg:inline">{t.orderHistory}</span>
           </button>
 
           <button
@@ -589,16 +683,24 @@ export const PosTerminal: React.FC = () => {
             title={!isOnline ? t.heldUnavailableOffline : t.heldOrders}
           >
             <PauseCircle className="w-4 h-4 text-amber-500" />
-            {t.heldOrders}
+            <span className="hidden lg:inline">{t.heldOrders}</span>
           </button>
 
           <button
             onClick={() => setShowExpensesModal(true)}
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-white hover:bg-rose-50 text-slate-700 rounded-xl text-xs font-bold transition border border-slate-200 shadow-sm"
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-rose-50 text-slate-700 rounded-xl text-xs font-bold transition border border-slate-200 shadow-sm"
             title={t.expensesTitle}
           >
             <Flame className="w-4 h-4 text-rose-500" />
-            {t.expensesTitle}
+            <span className="hidden lg:inline">{t.expensesTitle}</span>
+          </button>
+
+          <button
+            onClick={() => setShowShortcutsHelp(true)}
+            className="p-2 text-slate-500 hover:text-cyan-600 bg-white hover:bg-slate-50 rounded-xl transition border border-slate-200 shadow-sm"
+            title={t.keyboardShortcuts}
+          >
+            <Keyboard className="w-4 h-4" />
           </button>
 
           {activeShift && (
@@ -607,7 +709,7 @@ export const PosTerminal: React.FC = () => {
                 setShiftAction('CLOSE');
                 setShowShiftModal(true);
               }}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 text-white rounded-xl text-xs font-bold hover:bg-slate-700 transition border border-slate-700 shadow-sm"
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-800 text-white rounded-xl text-xs font-bold hover:bg-slate-700 transition border border-slate-700 shadow-sm"
             >
               {t.endShift}
             </button>
@@ -615,34 +717,77 @@ export const PosTerminal: React.FC = () => {
 
           <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200 text-xs shadow-sm">
             <User className="w-3.5 h-3.5 text-cyan-600" />
-            <span className="font-bold text-slate-800">{user?.name || t.cashier}</span>
+            <span className="font-bold text-slate-800 max-w-[100px] truncate">{user?.name || t.cashier}</span>
             <span className="bg-cyan-50 text-cyan-700 border border-cyan-200 px-2 py-0.5 rounded-md text-[10px] uppercase font-extrabold">
               {user?.role || 'CASHIER'}
             </span>
           </div>
 
-          <button
-            onClick={apiLogout}
-            className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors"
-            title={t.logout}
-          >
-            <LogOut className="w-4.5 h-4.5" />
-          </button>
+            <button
+              onClick={apiLogout}
+              className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors"
+              title={t.logout}
+            >
+              <LogOut className="w-5 h-5" />
+            </button>
         </div>
       </header>
 
-      {/* Main Content Area */}
+      {/* Toast Feedback Notification */}
+      {scanFeedback && (
+        <div
+          key={scanFeedback.id}
+          className={`fixed top-16 left-1/2 -translate-x-1/2 z-[75] px-5 py-3 rounded-2xl text-xs font-black shadow-2xl flex items-center gap-2.5 transition-all animate-bounce ${
+            scanFeedback.ok
+              ? 'bg-emerald-600 text-white ring-4 ring-emerald-500/20'
+              : 'bg-rose-600 text-white ring-4 ring-rose-600/20'
+          }`}
+        >
+          {scanFeedback.ok ? <CheckCircle2 className="w-5 h-5" /> : <XCircle className="w-5 h-5" />}
+          {scanFeedback.text}
+        </div>
+      )}
+
+      {/* ── Main Workstation Content (Large Center: Added Products | Side: Order Details) ── */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Left Section: Catalog Grid */}
+        
+        {/* 🌟 LARGE MAIN CENTER AREA: Scanned / Added Products (الفاتورة الحالية والمنتجات المضافة) */}
         <div className="flex-1 flex flex-col p-5 overflow-hidden">
-          {/* Search Bar */}
-          <div className="flex gap-3 mb-4">
-            <div className="flex-1 relative">
-              <Search className="absolute ltr:left-3.5 rtl:right-3.5 top-3 w-4 h-4 text-slate-400" />
+          
+          {/* Top Search & Barcode Scanner Hub */}
+          <div className="bg-white border border-slate-200 rounded-3xl p-4 shadow-sm mb-4">
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-xs font-bold text-slate-700 flex items-center gap-2">
+                <ScanBarcode className="w-4 h-4 text-cyan-600 animate-pulse" />
+                <span>{t.scanPrompt}</span>
+              </label>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={openCatalogModal}
+                  className="flex items-center gap-1.5 px-3.5 py-2 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white rounded-xl text-xs font-bold shadow-md shadow-cyan-500/20 transition-all active:scale-95"
+                >
+                  <LayoutGrid className="w-3.5 h-3.5" />
+                  <span>{t.browseCatalog}</span>
+                </button>
+
+                <button
+                  onClick={() => setShowCameraScan(true)}
+                  className="flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all shadow-xs"
+                  title={t.scanBarcode}
+                >
+                  <ScanBarcode className="w-3.5 h-3.5 text-cyan-600" />
+                  <span className="hidden sm:inline">{t.cameraBtn}</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Input Bar */}
+            <div className="relative">
+              <Search className="absolute ltr:left-4 rtl:right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-cyan-600" />
               <input
                 ref={searchInputRef}
                 type="text"
-                placeholder={t.searchPlaceholder}
+                placeholder={t.scanPlaceholder}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 onKeyDown={(e) => {
@@ -651,230 +796,317 @@ export const PosTerminal: React.FC = () => {
                     handleScanCode(searchQuery);
                   }
                 }}
-                className="w-full bg-white border border-slate-200 rounded-2xl ltr:pl-10 ltr:pr-4 rtl:pr-10 rtl:pl-4 py-2.5 text-xs text-slate-800 focus:outline-none focus:border-cyan-500 placeholder-slate-400 shadow-sm transition-all"
+                className="w-full bg-slate-50 border-2 border-slate-200 focus:border-cyan-500 text-slate-900 rounded-2xl ltr:pl-12 ltr:pr-24 rtl:pr-12 rtl:pl-24 py-3.5 text-sm font-bold placeholder-slate-400 focus:outline-none focus:bg-white focus:ring-4 focus:ring-cyan-500/10 transition-all shadow-xs"
               />
-            </div>
-            <button
-              onClick={() => setShowCameraScan(true)}
-              title={t.scanBarcode}
-              className="flex items-center justify-center gap-2 px-4 bg-white hover:bg-cyan-50 border border-slate-200 hover:border-cyan-400 text-slate-700 hover:text-cyan-700 rounded-2xl text-xs font-bold transition-all shadow-sm"
-            >
-              <ScanBarcode className="w-4 h-4" />
-              <span className="hidden xl:inline">{t.scanBarcode}</span>
-            </button>
-          </div>
-
-          {/* Scan feedback toast */}
-          {scanFeedback && (
-            <div
-              key={scanFeedback.id}
-              className={`fixed top-4 left-1/2 -translate-x-1/2 z-[75] px-4 py-2.5 rounded-xl text-xs font-bold shadow-2xl flex items-center gap-2 ${
-                scanFeedback.ok ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'
-              }`}
-            >
-              {scanFeedback.ok ? <CheckCircle2 className="w-4 h-4" /> : <XCircle className="w-4 h-4" />}
-              {scanFeedback.text}
-            </div>
-          )}
-
-          {/* Category Tabs */}
-          <div className="flex gap-2 overflow-x-auto pb-3 mb-2 no-scrollbar">
-            <button
-              onClick={() => setSelectedCategory(null)}
-              className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
-                selectedCategory === null
-                  ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md shadow-cyan-500/20'
-                  : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
-              }`}
-            >
-              {t.allItems}
-            </button>
-            {categories.map((c) => (
-              <button
-                key={c.id}
-                onClick={() => setSelectedCategory(c.name)}
-                className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
-                  selectedCategory === c.name
-                    ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md shadow-cyan-500/20'
-                    : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
-                }`}
-              >
-                {localizedName(c.name, c.nameAr)}
-              </button>
-            ))}
-          </div>
-
-          {/* Products Grid */}
-          <div className="flex-1 overflow-y-auto grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5 ltr:pr-1 rtl:pl-1">
-            {loading ? (
-              <div className="col-span-full flex items-center justify-center text-slate-400 text-xs">
-                {t.loading}
-              </div>
-            ) : filteredProducts.length === 0 ? (
-              <div className="col-span-full flex flex-col items-center justify-center text-slate-400 my-12">
-                <Coffee className="w-10 h-10 mb-2 stroke-1 text-slate-300" />
-                <p className="text-xs font-medium">{t.noProducts}</p>
-              </div>
-            ) : (
-              filteredProducts.map((p) => (
-                <div
-                  key={p.id}
-                  onClick={() => addProductToCart(p)}
-                  className="bg-white hover:bg-slate-50 border border-slate-200/80 hover:border-cyan-400/80 rounded-2xl p-4 flex flex-col justify-between cursor-pointer transition-all hover:-translate-y-0.5 group shadow-sm hover:shadow-md"
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute ltr:right-3 rtl:left-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 p-1"
                 >
-                  <div>
-                    <span className="font-bold text-sm text-slate-800 group-hover:text-cyan-600 transition-colors line-clamp-1">
-                      {localizedName(p.name, p.nameAr)}
-                    </span>
-                    {p.sku && (
-                      <span className="text-[10px] text-slate-400 font-mono block mt-0.5">
-                        {t.skuPrefix} {p.sku}
-                      </span>
-                    )}
-                  </div>
-                  <div className="mt-4 flex items-center justify-between">
-                    <span className="text-base font-extrabold text-cyan-600">
-                      {t.currency} {(Number(p.price) * (1 + Number(p.taxRate?.rate ?? 15) / 100)).toFixed(2)}
-                    </span>
-                    <span className="w-7 h-7 rounded-xl bg-cyan-50 text-cyan-600 flex items-center justify-center group-hover:bg-cyan-500 group-hover:text-white transition-all shadow-sm">
-                      <Plus className="w-4 h-4" />
-                    </span>
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+          </div>
+
+          {/* LARGE CENTER BODY: Added Bill Products / Search Grid */}
+          <div className="flex-1 flex flex-col overflow-hidden bg-white border border-slate-200/80 rounded-3xl p-5 shadow-sm">
+            
+            {/* Case 1: User is actively typing in search -> show matching products grid */}
+            {searchQuery.trim() ? (
+              <div className="flex-1 flex flex-col overflow-hidden">
+                <div className="flex items-center justify-between mb-3 px-1">
+                  <span className="text-xs font-bold text-slate-600">
+                    {translate(t.searchResultsFor, { query: searchQuery, count: filteredProducts.length })}
+                  </span>
+                  <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
+                    <button
+                      onClick={() => setViewMode('grid')}
+                      className={`p-1.5 rounded-lg transition ${
+                        viewMode === 'grid' ? 'bg-cyan-500 text-white shadow-xs' : 'text-slate-500 hover:text-slate-900'
+                      }`}
+                    >
+                      <LayoutGrid className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => setViewMode('list')}
+                      className={`p-1.5 rounded-lg transition ${
+                        viewMode === 'list' ? 'bg-cyan-500 text-white shadow-xs' : 'text-slate-500 hover:text-slate-900'
+                      }`}
+                    >
+                      <List className="w-3.5 h-3.5" />
+                    </button>
                   </div>
                 </div>
-              ))
-            )}
-          </div>
-        </div>
 
-        {/* Right Section: Active Cart */}
-        <div className="w-96 bg-white flex flex-col ltr:border-l rtl:border-r border-slate-200/80 shadow-lg">
-          {/* Cart Header */}
-          <div className="p-4 border-b border-slate-200/80 flex items-center justify-between bg-slate-50/50">
-            <div className="flex items-center gap-2">
-              <ShoppingCart className="w-4 h-4 text-cyan-600" />
-              <h2 className="font-extrabold text-sm text-slate-900">{t.currentOrder}</h2>
-            </div>
-            {items.length > 0 && (
-              <button
-                onClick={clearCart}
-                className="text-xs text-rose-500 hover:text-rose-700 flex items-center gap-1 font-semibold"
-              >
-                <Trash2 className="w-3.5 h-3.5" /> {t.clear}
-              </button>
-            )}
-          </div>
-
-          {/* Customer Selector Bar */}
-          <div
-            onClick={() => setShowCustomerModal(true)}
-            className="mx-4 mt-3 p-2.5 bg-slate-50 border border-slate-200 rounded-xl flex items-center justify-between cursor-pointer hover:bg-slate-100/80 transition-colors shadow-xs"
-          >
-            <div className="flex items-center gap-2 overflow-hidden">
-              <User className="w-4 h-4 text-cyan-600 shrink-0" />
-              <div className="truncate text-xs">
-                <span className="font-extrabold text-slate-800">
-                  {customer ? customer.name : t.walkInCustomer}
-                </span>
-                {customer?.phone && <span className="text-[10px] text-slate-500 block font-mono">{customer.phone}</span>}
-              </div>
-            </div>
-            <span className="text-[10px] font-bold text-cyan-600 bg-cyan-50 px-2 py-0.5 rounded-lg border border-cyan-200">
-              {t.selectCustomer}
-            </span>
-          </div>
-
-          {/* Cart Items List */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-2.5">
-            {orderSuccess && (
-              <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-700 text-xs text-center font-bold flex items-center justify-center gap-1.5 shadow-sm">
-                <CheckCircle2 className="w-4 h-4" /> {t.orderCompleted}
-              </div>
-            )}
-
-            {items.length === 0 ? (
-              <div className="h-full flex flex-col items-center justify-center text-slate-400">
-                <ShoppingCart className="w-10 h-10 mb-2 stroke-1 text-slate-300" />
-                <p className="text-xs font-medium">{t.cartEmpty}</p>
-              </div>
-            ) : (
-              items.map((item) => (
                 <div
-                  key={item.productId}
-                  className="bg-slate-50/80 border border-slate-200/80 rounded-xl p-3 flex items-center justify-between shadow-sm"
+                  className={`flex-1 overflow-y-auto ${
+                    viewMode === 'grid'
+                      ? 'grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5'
+                      : 'space-y-2'
+                  }`}
                 >
-                  <div className="flex-1 ltr:pr-2 rtl:pl-2">
-                    <h4 className="text-xs font-bold text-slate-800 line-clamp-1">
-                      {localizedName(item.name, item.nameAr)}
-                    </h4>
-                    <div className="flex items-center gap-1 mt-0.5 text-[11px] text-slate-500 font-mono">
-                      <span>{t.currency}</span>
-                      <input
-                        type="number"
-                        min="0"
-                        step="0.01"
-                        value={item.price === 0 ? '' : item.price}
-                        onChange={(e) => updatePrice(item.productId, parseFloat(e.target.value) || 0)}
-                        className="w-14 bg-white border border-slate-200 rounded px-1 py-0.5 text-center focus:outline-none focus:border-cyan-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                      />
-                      <span>× {item.quantity}</span>
+                  {filteredProducts.length === 0 ? (
+                    <div className="col-span-full h-full flex flex-col items-center justify-center text-slate-400 py-12">
+                      <XCircle className="w-10 h-10 mb-2 text-slate-300" />
+                      <p className="text-xs font-bold">{translate(t.noSearchResults, { query: searchQuery })}</p>
                     </div>
+                  ) : (
+                    filteredProducts.map((product) => (
+                      <ProductCard
+                        key={product.id}
+                        product={product}
+                        currency={t.currency}
+                        stock={stockFor(product.id, product)}
+                        onSelect={addProductToCart}
+                        viewMode={viewMode}
+                        skuPrefixLabel={t.skuPrefix}
+                      />
+                    ))
+                  )}
+                </div>
+              </div>
+            ) : items.length > 0 ? (
+              /* Case 2: Cart has items -> Display Added Products in LARGE center area */
+              <div className="flex-1 flex flex-col overflow-hidden">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-200 mb-3">
+                  <div className="flex items-center gap-2">
+                    <Receipt className="w-5 h-5 text-cyan-600" />
+                    <h3 className="font-extrabold text-sm text-slate-900">
+                      {translate(t.cartItemsTitle, { count: items.length })}
+                    </h3>
                   </div>
 
-                  <div className="flex items-center gap-1.5">
-                    <button
-                      onClick={() => removeItem(item.productId)}
-                      className="w-6 h-6 rounded-lg bg-rose-50 text-rose-500 hover:bg-rose-100 flex items-center justify-center transition-colors shadow-xs ltr:mr-2 rtl:ml-2"
-                      title={t.clear}
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
-                    <button
-                      onClick={() => updateQuantity(item.productId, item.quantity - 1)}
-                      className="w-6 h-6 rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 flex items-center justify-center shadow-xs"
-                    >
-                      <Minus className="w-3 h-3" />
-                    </button>
-                    <input
-                      type="number"
-                      min="1"
-                      step="1"
-                      value={item.quantity === 0 ? '' : item.quantity}
-                      onChange={(e) => updateQuantity(item.productId, parseInt(e.target.value, 10) || 0)}
-                      className="text-xs font-extrabold w-8 text-center text-slate-800 bg-transparent border border-transparent hover:border-slate-200 focus:border-cyan-500 focus:bg-white rounded py-0.5 focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                    />
-                    <button
-                      onClick={() => {
+                  <button
+                    onClick={clearCart}
+                    className="text-xs text-rose-500 hover:text-rose-700 flex items-center gap-1 font-bold px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 transition-colors"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" /> {t.clearInvoice}
+                  </button>
+                </div>
+
+                {orderSuccess && (
+                  <div className="p-3.5 mb-3 bg-emerald-50 border border-emerald-200 rounded-2xl text-emerald-700 text-xs text-center font-extrabold flex items-center justify-center gap-2 shadow-xs">
+                    <PackageCheck className="w-5 h-5 text-emerald-600" /> {t.orderCompleted}
+                  </div>
+                )}
+
+                {/* Items List in Center Area */}
+                <div className="flex-1 overflow-y-auto space-y-2.5 ltr:pr-1 rtl:pl-1">
+                  {items.map((item) => (
+                    <CartItemRow
+                      key={item.productId}
+                      item={item}
+                      currency={t.currency}
+                      isHighlighted={recentlyScannedId === item.productId}
+                      onUpdateQuantity={updateQuantity}
+                      onUpdatePrice={updatePrice}
+                      onRemoveItem={removeItem}
+                      onTryAddMore={() => {
                         const p = products.find((x) => x.id === item.productId);
                         if (!p || tryAddToCart(p)) {
                           updateQuantity(item.productId, item.quantity + 1);
                         }
                       }}
-                      className="w-6 h-6 rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 flex items-center justify-center shadow-xs"
-                    >
-                      <Plus className="w-3 h-3" />
-                    </button>
+                    />
+                  ))}
+                </div>
+              </div>
+            ) : (
+              /* Case 3: Empty Cart & Idle Scanner */
+              <div className="flex-1 flex flex-col items-center justify-center text-center p-6 space-y-6">
+                <div className="relative">
+                  <div className="w-24 h-24 rounded-full bg-cyan-50 border-2 border-cyan-200 flex items-center justify-center text-cyan-600 animate-pulse shadow-sm">
+                    <ScanBarcode className="w-12 h-12 stroke-[1.5]" />
                   </div>
+                  <div className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-md">
+                    <Zap className="w-4 h-4 fill-white" />
+                  </div>
+                </div>
+
+                <div className="max-w-md space-y-2">
+                  <h3 className="text-base font-extrabold text-slate-900">
+                    {t.emptyCartTitle}
+                  </h3>
+                  <p className="text-xs text-slate-500 leading-relaxed">
+                    {t.emptyCartDesc}
+                  </p>
+                </div>
+
+                {/* Manual Product Catalog Button */}
+                <div className="pt-2">
+                  <button
+                    onClick={openCatalogModal}
+                    className="px-6 py-3.5 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 text-white rounded-2xl font-extrabold text-xs flex items-center gap-2.5 shadow-md shadow-cyan-500/20 hover:scale-[1.02] active:scale-95 transition-all"
+                  >
+                    <LayoutGrid className="w-4 h-4" />
+                    <span>{t.manualCatalogCta}</span>
+                  </button>
+                </div>
+
+                {/* Shortcuts hint chips */}
+                <div className="pt-6 flex flex-wrap items-center justify-center gap-3 text-[11px] text-slate-500">
+                  <span className="bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-lg font-mono">
+                    <b className="text-cyan-600">F4</b> {t.shortcutSearch}
+                  </span>
+                  <span className="bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-lg font-mono">
+                    <b className="text-cyan-600">F2</b> {t.shortcutCustomer}
+                  </span>
+                  <span className="bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-lg font-mono">
+                    <b className="text-cyan-600">F7</b> {t.shortcutDiscount}
+                  </span>
+                  <span className="bg-slate-50 border border-slate-200 px-2.5 py-1 rounded-lg font-mono">
+                    <b className="text-cyan-600">Space</b> {t.shortcutPay}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* ── Order Summary Metrics Row ────────────────────────────────────────── */}
+          <div className="grid grid-cols-6 gap-3 mt-4 shrink-0">
+            {/* Card 5: Grand Total (Filled Blue Box) */}
+            <div
+              onClick={() => items.length > 0 && setShowPaymentModal(true)}
+              className={`col-span-2 bg-blue-600 text-white rounded-2xl p-4 flex items-center justify-between gap-3 shadow-lg shadow-blue-500/30 ring-2 ring-blue-400/40 transition cursor-pointer select-none active:scale-[0.98] ${
+                items.length === 0 ? 'opacity-55 cursor-not-allowed active:scale-100 shadow-none ring-0' : 'hover:bg-blue-700 hover:shadow-blue-500/40'
+              }`}
+            >
+              <div className="text-start min-w-0">
+                <p className="text-[11px] text-white/80 font-extrabold mb-1.5 flex items-center gap-1.5">
+                  <Wallet className="w-4 h-4 shrink-0" />
+                  {t.totalAmount}
+                </p>
+                <p className="text-2xl xl:text-3xl font-black leading-none tabular-nums truncate">
+                  {t.currency} {getTotal().toFixed(2)}
+                </p>
+              </div>
+            </div>
+
+            {/* Card 4: VAT */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-3 flex items-center justify-between shadow-xs">
+              <div className="text-start">
+                <p className="text-[10px] text-slate-400 font-extrabold mb-1">{t.vatShort}</p>
+                <p className="text-[17px] font-black text-blue-600 leading-none tabular-nums">
+                  {t.currency} {getTaxAmount().toFixed(2)}
+                </p>
+              </div>
+              <span className="text-lg font-black text-slate-400 leading-none select-none">%</span>
+            </div>
+
+            {/* Card 3: Subtotal */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-3 flex items-center justify-between shadow-xs">
+              <div className="text-start">
+                <p className="text-[10px] text-slate-400 font-extrabold mb-1">{t.subtotal}</p>
+                <p className="text-[17px] font-black text-blue-600 leading-none tabular-nums">
+                  {t.currency} {getSubtotal().toFixed(2)}
+                </p>
+              </div>
+              <Receipt className="w-6 h-6 text-slate-400 stroke-[1.5]" />
+            </div>
+
+            {/* Card 2: Total Quantity */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-3 flex items-center justify-between shadow-xs">
+              <div className="text-start">
+                <p className="text-[10px] text-slate-400 font-extrabold mb-1">{t.totalQuantityLabel}</p>
+                <p className="text-[17px] font-black text-blue-600 leading-none tabular-nums">
+                  {items.reduce((s, i) => s + i.quantity, 0)}
+                </p>
+              </div>
+              <ShoppingBasket className="w-6 h-6 text-slate-400 stroke-[1.5]" />
+            </div>
+
+            {/* Card 1: Items Count */}
+            <div className="bg-white border border-slate-200 rounded-2xl p-3 flex items-center justify-between shadow-xs">
+              <div className="text-start">
+                <p className="text-[10px] text-slate-400 font-extrabold mb-1">{t.itemsCountLabel}</p>
+                <p className="text-[17px] font-black text-blue-600 leading-none tabular-nums">{items.length}</p>
+              </div>
+              <Box className="w-6 h-6 text-slate-400 stroke-[1.5]" />
+            </div>
+          </div>
+        </div>
+
+        {/* 🌟 SIDEBAR PANEL (ON THE RIGHT): Details, Totals Summary & Payment Pad */}
+        <div className="w-80 md:w-96 bg-white flex flex-col shrink-0 shadow-lg ltr:border-l rtl:border-r border-slate-200/80">
+          
+          {/* Header of details sidebar */}
+          <div className="p-4 border-b border-slate-200/80 flex items-center justify-between bg-slate-50/50">
+            <div className="flex items-center gap-2">
+              <ShoppingCart className="w-4 h-4 text-cyan-600" />
+              <h2 className="font-extrabold text-sm text-slate-900">{t.invoiceDetails}</h2>
+            </div>
+            <span className="text-xs bg-cyan-50 text-cyan-700 px-2.5 py-0.5 rounded-full font-bold border border-cyan-200">
+              {translate(t.itemsCount, { count: items.length })}
+            </span>
+          </div>
+
+          {/* Customer Selection Card */}
+          <div
+            onClick={() => setShowCustomerModal(true)}
+            className="mx-4 mt-4 p-3 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-between cursor-pointer hover:bg-slate-100/80 transition-colors shadow-xs"
+          >
+            <div className="flex items-center gap-2.5 overflow-hidden">
+              <User className="w-5 h-5 text-cyan-600 shrink-0" />
+              <div className="truncate text-xs">
+                <span className="font-extrabold text-slate-800 block truncate">
+                  {customer ? customer.name : t.walkInCustomer}
+                </span>
+                {customer?.phone && <span className="text-[10px] text-slate-500 block font-mono">{customer.phone}</span>}
+              </div>
+            </div>
+            <span className="text-[10px] font-bold text-cyan-600 bg-cyan-50 px-2.5 py-1 rounded-xl border border-cyan-200">
+              {t.selectCustomer}
+            </span>
+          </div>
+
+          {/* Quick Cart Summary List preview inside sidebar */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-2">
+            <h4 className="text-[11px] font-extrabold text-slate-400 uppercase tracking-wider mb-1">
+              {t.itemsSummary}
+            </h4>
+            {items.length === 0 ? (
+              <div className="py-8 text-center text-slate-400 text-xs font-medium">
+                {t.noItemsInInvoice}
+              </div>
+            ) : (
+              items.map((item) => (
+                <div key={item.productId} className="flex items-center justify-between text-xs py-1.5 border-b border-slate-100">
+                  <div className="truncate ltr:pr-2 rtl:pl-2">
+                    <span className="font-bold text-slate-800 block truncate">
+                      {localizedName(item.name, item.nameAr)}
+                    </span>
+                    <span className="text-[10px] text-slate-400">
+                      {item.quantity} × {t.currency} {item.price.toFixed(2)}
+                    </span>
+                  </div>
+                  <span className="font-extrabold text-slate-900 font-mono shrink-0">
+                    {t.currency} {(item.price * item.quantity).toFixed(2)}
+                  </span>
                 </div>
               ))
             )}
           </div>
 
-          {/* Cart Totals & Checkout Buttons */}
-          <div className="p-4 bg-slate-50/80 border-t border-slate-200/80 space-y-3">
-            <div className="space-y-1.5 text-xs text-slate-500 font-medium">
-              <div className="flex justify-between">
-                <span>{t.subtotal}</span>
-                <span className="text-slate-700 font-semibold">{t.currency} {getSubtotal().toFixed(2)}</span>
+          {/* Cart Totals Breakdown & Checkout Buttons Pad */}
+          <div className="p-4 bg-slate-50/80 border-t border-slate-200/80 space-y-4 shrink-0">
+            {/* Totals Breakdown */}
+            <div className="space-y-2 text-xs font-semibold text-slate-600">
+              <div className="flex justify-between items-center">
+                <span className="font-bold">{t.subtotal}</span>
+                <span className="font-extrabold text-slate-800 tabular-nums">{t.currency} {getSubtotal().toFixed(2)}</span>
               </div>
-              <div className="flex justify-between">
-                <span>{t.vat}</span>
-                <span className="text-slate-700 font-semibold">{t.currency} {getTaxAmount().toFixed(2)}</span>
+              <div className="flex justify-between items-center">
+                <span className="font-bold">{t.vat}</span>
+                <span className="font-extrabold text-slate-800 tabular-nums">{t.currency} {getTaxAmount().toFixed(2)}</span>
               </div>
+
+              {/* Discount Button */}
               <button
                 onClick={() => setShowDiscountModal(true)}
-                className="w-full flex justify-between items-center py-1.5 px-2 -mx-2 rounded-lg hover:bg-slate-100 transition-colors text-left"
+                className="w-full flex justify-between items-center py-1.5 px-2.5 rounded-xl hover:bg-slate-200/60 transition-colors text-left border border-slate-200 bg-white text-[11px]"
               >
-                <span className="flex items-center gap-1.5">
+                <span className="flex items-center gap-1 text-cyan-600 font-bold">
                   <BadgePercent className="w-3.5 h-3.5" />
                   {t.discountLabel}
                 </span>
@@ -884,72 +1116,254 @@ export const PosTerminal: React.FC = () => {
                     {discountType === 'percent' ? ` (${discount}%)` : ''}
                   </span>
                 ) : (
-                  <span className="text-slate-400"><Plus className="w-3.5 h-3.5 inline" /></span>
+                  <span className="text-slate-400 font-bold">{t.addDiscountCta}</span>
                 )}
               </button>
-              <div className="flex justify-between font-extrabold text-sm text-slate-900 pt-2 border-t border-slate-200">
-                <span>{t.totalAmount}</span>
-                <span className="text-cyan-600">{t.currency} {getTotal().toFixed(2)}</span>
+
+              <div className="flex justify-between items-baseline pt-2.5 border-t border-slate-200/80">
+                <span className="font-black text-sm text-slate-800">{t.totalAmount}</span>
+                <span className="text-xl font-black text-blue-600 tabular-nums">{t.currency} {getTotal().toFixed(2)}</span>
               </div>
             </div>
 
-            <div className="space-y-2">
-              {user?.role === 'OWNER' || user?.role === 'MANAGER' ? (
-                <button
-                  disabled={items.length === 0 || processingOrder || !customer}
-                  onClick={() => handleCheckout([{ method: 'STORE_CREDIT', amount: getTotal() }])}
-                  className="w-full py-3 bg-emerald-50 hover:bg-emerald-100 border-2 border-dashed border-emerald-300 text-emerald-700 font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition-all disabled:opacity-40 shadow-sm"
-                  title={t.payOnAccount}
-                >
-                  <HandCoins className="w-4 h-4" />
-                  {t.payOnAccount}
-                </button>
-              ) : (
-                <p className="text-[10px] text-slate-400 flex items-center justify-center gap-1.5">
-                  <HandCoins className="w-3.5 h-3.5" /> {t.managerOnly}
-                </p>
-              )}
-            </div>
-
-            <button
-              onClick={handleHoldOrder}
-              disabled={items.length === 0 || processingOrder || !isOnline}
-              title={!isOnline ? t.heldUnavailableOffline : t.holdOrder}
-              className="w-full py-3 bg-amber-50 hover:bg-amber-100 border-2 border-dashed border-amber-300 text-amber-700 font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition-all disabled:opacity-40 shadow-sm"
-            >
-              <Pause className="w-4 h-4" />
-              {t.holdOrder}
-            </button>
-
-            <div className="grid grid-cols-2 gap-2 pt-1">
-              <button
-                disabled={items.length === 0 || processingOrder}
-                onClick={() => handleCheckout([{ method: 'CASH', amount: getTotal() }])}
-                className="py-3 bg-white hover:bg-slate-100 border border-slate-200 text-slate-800 font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition-all disabled:opacity-40 shadow-sm"
-              >
-                <Banknote className="w-4 h-4 text-emerald-600" />
-                {t.payCash}
-              </button>
+            {/* Payment Actions Pad */}
+            <div className="space-y-2.5">
+              {/* Row 1: Card - full width, prominent */}
               <button
                 disabled={items.length === 0 || processingOrder}
                 onClick={() => handleCheckout([{ method: 'CARD', amount: getTotal() }])}
-                className="py-3 bg-white hover:bg-slate-100 border border-slate-200 text-slate-800 font-bold rounded-xl text-xs flex items-center justify-center gap-2 transition-all disabled:opacity-40 shadow-sm"
+                className="w-full py-3 bg-white hover:bg-blue-50 border-2 border-blue-500 hover:border-blue-600 text-blue-600 font-extrabold rounded-2xl text-xs flex items-center justify-center gap-2 transition-all disabled:opacity-40 disabled:scale-100 outline-none"
               >
-                <CreditCard className="w-4 h-4 text-blue-600" />
-                {t.payCard}
+                <CreditCard className="w-4 h-4 shrink-0" />
+                <span>{t.payCard}</span>
               </button>
+
+              {/* Row 2: Cash - full width, prominent */}
+              <button
+                disabled={items.length === 0 || processingOrder}
+                onClick={() => handleCheckout([{ method: 'CASH', amount: getTotal() }])}
+                className="w-full py-3 bg-white hover:bg-emerald-50 border-2 border-emerald-500 hover:border-emerald-600 text-emerald-600 font-extrabold rounded-2xl text-xs flex items-center justify-center gap-2 transition-all disabled:opacity-40 disabled:scale-100 outline-none"
+              >
+                <Banknote className="w-4 h-4 shrink-0" />
+                <span>{t.payCash}</span>
+              </button>
+
+              {/* Row 3: On Account + Hold Order - side by side, subtle */}
+              <div className="grid grid-cols-2 gap-2.5">
+                {user?.role === 'OWNER' || user?.role === 'MANAGER' ? (
+                  <button
+                    disabled={items.length === 0 || processingOrder || !customer}
+                    onClick={() => handleCheckout([{ method: 'STORE_CREDIT', amount: getTotal() }])}
+                    className="w-full py-2.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-bold rounded-2xl text-xs flex items-center justify-center gap-1.5 transition-all disabled:opacity-40 shadow-xs"
+                  >
+                    <HandCoins className="w-4 h-4 text-emerald-500 shrink-0" />
+                    <span>{t.payOnAccount}</span>
+                  </button>
+                ) : (
+                  <div className="w-full py-2.5 flex items-center justify-center text-[10px] text-slate-400 bg-slate-100 border border-slate-200 rounded-2xl">
+                    {t.managerOnly}
+                  </div>
+                )}
+
+                <button
+                  onClick={handleHoldOrder}
+                  disabled={items.length === 0 || processingOrder || !isOnline}
+                  className="w-full py-2.5 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-bold rounded-2xl text-xs flex items-center justify-center gap-1.5 transition-all disabled:opacity-40 shadow-xs"
+                >
+                  <Pause className="w-4 h-4 text-amber-500 shrink-0" />
+                  <span>{t.holdOrder}</span>
+                </button>
+              </div>
+
+              {/* Row 4: Split / Mixed Payment - opens payment screen */}
               <button
                 disabled={items.length === 0 || processingOrder}
                 onClick={() => setShowPaymentModal(true)}
-                className="col-span-2 py-3 bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-700 hover:to-teal-700 text-white font-extrabold rounded-xl text-xs flex items-center justify-center gap-2 transition-all disabled:opacity-40 shadow-md shadow-cyan-600/20"
+                className="w-full py-3 bg-gradient-to-r from-cyan-600 to-teal-600 hover:from-cyan-700 hover:to-teal-700 text-white font-extrabold rounded-2xl text-sm flex items-center justify-center gap-2.5 transition-all shadow-md shadow-cyan-600/20 active:scale-[0.99] disabled:opacity-40 disabled:scale-100 disabled:cursor-not-allowed"
               >
-                <Split className="w-4 h-4" />
-                {t.paySplit}
+                <Split className="w-5 h-5" />
+                <span>{t.paySplit}</span>
               </button>
             </div>
           </div>
         </div>
       </div>
+
+      {/* ── Product Catalog Browser Modal (Light Theme) ───────────────────── */}
+      {showCatalogModal && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 md:p-6 z-[80]">
+          <div className="bg-white rounded-3xl w-full max-w-5xl h-[85vh] flex flex-col shadow-2xl overflow-hidden border border-slate-200">
+            {/* Modal Header */}
+            <div className="p-5 border-b border-slate-200 flex items-center justify-between bg-slate-50">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-cyan-50 text-cyan-600 flex items-center justify-center font-bold">
+                  <LayoutGrid className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-900">{t.catalogTitle}</h3>
+                  <p className="text-xs text-slate-500">{t.catalogDesc}</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                {/* View Mode Toggle */}
+                <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200 shadow-xs">
+                  <button
+                    onClick={() => setViewMode('grid')}
+                    className={`p-2 rounded-lg transition ${
+                      viewMode === 'grid' ? 'bg-cyan-500 text-white shadow-xs' : 'text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    <LayoutGrid className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => setViewMode('list')}
+                    className={`p-2 rounded-lg transition ${
+                      viewMode === 'list' ? 'bg-cyan-500 text-white shadow-xs' : 'text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    <List className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <button
+                  onClick={() => setShowCatalogModal(false)}
+                  className="w-9 h-9 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Modal Search & Category Filter Toolbar */}
+            <div className="p-4 bg-white border-b border-slate-200 space-y-3">
+              <div className="relative">
+                <Search className="absolute ltr:left-3.5 rtl:right-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                <input
+                  type="text"
+                  placeholder={t.filterCatalogPlaceholder}
+                  value={catalogQuery}
+                  onChange={(e) => setCatalogQuery(e.target.value)}
+                  className="w-full bg-slate-50 border border-slate-200 rounded-xl ltr:pl-10 ltr:pr-4 rtl:pr-10 rtl:pl-4 py-2.5 text-xs text-slate-800 placeholder-slate-400 focus:outline-none focus:border-cyan-500"
+                />
+              </div>
+
+              {/* Category Pills */}
+              <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
+                <button
+                  onClick={() => setCatalogCategory(null)}
+                  className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+                    catalogCategory === null
+                      ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md shadow-cyan-500/20'
+                      : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  {t.allItems} ({products.length})
+                </button>
+                {categories.map((c) => (
+                  <button
+                    key={c.id}
+                    onClick={() => setCatalogCategory(c.name)}
+                    className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+                      catalogCategory === c.name
+                        ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md shadow-cyan-500/20'
+                        : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+                    }`}
+                  >
+                    {localizedName(c.name, c.nameAr)}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Catalog Grid Area */}
+            <div className="flex-1 p-5 overflow-y-auto bg-slate-50/50">
+              {loading ? (
+                <div className="h-full flex items-center justify-center text-slate-400 text-xs">
+                  {t.loading}
+                </div>
+              ) : catalogFiltered.length === 0 ? (
+                <div className="h-full flex flex-col items-center justify-center text-slate-400 py-12">
+                  <Coffee className="w-10 h-10 mb-2 text-slate-300" />
+                  <p className="text-xs font-medium">{t.noProducts}</p>
+                </div>
+              ) : (
+                <div
+                  className={
+                    viewMode === 'grid'
+                      ? 'grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4'
+                      : 'space-y-2.5'
+                  }
+                >
+                  {catalogFiltered.map((p) => (
+                    <ProductCard
+                      key={p.id}
+                      product={p}
+                      currency={t.currency}
+                      stock={stockFor(p.id, p)}
+                      onSelect={(product) => {
+                        addProductToCart(product);
+                        flashScan(true, `${t.scanAdded}: ${localizedName(product.name, product.nameAr)}`);
+                      }}
+                      viewMode={viewMode}
+                      skuPrefixLabel={t.skuPrefix}
+                    />
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Shortcuts Help Modal */}
+      {showShortcutsHelp && (
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-[90]">
+          <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-200">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-extrabold text-sm text-slate-900 flex items-center gap-2">
+                <Keyboard className="w-4 h-4 text-cyan-600" /> {t.keyboardShortcuts}
+              </h3>
+              <button
+                onClick={() => setShowShortcutsHelp(false)}
+                className="text-slate-400 hover:text-slate-700"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="space-y-2.5 text-xs">
+              <div className="flex justify-between py-1.5 border-b border-slate-100">
+                <span className="text-slate-600">{t.shortcutFocusSearch}</span>
+                <kbd className="bg-slate-100 px-2 py-0.5 rounded text-cyan-700 font-mono font-bold">F4</kbd>
+              </div>
+              <div className="flex justify-between py-1.5 border-b border-slate-100">
+                <span className="text-slate-600">{t.shortcutAddCustomer}</span>
+                <kbd className="bg-slate-100 px-2 py-0.5 rounded text-cyan-700 font-mono font-bold">F2</kbd>
+              </div>
+              <div className="flex justify-between py-1.5 border-b border-slate-100">
+                <span className="text-slate-600">{t.shortcutAddDiscount}</span>
+                <kbd className="bg-slate-100 px-2 py-0.5 rounded text-cyan-700 font-mono font-bold">F7</kbd>
+              </div>
+              <div className="flex justify-between py-1.5 border-b border-slate-100">
+                <span className="text-slate-600">{t.shortcutOrderHistory}</span>
+                <kbd className="bg-slate-100 px-2 py-0.5 rounded text-cyan-700 font-mono font-bold">F3</kbd>
+              </div>
+              <div className="flex justify-between py-1.5 border-b border-slate-100">
+                <span className="text-slate-600">{t.shortcutHeldOrders}</span>
+                <kbd className="bg-slate-100 px-2 py-0.5 rounded text-cyan-700 font-mono font-bold">F6</kbd>
+              </div>
+              <div className="flex justify-between py-1.5 border-b border-slate-100">
+                <span className="text-slate-600">{t.shortcutPayConfirm}</span>
+                <kbd className="bg-slate-100 px-2 py-0.5 rounded text-cyan-700 font-mono font-bold">F5</kbd>
+              </div>
+              <div className="flex justify-between py-1.5">
+                <span className="text-slate-600">{t.shortcutPayNow}</span>
+                <kbd className="bg-slate-100 px-2 py-0.5 rounded text-cyan-700 font-mono font-bold">Space</kbd>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Order History Modal */}
       <OrderHistoryModal
@@ -968,47 +1382,45 @@ export const PosTerminal: React.FC = () => {
 
       {/* Shift Modal */}
       {showShiftModal && (
-        <div className="fixed inset-0 bg-slate-900/40 flex items-center justify-center p-4 z-[60] backdrop-blur-sm">
-          <div className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl">
-            <h3 className="text-xl font-bold mb-2">
+        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4 z-[90]">
+          <div className="bg-white rounded-3xl w-full max-w-sm p-6 shadow-2xl border border-slate-200">
+            <h3 className="text-xl font-bold mb-2 text-slate-900">
               {shiftAction === 'OPEN' ? t.openShift : t.endShift}
             </h3>
             <p className="text-xs text-slate-500 mb-6">
-              {shiftAction === 'OPEN' 
-               ? t.openingCashDesc
-               : t.closingCashDesc}
+              {shiftAction === 'OPEN' ? t.openingCashDesc : t.closingCashDesc}
             </p>
             
             <form onSubmit={handleShiftSubmit} className="space-y-4">
-               <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
-                    {shiftAction === 'OPEN' ? t.openingCashAmount : t.closingCashAmount}
-                  </label>
-                  <div className="relative">
-                    <span className="absolute ltr:left-4 rtl:right-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">{t.currency}</span>
-                    <input 
-                      type="number" 
-                      step="0.01" 
-                      min="0"
-                      required 
-                      autoFocus
-                      value={shiftAmount} 
-                      onChange={e => setShiftAmount(e.target.value)} 
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl ltr:pl-8 ltr:pr-4 rtl:pr-8 rtl:pl-4 py-3 text-lg font-bold" 
-                    />
-                  </div>
-               </div>
-               
-               <div className="flex gap-2 pt-2">
-                 {shiftAction === 'CLOSE' && (
-                    <button type="button" onClick={() => setShowShiftModal(false)} className="flex-1 py-3 border rounded-xl font-bold text-slate-600 bg-white hover:bg-slate-50 text-sm">
-                      {t.cancel}
-                    </button>
-                 )}
-                 <button type="submit" className="flex-1 py-3 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 transition-colors text-sm">
-                   {shiftAction === 'OPEN' ? t.openShift : t.confirmCloseShift}
-                 </button>
-               </div>
+              <div>
+                <label className="block text-xs font-bold text-slate-700 mb-1">
+                  {shiftAction === 'OPEN' ? t.openingCashAmount : t.closingCashAmount}
+                </label>
+                <div className="relative">
+                  <span className="absolute ltr:left-4 rtl:right-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">{t.currency}</span>
+                  <input 
+                    type="number" 
+                    step="0.01" 
+                    min="0"
+                    required 
+                    autoFocus
+                    value={shiftAmount} 
+                    onChange={e => setShiftAmount(e.target.value)} 
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl ltr:pl-8 ltr:pr-4 rtl:pr-8 rtl:pl-4 py-3 text-lg font-bold text-slate-900 focus:outline-none focus:border-cyan-500" 
+                  />
+                </div>
+              </div>
+              
+              <div className="flex gap-2 pt-2">
+                {shiftAction === 'CLOSE' && (
+                  <button type="button" onClick={() => setShowShiftModal(false)} className="flex-1 py-3 border border-slate-200 rounded-xl font-bold text-slate-600 bg-white hover:bg-slate-50 text-sm">
+                    {t.cancel}
+                  </button>
+                )}
+                <button type="submit" className="flex-1 py-3 bg-slate-900 text-white rounded-xl font-bold hover:bg-slate-800 transition-colors text-sm">
+                  {shiftAction === 'OPEN' ? t.openShift : t.confirmCloseShift}
+                </button>
+              </div>
             </form>
           </div>
         </div>
@@ -1053,17 +1465,62 @@ export const PosTerminal: React.FC = () => {
       />
 
       {/* Expenses / Cash Payouts Modal */}
-      <ExpensesModal
-        open={showExpensesModal}
-        onClose={() => setShowExpensesModal(false)}
-        branchId={resolvedBranchId || user?.branchId || null}
-        activeShift={activeShift}
-      />
+      {showExpensesModal && (
+        <ExpensesModal
+          open={showExpensesModal}
+          onClose={() => setShowExpensesModal(false)}
+          branchId={resolvedBranchId || user?.branchId || null}
+          activeShift={activeShift}
+        />
+      )}
 
       {/* Barcode Camera Scanner */}
       {showCameraScan && (
         <BarcodeCameraModal onScan={handleScanCode} onClose={() => setShowCameraScan(false)} />
       )}
+
+
+
+      {/* ── Bottom Status Bar ────────────────────────────────────────────────── */}
+      <footer className="bg-white border-t border-slate-200/80 px-6 py-2 flex items-center justify-between text-[11px] text-slate-500 font-medium shadow-sm shrink-0">
+        {/* Left: Branch */}
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-1.5">
+            <Building2 className="w-3.5 h-3.5 text-cyan-600" />
+            <span className="font-bold text-slate-700">{branchName || t.mainBranch}</span>
+          </div>
+        </div>
+
+        {/* Center: Time + Date */}
+        <div className="flex items-center gap-5">
+          <LiveClock />
+        </div>
+
+        {/* Right: Connection + Weather */}
+        <div className="flex items-center gap-4">
+          {/* Connection status */}
+          {isOnline ? (
+            <div className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-emerald-500 shadow-sm shadow-emerald-400 animate-pulse" />
+              <span className="font-bold text-emerald-600">{t.connected}</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-rose-500" />
+              <span className="font-bold text-rose-600">{t.disconnected}</span>
+            </div>
+          )}
+
+          {/* Weather */}
+          {weather && (
+            <div className="flex items-center gap-1.5">
+              {weatherDesc(weather.code).icon}
+              <span className="font-bold text-slate-700">{weather.temp}°C</span>
+              <span className="text-slate-400">{weatherDesc(weather.code).label}</span>
+            </div>
+          )}
+        </div>
+      </footer>
     </div>
   );
 };

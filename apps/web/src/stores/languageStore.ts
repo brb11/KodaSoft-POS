@@ -356,6 +356,55 @@ export interface Translations {
   expWithdrawalLabel: string;
   expDeleteConfirm: string;
   nonCashNote: string;
+  scannerActive: string;
+  cameraBtn: string;
+  browseCatalog: string;
+  scanPrompt: string;
+  scanPlaceholder: string;
+  searchResultsFor: string;
+  noSearchResults: string;
+  cartItemsTitle: string;
+  clearInvoice: string;
+  emptyCartTitle: string;
+    emptyCartDesc: string;
+    manualCatalogCta: string;
+    itemsCount: string;
+  itemsSummary: string;
+  noItemsInInvoice: string;
+  addDiscountCta: string;
+  keyboardShortcuts: string;
+  shortcutFocusSearch: string;
+  shortcutAddCustomer: string;
+  shortcutAddDiscount: string;
+  shortcutOrderHistory: string;
+  shortcutHeldOrders: string;
+  shortcutPayNow: string;
+  shortcutSearch: string;
+  shortcutCustomer: string;
+  shortcutDiscount: string;
+  shortcutPay: string;
+  catalogTitle: string;
+  catalogDesc: string;
+  filterCatalogPlaceholder: string;
+  priceEditTitle: string;
+  lineTotal: string;
+  deleteItem: string;
+  taxIncluded: string;
+  outOfStock: string;
+  stockLeft: string;
+  generalLabel: string;
+  vatShort: string;
+  totalQuantityLabel: string;
+  itemsCountLabel: string;
+  payConfirm: string;
+  connected: string;
+  disconnected: string;
+  mainBranch: string;
+  weatherSunny: string;
+  weatherCloudy: string;
+  weatherRainy: string;
+  weatherWindy: string;
+  shortcutPayConfirm: string;
 
   // Products Management
   productsManagement: string;
@@ -1210,6 +1259,55 @@ const translations: Record<Language, Translations> = {
     expWithdrawalLabel: 'سحب نقدي',
     expDeleteConfirm: 'هل أنت متأكد من حذف هذا المصروف؟',
     nonCashNote: 'غير نقدي',
+    scannerActive: 'الماسح الضوئي يعمل',
+    cameraBtn: 'الكاميرا',
+    browseCatalog: 'تصفح الكتالوج',
+    scanPrompt: 'امسح باركود المنتج أو ابحث باسمه',
+    scanPlaceholder: 'امسح الباركود الآن أو اكتب اسم المنتج/SKU...',
+    searchResultsFor: 'نتائج البحث عن "{query}" ({count})',
+    noSearchResults: 'لم يتم العثور على أي منتج يطابق "{query}"',
+    cartItemsTitle: 'المنتجات المضافة للفاتورة الحالية ({count})',
+    clearInvoice: 'تفريغ الفاتورة',
+    emptyCartTitle: 'الفاتورة فارغة - جاهز للمسح',
+    emptyCartDesc: 'امسح باركود المنتج أو ابحث باسمه للبدء مباشرة.',
+    manualCatalogCta: 'تصفح واختيار المنتجات يدوياً',
+    itemsCount: '{count} عناصر',
+    itemsSummary: 'ملخص الأصناف المضافة',
+    noItemsInInvoice: 'لا توجد عناصر بالفاتورة بعد',
+    addDiscountCta: '+ إضافة خصم',
+    keyboardShortcuts: 'اختصارات لوحة التحكم',
+    shortcutFocusSearch: 'التركيز على خانة البحث',
+    shortcutAddCustomer: 'تحديد/إضافة عميل',
+    shortcutAddDiscount: 'إضافة خصم للفاتورة',
+    shortcutOrderHistory: 'سجل الفواتير السابق',
+    shortcutHeldOrders: 'الفواتير المعلقة',
+    shortcutPayNow: 'فتح شاشة الدفع مباشرة',
+    shortcutSearch: 'للبحث',
+    shortcutCustomer: 'العميل',
+    shortcutDiscount: 'الخصم',
+    shortcutPay: 'الدفع',
+    catalogTitle: 'كتالوج المنتجات',
+    catalogDesc: 'اختر المنتج يدوياً لإضافته مباشرة إلى الفاتورة الحالية',
+    filterCatalogPlaceholder: 'فلترة الكتالوج حسب الاسم أو الـ SKU...',
+    priceEditTitle: 'تعديل السعر الفردي',
+    lineTotal: 'الإجمالي',
+    deleteItem: 'حذف العنصر',
+    taxIncluded: 'شامل الضريبة',
+    outOfStock: 'غير متوفر',
+    stockLeft: 'المتبقي: {stock}',
+    generalLabel: 'عام',
+    vatShort: 'الضريبة (15%)',
+    totalQuantityLabel: 'إجمالي الكمية',
+    itemsCountLabel: 'عدد الأصناف',
+    payConfirm: 'الدفع والموافقة',
+    connected: 'متصل',
+    disconnected: 'غير متصل',
+    mainBranch: 'الفرع الرئيسي',
+    weatherSunny: 'مشمس',
+    weatherCloudy: 'غائم جزئياً',
+    weatherRainy: 'ممطر',
+    weatherWindy: 'رياح',
+    shortcutPayConfirm: 'الدفع والموافقة',
 
     // Products Management
     productsManagement: 'إدارة المنتجات',
@@ -2059,6 +2157,55 @@ const translations: Record<Language, Translations> = {
     expWithdrawalLabel: 'Cash payout',
     expDeleteConfirm: 'Are you sure you want to delete this expense?',
     nonCashNote: 'non-cash',
+    scannerActive: 'Scanner Active',
+    cameraBtn: 'Camera',
+    browseCatalog: 'Browse Products',
+    scanPrompt: 'Scan a barcode or search by name',
+    scanPlaceholder: 'Scan barcode now or type product name / SKU...',
+    searchResultsFor: 'Search results for "{query}" ({count})',
+    noSearchResults: 'No products matching "{query}" were found',
+    cartItemsTitle: 'Products added to the current invoice ({count})',
+    clearInvoice: 'Clear invoice',
+    emptyCartTitle: 'The current invoice is empty — ready to scan',
+    emptyCartDesc: 'Scan a product barcode with the scanner or search by name. Added products appear here immediately.',
+    manualCatalogCta: 'Browse and select products manually',
+    itemsCount: '{count} items',
+    itemsSummary: 'Added items summary',
+    noItemsInInvoice: 'No items in the invoice yet',
+    addDiscountCta: '+ Add discount',
+    keyboardShortcuts: 'Keyboard shortcuts',
+    shortcutFocusSearch: 'Focus search',
+    shortcutAddCustomer: 'Select / add customer',
+    shortcutAddDiscount: 'Add invoice discount',
+    shortcutOrderHistory: 'Previous orders',
+    shortcutHeldOrders: 'Held orders',
+    shortcutPayNow: 'Open payment screen',
+    shortcutSearch: 'to search',
+    shortcutCustomer: 'Customer',
+    shortcutDiscount: 'Discount',
+    shortcutPay: 'Pay',
+    catalogTitle: 'Product Catalog',
+    catalogDesc: 'Select a product manually to add it to the current invoice',
+    filterCatalogPlaceholder: 'Filter catalog by name or SKU...',
+    priceEditTitle: 'Edit unit price',
+    lineTotal: 'Total',
+    deleteItem: 'Delete item',
+    taxIncluded: 'Tax included',
+    outOfStock: 'Out of stock',
+    stockLeft: 'Left: {stock}',
+    generalLabel: 'General',
+    vatShort: 'Tax (15%)',
+    totalQuantityLabel: 'Total Qty',
+    itemsCountLabel: 'Items Count',
+    payConfirm: 'Pay & Confirm',
+    connected: 'Connected',
+    disconnected: 'Offline',
+    mainBranch: 'Main Branch',
+    weatherSunny: 'Sunny',
+    weatherCloudy: 'Partly Cloudy',
+    weatherRainy: 'Rainy',
+    weatherWindy: 'Windy',
+    shortcutPayConfirm: 'Pay & confirm',
 
     // Products Management
     productsManagement: 'Products Management',
