@@ -185,8 +185,8 @@ export const CustomerAccountsPage: React.FC = () => {
         {summaryCard(t.debtCustomers, totals.totalCustomers, <HandCoins className="w-9 h-9 opacity-80" />, 'from-emerald-500 to-teal-600')}
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-        <table className="w-full text-left text-xs">
+      <div className="bg-white border border-slate-200 rounded-2xl overflow-x-auto shadow-sm">
+        <table className="w-full text-left text-xs min-w-[760px]">
           <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase font-bold">
             <tr>
               <th className="px-6 py-4">{t.customerName}</th>
@@ -329,7 +329,8 @@ export const CustomerAccountsPage: React.FC = () => {
             ) : stmtEntries.length === 0 ? (
               <div className="py-12 text-center text-slate-400 text-xs">{t.noStatement}</div>
             ) : (
-              <table className="w-full text-xs">
+              <div className="overflow-x-auto">
+              <table className="w-full text-xs min-w-[560px]">
                 <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase font-bold">
                   <tr>
                     <th className="px-4 py-3 text-left">{t.statementDate}</th>
@@ -376,7 +377,7 @@ export const CustomerAccountsPage: React.FC = () => {
                         {canExpand && isOpen && (
                           <tr>
                             <td colSpan={5} className="px-4 pb-4">
-                              <div className="bg-slate-50 border border-slate-200 rounded-xl overflow-hidden">
+                              <div className="bg-slate-50 border border-slate-200 rounded-xl overflow-x-auto">
                                 <table className="w-full text-xs">
                                   <thead className="bg-slate-100 text-slate-500 uppercase font-bold">
                                     <tr>
@@ -412,6 +413,7 @@ export const CustomerAccountsPage: React.FC = () => {
                   })}
                 </tbody>
               </table>
+              </div>
             )}
           </div>
         </div>

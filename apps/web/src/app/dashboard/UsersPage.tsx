@@ -122,8 +122,8 @@ export const UsersPage: React.FC = () => {
         </div>
       )}
 
-      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-        <table className="w-full text-left text-xs">
+      <div className="bg-white border border-slate-200 rounded-2xl overflow-x-auto shadow-sm">
+        <table className="w-full text-left text-xs min-w-[600px]">
           <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase font-bold">
             <tr>
               <th className="px-6 py-4">{t.name}</th>

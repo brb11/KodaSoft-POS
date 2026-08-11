@@ -63,12 +63,12 @@ export const DebtsTab: React.FC<{ filters: ReportFilters }> = ({ filters }) => {
         </div>
       </div>
 
-      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+      <div className="bg-white border border-slate-200 rounded-2xl overflow-x-auto shadow-sm">
         <div className="px-6 py-4 border-b border-slate-200 flex items-center gap-2 bg-slate-50/50">
           <HandCoins className="w-4 h-4 text-cyan-600" />
           <h3 className="text-sm font-extrabold text-slate-800">{t.reportDebts}</h3>
         </div>
-        <table className="w-full text-xs">
+        <table className="w-full text-xs min-w-[720px]">
           <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase tracking-wider font-bold">
             <tr>
               <th className="px-6 py-4 text-left">{t.customerName}</th>

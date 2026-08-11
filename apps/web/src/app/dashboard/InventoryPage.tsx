@@ -192,8 +192,8 @@ export const InventoryPage: React.FC = () => {
       </div>
 
       {/* Inventory Table */}
-      <div className="bg-white border border-slate-200/80 rounded-2xl overflow-hidden shadow-sm">
-        <table className="w-full text-left text-xs">
+      <div className="bg-white border border-slate-200/80 rounded-2xl overflow-x-auto shadow-sm">
+        <table className="w-full text-left text-xs min-w-[640px]">
           <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase tracking-wider font-bold">
             <tr>
               <th className="px-6 py-4">{t.productName}</th>
@@ -247,13 +247,13 @@ export const InventoryPage: React.FC = () => {
       </div>
 
       {/* Adjustment History */}
-      <div className="bg-white border border-slate-200/80 rounded-2xl overflow-hidden shadow-sm">
+      <div className="bg-white border border-slate-200/80 rounded-2xl overflow-x-auto shadow-sm">
         <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-2">
           <History className="w-4 h-4 text-cyan-600" />
           <h2 className="font-extrabold text-slate-900 text-sm">{t.adjustmentHistory}</h2>
           <span className="text-slate-400 text-[10px] font-semibold">{t.adjustmentHistoryDesc}</span>
         </div>
-        <table className="w-full text-left text-xs">
+        <table className="w-full text-left text-xs min-w-[640px]">
           <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase tracking-wider font-bold">
             <tr>
               <th className="px-6 py-3">{t.date}</th>

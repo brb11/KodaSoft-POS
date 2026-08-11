@@ -262,7 +262,7 @@ export const OrderHistoryModal: React.FC<OrderHistoryModalProps> = ({ open, onCl
         </div>
 
         {/* Table */}
-        <div className="flex-1 overflow-y-auto px-6 py-4">
+        <div className="flex-1 overflow-auto px-6 py-4">
           {loading ? (
             <div className="flex items-center justify-center text-slate-400 text-xs py-12">{t.loadingOrders}</div>
           ) : orders.length === 0 ? (
@@ -271,7 +271,7 @@ export const OrderHistoryModal: React.FC<OrderHistoryModalProps> = ({ open, onCl
               <p className="text-xs font-medium">{t.noOrdersFound}</p>
             </div>
           ) : (
-            <table className="w-full text-xs">
+            <table className="w-full text-xs min-w-[640px]">
               <thead>
                 <tr className="text-slate-400 uppercase tracking-wider text-[10px] border-b border-slate-200">
                   <th className="text-start pb-2 ltr:pr-3 rtl:pl-3">{t.orderNumber}</th>
@@ -496,7 +496,8 @@ export const OrderHistoryModal: React.FC<OrderHistoryModalProps> = ({ open, onCl
               {/* Items */}
               <div>
                 <h5 className="text-xs font-extrabold text-slate-700 mb-2 uppercase tracking-wide">{t.itemCol}</h5>
-                <table className="w-full text-xs">
+                <div className="overflow-x-auto">
+                <table className="w-full text-xs min-w-[480px]">
                   <thead>
                     <tr className="text-slate-400 uppercase tracking-wider text-[10px] border-b border-slate-200">
                       <th className="text-start pb-2 ltr:pr-2 rtl:pl-2">{t.name}</th>
@@ -532,6 +533,7 @@ export const OrderHistoryModal: React.FC<OrderHistoryModalProps> = ({ open, onCl
                     ))}
                   </tbody>
                 </table>
+                </div>
               </div>
 
               {/* Totals */}

@@ -75,7 +75,7 @@ export const NotificationBell: React.FC = () => {
       </button>
 
       {open && (
-        <div className="absolute right-0 top-11 w-80 max-h-[420px] bg-white border border-slate-200/80 rounded-2xl shadow-xl shadow-slate-200/50 z-50 flex flex-col overflow-hidden">
+        <div className="absolute right-0 top-11 w-[min(20rem,calc(100vw-2rem))] max-h-[420px] bg-white border border-slate-200/80 rounded-2xl shadow-xl shadow-slate-200/50 z-50 flex flex-col overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
             <p className="text-xs font-extrabold text-slate-800">{t.notificationsTitle}</p>
             {unread > 0 && (

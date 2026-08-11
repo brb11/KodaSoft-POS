@@ -39,6 +39,7 @@ export interface Translations {
   // Layout
   kodaSoftAdmin: string;
   enterprisePosHeader: string;
+  menu: string;
 
   // Login
   loginTitle: string;
@@ -940,6 +941,7 @@ const translations: Record<Language, Translations> = {
     // Layout
     kodaSoftAdmin: 'إدارة كوداسوفت',
     enterprisePosHeader: 'نقاط البيع المؤسسي كوداسوفت',
+    menu: 'القائمة',
 
     // Login
     loginTitle: 'نظام KodaSoft-POS لنقاط البيع',
@@ -1838,6 +1840,7 @@ const translations: Record<Language, Translations> = {
     // Layout
     kodaSoftAdmin: 'KodaSoft Admin',
     enterprisePosHeader: 'KODASOFT ENTERPRISE POS',
+    menu: 'Menu',
 
     // Login
     loginTitle: 'KodaSoft-POS System',

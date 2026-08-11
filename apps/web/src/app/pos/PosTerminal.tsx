@@ -157,6 +157,7 @@ export const PosTerminal: React.FC = () => {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showExpensesModal, setShowExpensesModal] = useState(false);
   const [showCameraScan, setShowCameraScan] = useState(false);
+  const [showCartPanel, setShowCartPanel] = useState(false);
   const [scanFeedback, setScanFeedback] = useState<{ id: number; ok: boolean; text: string } | null>(null);
   
   const feedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -622,8 +623,8 @@ export const PosTerminal: React.FC = () => {
   return (
     <div className="h-screen bg-slate-100 text-slate-800 flex flex-col overflow-hidden font-sans select-none antialiased">
       {/* ── Top Header Bar (Light Theme) ────────────────────────────────── */}
-      <header className="bg-white border-b border-slate-200/80 px-6 py-3 flex items-center justify-between shadow-sm z-20 shrink-0">
-        <div className="flex items-center gap-3">
+      <header className="bg-white border-b border-slate-200/80 px-4 xl:px-6 py-3 flex flex-col xl:flex-row items-center justify-between shadow-sm z-20 shrink-0 gap-3 xl:gap-0 w-full overflow-hidden">
+        <div className="flex items-center gap-3 w-full xl:w-auto shrink-0 justify-center xl:justify-start">
           <img
             src="/logo_transparent.png"
             alt="KodaSoft Logo"
@@ -640,20 +641,35 @@ export const PosTerminal: React.FC = () => {
         </div>
 
         {/* Header Action Tools */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center justify-start xl:justify-end gap-2 md:gap-3 w-full xl:w-auto overflow-x-auto pb-2 xl:pb-0 scroll-smooth [&::-webkit-scrollbar]:hidden [-ms-overflow-style:'none'] [scrollbar-width:none]">
+          {/* Cart toggle (mobile only) */}
+          <button
+            onClick={() => setShowCartPanel(true)}
+            className="md:hidden relative p-2.5 text-slate-600 hover:text-cyan-600 bg-white hover:bg-slate-50 rounded-xl border border-slate-200 shadow-sm shrink-0"
+            title={t.invoiceDetails}
+          >
+            <ShoppingCart className="w-5 h-5 text-cyan-600" />
+            {items.length > 0 && (
+              <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-0.5 rounded-full bg-cyan-500 text-white text-[10px] font-black flex items-center justify-center border-2 border-white">
+                {items.reduce((s, i) => s + i.quantity, 0)}
+              </span>
+            )}
+          </button>
+
           {/* Scanner Active Indicator */}
           <div
-            className="flex items-center gap-1.5 px-3 py-1.5 bg-cyan-50 text-cyan-700 border border-cyan-200 rounded-xl text-xs font-bold shadow-xs animate-pulse"
-            title={t.barcodeScannerHint}
+            className="flex items-center justify-center p-2 bg-cyan-50 text-cyan-700 border border-cyan-200 rounded-xl shadow-xs animate-pulse shrink-0 cursor-help"
+            title={t.scannerActive}
           >
-            <Zap className="w-3.5 h-3.5 text-cyan-600 fill-cyan-500/20" />
-            <span className="hidden md:inline">{t.scannerActive}</span>
+            <Zap className="w-5 h-5 text-cyan-600 fill-cyan-500/20" />
           </div>
 
-          <LanguageSwitcher />
+          <div className="shrink-0">
+            <LanguageSwitcher />
+          </div>
 
           {!isOnline && (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg text-xs font-bold animate-pulse">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 text-amber-700 border border-amber-200 rounded-lg text-xs font-bold animate-pulse whitespace-nowrap shrink-0">
               <CloudOff className="w-3.5 h-3.5" />
               {translate(t.offlinePending, { count: pendingOrders.length })}
             </div>
@@ -661,7 +677,7 @@ export const PosTerminal: React.FC = () => {
 
           <Link
             to="/dashboard/products"
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all border border-slate-200"
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl text-xs font-bold transition-all border border-slate-200 whitespace-nowrap shrink-0"
           >
             <LayoutDashboard className="w-4 h-4 text-cyan-600" />
             <span className="hidden lg:inline">{t.adminDashboard}</span>
@@ -669,7 +685,7 @@ export const PosTerminal: React.FC = () => {
 
           <button
             onClick={() => setShowOrderHistory(true)}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold transition-all border border-slate-200 shadow-sm"
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold transition-all border border-slate-200 shadow-sm whitespace-nowrap shrink-0"
             title={t.orderHistory}
           >
             <History className="w-4 h-4 text-cyan-600" />
@@ -679,7 +695,7 @@ export const PosTerminal: React.FC = () => {
           <button
             onClick={() => setShowHeldOrders(true)}
             disabled={!isOnline}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold transition-all border border-slate-200 shadow-sm disabled:opacity-40"
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-slate-50 text-slate-700 rounded-xl text-xs font-bold transition-all border border-slate-200 shadow-sm disabled:opacity-40 whitespace-nowrap shrink-0"
             title={!isOnline ? t.heldUnavailableOffline : t.heldOrders}
           >
             <PauseCircle className="w-4 h-4 text-amber-500" />
@@ -688,7 +704,7 @@ export const PosTerminal: React.FC = () => {
 
           <button
             onClick={() => setShowExpensesModal(true)}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-rose-50 text-slate-700 rounded-xl text-xs font-bold transition border border-slate-200 shadow-sm"
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-white hover:bg-rose-50 text-slate-700 rounded-xl text-xs font-bold transition border border-slate-200 shadow-sm whitespace-nowrap shrink-0"
             title={t.expensesTitle}
           >
             <Flame className="w-4 h-4 text-rose-500" />
@@ -697,7 +713,7 @@ export const PosTerminal: React.FC = () => {
 
           <button
             onClick={() => setShowShortcutsHelp(true)}
-            className="p-2 text-slate-500 hover:text-cyan-600 bg-white hover:bg-slate-50 rounded-xl transition border border-slate-200 shadow-sm"
+            className="p-2 text-slate-500 hover:text-cyan-600 bg-white hover:bg-slate-50 rounded-xl transition border border-slate-200 shadow-sm shrink-0"
             title={t.keyboardShortcuts}
           >
             <Keyboard className="w-4 h-4" />
@@ -709,13 +725,13 @@ export const PosTerminal: React.FC = () => {
                 setShiftAction('CLOSE');
                 setShowShiftModal(true);
               }}
-              className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-800 text-white rounded-xl text-xs font-bold hover:bg-slate-700 transition border border-slate-700 shadow-sm"
+              className="flex items-center gap-1.5 px-3.5 py-2 bg-slate-800 text-white rounded-xl text-xs font-bold hover:bg-slate-700 transition border border-slate-700 shadow-sm whitespace-nowrap shrink-0"
             >
               {t.endShift}
             </button>
           )}
 
-          <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200 text-xs shadow-sm">
+          <div className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-xl border border-slate-200 text-xs shadow-sm whitespace-nowrap shrink-0">
             <User className="w-3.5 h-3.5 text-cyan-600" />
             <span className="font-bold text-slate-800 max-w-[100px] truncate">{user?.name || t.cashier}</span>
             <span className="bg-cyan-50 text-cyan-700 border border-cyan-200 px-2 py-0.5 rounded-md text-[10px] uppercase font-extrabold">
@@ -725,7 +741,7 @@ export const PosTerminal: React.FC = () => {
 
             <button
               onClick={apiLogout}
-              className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors"
+              className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors shrink-0"
               title={t.logout}
             >
               <LogOut className="w-5 h-5" />
@@ -752,7 +768,7 @@ export const PosTerminal: React.FC = () => {
       <div className="flex-1 flex overflow-hidden">
         
         {/* 🌟 LARGE MAIN CENTER AREA: Scanned / Added Products (الفاتورة الحالية والمنتجات المضافة) */}
-        <div className="flex-1 flex flex-col p-5 overflow-hidden">
+        <div className="flex-1 flex flex-col p-3 sm:p-5 overflow-hidden">
           
           {/* Top Search & Barcode Scanner Hub */}
           <div className="bg-white border border-slate-200 rounded-3xl p-4 shadow-sm mb-4">
@@ -892,7 +908,7 @@ export const PosTerminal: React.FC = () => {
                 )}
 
                 {/* Items List in Center Area */}
-                <div className="flex-1 overflow-y-auto space-y-2.5 ltr:pr-1 rtl:pl-1">
+                <div className="flex-1 overflow-y-auto space-y-1.5 ltr:pr-1 rtl:pl-1">
                   {items.map((item) => (
                     <CartItemRow
                       key={item.productId}
@@ -964,11 +980,11 @@ export const PosTerminal: React.FC = () => {
           </div>
 
           {/* ── Order Summary Metrics Row ────────────────────────────────────────── */}
-          <div className="grid grid-cols-6 gap-3 mt-4 shrink-0">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mt-4 shrink-0">
             {/* Card 5: Grand Total (Filled Blue Box) */}
             <div
               onClick={() => items.length > 0 && setShowPaymentModal(true)}
-              className={`col-span-2 bg-blue-600 text-white rounded-2xl p-4 flex items-center justify-between gap-3 shadow-lg shadow-blue-500/30 ring-2 ring-blue-400/40 transition cursor-pointer select-none active:scale-[0.98] ${
+              className={`col-span-2 sm:col-span-2 lg:col-span-2 bg-blue-600 text-white rounded-2xl p-4 flex items-center justify-between gap-3 shadow-lg shadow-blue-500/30 ring-2 ring-blue-400/40 transition cursor-pointer select-none active:scale-[0.98] ${
                 items.length === 0 ? 'opacity-55 cursor-not-allowed active:scale-100 shadow-none ring-0' : 'hover:bg-blue-700 hover:shadow-blue-500/40'
               }`}
             >
@@ -1027,8 +1043,22 @@ export const PosTerminal: React.FC = () => {
           </div>
         </div>
 
+        {/* Mobile Cart Drawer Backdrop */}
+        {showCartPanel && (
+          <div
+            className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-40 md:hidden"
+            onClick={() => setShowCartPanel(false)}
+          />
+        )}
+
         {/* 🌟 SIDEBAR PANEL (ON THE RIGHT): Details, Totals Summary & Payment Pad */}
-        <div className="w-80 md:w-96 bg-white flex flex-col shrink-0 shadow-lg ltr:border-l rtl:border-r border-slate-200/80">
+        <div
+          className={`w-80 md:w-96 bg-white flex flex-col shrink-0 shadow-lg ltr:border-l rtl:border-r border-slate-200/80 ${
+            showCartPanel
+              ? 'fixed inset-y-0 ltr:right-0 rtl:left-0 z-50'
+              : 'hidden'
+          } md:static md:flex md:z-auto`}
+        >
           
           {/* Header of details sidebar */}
           <div className="p-4 border-b border-slate-200/80 flex items-center justify-between bg-slate-50/50">
@@ -1036,9 +1066,18 @@ export const PosTerminal: React.FC = () => {
               <ShoppingCart className="w-4 h-4 text-cyan-600" />
               <h2 className="font-extrabold text-sm text-slate-900">{t.invoiceDetails}</h2>
             </div>
-            <span className="text-xs bg-cyan-50 text-cyan-700 px-2.5 py-0.5 rounded-full font-bold border border-cyan-200">
-              {translate(t.itemsCount, { count: items.length })}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs bg-cyan-50 text-cyan-700 px-2.5 py-0.5 rounded-full font-bold border border-cyan-200">
+                {translate(t.itemsCount, { count: items.length })}
+              </span>
+              <button
+                onClick={() => setShowCartPanel(false)}
+                className="md:hidden p-1.5 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-xl transition-colors"
+                title={t.close}
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
           </div>
 
           {/* Customer Selection Card */}
@@ -1482,12 +1521,12 @@ export const PosTerminal: React.FC = () => {
 
 
       {/* ── Bottom Status Bar ────────────────────────────────────────────────── */}
-      <footer className="bg-white border-t border-slate-200/80 px-6 py-2 flex items-center justify-between text-[11px] text-slate-500 font-medium shadow-sm shrink-0">
+      <footer className="bg-white border-t border-slate-200/80 px-3 sm:px-6 py-2 flex flex-wrap items-center justify-center sm:justify-between gap-x-4 gap-y-1 text-[11px] text-slate-500 font-medium shadow-sm shrink-0">
         {/* Left: Branch */}
         <div className="flex items-center gap-4">
           <div className="flex items-center gap-1.5">
             <Building2 className="w-3.5 h-3.5 text-cyan-600" />
-            <span className="font-bold text-slate-700">{branchName || t.mainBranch}</span>
+            <span className="font-bold text-slate-700 truncate max-w-[120px] sm:max-w-none">{branchName || t.mainBranch}</span>
           </div>
         </div>
 
@@ -1516,7 +1555,7 @@ export const PosTerminal: React.FC = () => {
             <div className="flex items-center gap-1.5">
               {weatherDesc(weather.code).icon}
               <span className="font-bold text-slate-700">{weather.temp}°C</span>
-              <span className="text-slate-400">{weatherDesc(weather.code).label}</span>
+              <span className="text-slate-400 hidden sm:inline">{weatherDesc(weather.code).label}</span>
             </div>
           )}
         </div>

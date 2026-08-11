@@ -81,8 +81,8 @@ export const ExpensesTab: React.FC<{ filters: ReportFilters }> = ({ filters }) =
         </div>
       )}
 
-      <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-        <table className="w-full text-xs">
+      <div className="bg-white border border-slate-200 rounded-2xl overflow-x-auto shadow-sm">
+        <table className="w-full text-xs min-w-[640px]">
           <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase tracking-wider font-bold">
             <tr>
               <th className="px-6 py-4 text-left">{t.expDateCol}</th>

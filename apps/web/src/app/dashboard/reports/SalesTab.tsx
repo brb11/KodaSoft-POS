@@ -57,8 +57,8 @@ export const SalesTab: React.FC<{ filters: ReportFilters }> = ({ filters }) => {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div className="flex gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap gap-2">
           {GROUP_OPTIONS.map((g) => (
             <button
               key={g}
@@ -87,8 +87,8 @@ export const SalesTab: React.FC<{ filters: ReportFilters }> = ({ filters }) => {
       </div>
 
       {groupBy ? (
-        <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-          <table className="w-full text-xs">
+        <div className="bg-white border border-slate-200 rounded-2xl overflow-x-auto shadow-sm">
+          <table className="w-full text-xs min-w-[560px]">
             <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase tracking-wider font-bold">
               <tr>
                 <th className="px-6 py-4 text-left">{groupLabel(t, groupBy)}</th>

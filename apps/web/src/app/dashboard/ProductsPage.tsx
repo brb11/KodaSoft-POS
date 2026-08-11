@@ -181,7 +181,7 @@ export const ProductsPage: React.FC = () => {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-extrabold text-slate-900 flex items-center gap-2.5">
             <div className="w-10 h-10 rounded-xl bg-cyan-50 text-cyan-600 flex items-center justify-center border border-cyan-200">
@@ -236,8 +236,8 @@ export const ProductsPage: React.FC = () => {
       </div>
 
       {/* Products Table */}
-      <div className="bg-white border border-slate-200/80 rounded-2xl overflow-hidden shadow-sm">
-        <table className="w-full text-left text-xs">
+      <div className="bg-white border border-slate-200/80 rounded-2xl overflow-x-auto shadow-sm">
+        <table className="w-full text-left text-xs min-w-[640px]">
           <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase tracking-wider font-bold">
             <tr>
               <th className="px-6 py-4">{t.productName}</th>

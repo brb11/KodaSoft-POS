@@ -19,6 +19,8 @@ import {
   TrendingUp,
   Activity,
   Loader2,
+  Menu,
+  X,
 } from 'lucide-react';
 
 interface Overview {
@@ -68,6 +70,7 @@ export const SaasConsole: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<string | null>(null);
   const [notice, setNotice] = useState('');
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   const user = useAuthStore((s) => s.user);
   const { t, language } = useLanguageStore();
@@ -170,37 +173,64 @@ export const SaasConsole: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-800 flex">
+      {/* Mobile Sidebar Overlay */}
+      {mobileNavOpen && (
+        <div
+          className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-30 md:hidden"
+          onClick={() => setMobileNavOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
-      <aside className="w-64 bg-slate-900 text-white flex flex-col justify-between shadow-xl">
+      <aside
+        className={`w-64 bg-slate-900 text-white flex flex-col justify-between shadow-xl ${
+          mobileNavOpen
+            ? 'fixed inset-y-0 ltr:left-0 rtl:right-0 z-40 md:static md:z-auto'
+            : 'hidden md:flex'
+        }`}
+      >
         <div>
           <div className="p-6 border-b border-white/10 flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center">
               <ShieldCheck className="w-6 h-6" />
             </div>
-            <div>
+            <div className="flex-1">
               <h1 className="font-extrabold text-sm tracking-tight">
                 KodaSoft-<span className="text-cyan-400">POS</span>
               </h1>
               <p className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">{t.saasConsole}</p>
             </div>
+            <button
+              onClick={() => setMobileNavOpen(false)}
+              className="md:hidden p-2 text-slate-400 hover:text-white hover:bg-white/10 rounded-xl transition-colors"
+              title={t.close}
+            >
+              <X className="w-5 h-5" />
+            </button>
           </div>
 
           <nav className="p-4 space-y-1.5">
             <button
-              onClick={() => setView('overview')}
+              onClick={() => {
+                setView('overview');
+                setMobileNavOpen(false);
+              }}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all ${
                 view === 'overview' ? 'bg-cyan-500/20 text-cyan-300' : 'text-slate-300 hover:bg-white/5'
               }`}
             >
-              <LayoutDashboard className="w-4 h-4" /> {t.saasOverview}
+              <LayoutDashboard className="w-4 h-4 shrink-0" /> {t.saasOverview}
             </button>
             <button
-              onClick={() => setView('tenants')}
+              onClick={() => {
+                setView('tenants');
+                setMobileNavOpen(false);
+              }}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-xs font-bold transition-all ${
                 view === 'tenants' ? 'bg-cyan-500/20 text-cyan-300' : 'text-slate-300 hover:bg-white/5'
               }`}
             >
-              <Building2 className="w-4 h-4" /> {t.saasTenants}
+              <Building2 className="w-4 h-4 shrink-0" /> {t.saasTenants}
             </button>
           </nav>
         </div>
@@ -225,12 +255,21 @@ export const SaasConsole: React.FC = () => {
 
       {/* Main */}
       <main className="flex-1 flex flex-col min-w-0 overflow-y-auto">
-        <header className="bg-white border-b border-slate-200/80 px-8 py-3.5 flex items-center justify-between shadow-xs">
-          <span className="text-xs font-extrabold text-slate-500 tracking-wider">{t.saasConsole}</span>
+        <header className="bg-white border-b border-slate-200/80 px-4 sm:px-8 py-3.5 flex items-center justify-between gap-3 shadow-xs">
+          <div className="flex items-center gap-3 min-w-0">
+            <button
+              onClick={() => setMobileNavOpen(true)}
+              className="md:hidden p-2 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-colors"
+              title={t.menu}
+            >
+              <Menu className="w-5 h-5" />
+            </button>
+            <span className="text-xs font-extrabold text-slate-500 tracking-wider truncate">{t.saasConsole}</span>
+          </div>
           <LanguageSwitcher />
         </header>
 
-        <div className="p-8 flex-1">
+        <div className="p-4 sm:p-6 lg:p-8 flex-1">
           {notice && (
             <div className="mb-5 p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-700 text-xs font-medium">
               {notice}

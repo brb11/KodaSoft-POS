@@ -98,7 +98,7 @@ export const CategoriesPage: React.FC = () => {
       </div>
 
       {/* Categories Table */}
-      <div className="bg-white border border-slate-200/80 rounded-2xl overflow-hidden shadow-sm max-w-3xl">
+      <div className="bg-white border border-slate-200/80 rounded-2xl overflow-x-auto shadow-sm max-w-3xl">
         <table className="w-full text-left text-xs">
           <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase tracking-wider font-bold">
             <tr>
