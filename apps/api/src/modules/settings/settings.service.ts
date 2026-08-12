@@ -27,7 +27,7 @@ export async function getSettings(tenantId: string): Promise<StoreSettings> {
     storeName: String(map.get('storeName') ?? '') || tenant?.name || DEFAULT_SETTINGS.storeName,
     vatNumber: String(map.get('vatNumber') ?? '') || DEFAULT_SETTINGS.vatNumber,
     receiptFooter: String(map.get('receiptFooter') ?? '') || DEFAULT_SETTINGS.receiptFooter,
-    trackInventory: map.has('trackInventory') ? Boolean(map.get('trackInventory')) : DEFAULT_SETTINGS.trackInventory,
+    trackInventory: map.has('trackInventory') ? map.get('trackInventory') === true : DEFAULT_SETTINGS.trackInventory,
   };
 }
 

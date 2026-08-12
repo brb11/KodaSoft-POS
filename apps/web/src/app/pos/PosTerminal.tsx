@@ -363,6 +363,8 @@ export const PosTerminal: React.FC = () => {
   const inventoryEnabled = settings?.trackInventory !== false;
 
   const stockFor = (productId: string, product?: Product): number | null => {
+    // If inventory tracking is globally disabled, never block products by stock
+    if (!inventoryEnabled) return null;
     const p = product ?? products.find((x) => x.id === productId);
     if (!p || p.trackInventory === false) return null;
     const branchId = resolvedBranchId || user?.branchId;
