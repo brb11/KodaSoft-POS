@@ -25,6 +25,9 @@ export const useAuthStore = create<AuthState>((set) => ({
   setAuth: (user, accessToken) => {
     localStorage.setItem('user', JSON.stringify(user));
     localStorage.setItem('accessToken', accessToken);
+    if (user.branchId) {
+      localStorage.setItem('lastBranchId', user.branchId);
+    }
     set({ user, accessToken });
   },
 

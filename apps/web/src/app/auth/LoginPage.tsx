@@ -39,8 +39,15 @@ export const LoginPage: React.FC = () => {
     setLoading(true);
     setError('');
 
+    const branchId = localStorage.getItem('lastBranchId');
+    if (!branchId) {
+      setError('الرجاء الدخول بالبريد الإلكتروني أولاً لتسجيل هذا الجهاز في الفرع');
+      setLoading(false);
+      return;
+    }
+
     try {
-      const res = await api.post('/auth/pin-login', { pin, branchId: 'default-branch-id' });
+      const res = await api.post('/auth/pin-login', { pin, branchId });
       const { user, accessToken } = res.data.data;
       setAuth(user, accessToken);
       navigate('/pos');

@@ -194,6 +194,13 @@ export async function loginWithPin(dto: PinLoginDto, req?: Request) {
     }
   }
 
+  // Always run a dummy compare when no users found to prevent timing attacks.
+  // Without this, an attacker could distinguish "invalid branchId" from "wrong PIN"
+  // by measuring response time (bcrypt takes ~100ms vs near-instant).
+  if (users.length === 0) {
+    await bcrypt.compare(dto.pin, '$2a$10$dummyhashfortimingprotectiononly000000000000');
+  }
+
   if (!matched) throw new AppError(401, 'Invalid PIN');
 
   const { accessToken, refreshToken } = await issueTokens(matched, req);
@@ -210,6 +217,7 @@ export async function loginWithPin(dto: PinLoginDto, req?: Request) {
     refreshToken,
   };
 }
+
 
 export async function refreshAccessToken(req: Request) {
   const presented = req.cookies?.refresh_token as string | undefined;

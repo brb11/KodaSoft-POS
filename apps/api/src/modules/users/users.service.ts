@@ -4,6 +4,28 @@ import { assertPlanLimit } from '../billing/plans';
 import { AppError } from '../../middleware/error.middleware';
 import { revokeUserSessions } from '../auth/auth.service';
 
+/**
+ * Returns true if `pin` is already used by another active user in the same branch.
+ * Must compare against bcrypt hashes so we need O(n) comparisons.
+ * Branches rarely have more than ~20 users so this is acceptable.
+ */
+async function isPinTakenInBranch(branchId: string, pin: string, excludeUserId?: string): Promise<boolean> {
+  const others = await prisma.user.findMany({
+    where: {
+      branchId,
+      isActive: true,
+      pinHash: { not: null },
+      ...(excludeUserId ? { id: { not: excludeUserId } } : {}),
+    },
+    select: { pinHash: true },
+  });
+
+  for (const u of others) {
+    if (u.pinHash && (await bcrypt.compare(pin, u.pinHash))) return true;
+  }
+  return false;
+}
+
 export async function getUsers(tenantId: string) {
   return prisma.user.findMany({
     where: { tenantId },
@@ -31,10 +53,10 @@ export async function createUser(
   }
 ) {
   await assertPlanLimit(tenantId, 'users');
-  const existingUser = await prisma.user.findUnique({ 
-    where: { tenantId_email: { tenantId, email: data.email } } 
+  const existingUser = await prisma.user.findFirst({ 
+    where: { email: data.email } 
   });
-  if (existingUser) throw new Error('Email is already registered');
+  if (existingUser) throw new AppError(409, 'هذا البريد الإلكتروني مستخدم بالفعل', 'EMAIL_IN_USE');
 
   const payload: any = {
     tenantId,
@@ -49,7 +71,11 @@ export async function createUser(
   }
   
   if (data.pin) {
-    if (data.pin.length !== 4) throw new Error('PIN must be exactly 4 digits');
+    if (!/^\d{4}$/.test(data.pin)) throw new AppError(400, 'PIN must be exactly 4 digits', 'INVALID_PIN');
+    const branchId = data.branchId;
+    if (branchId && (await isPinTakenInBranch(branchId, data.pin))) {
+      throw new AppError(409, 'هذا الرقم السري مستخدم بالفعل في هذا الفرع، يرجى اختيار رقم آخر', 'PIN_ALREADY_IN_USE');
+    }
     payload.pinHash = await bcrypt.hash(data.pin, 10);
   }
 
@@ -62,6 +88,7 @@ export async function updateUser(
   id: string, 
   data: { 
     name: string; 
+    email?: string;
     role: any; 
     branchId?: string; 
     isActive: boolean;
@@ -76,6 +103,14 @@ export async function updateUser(
     branchId: data.branchId || null
   };
 
+  if (data.email) {
+    const existing = await prisma.user.findFirst({ where: { email: data.email } });
+    if (existing && existing.id !== id) {
+      throw new AppError(409, 'هذا البريد الإلكتروني مستخدم بالفعل', 'EMAIL_IN_USE');
+    }
+    updateData.email = data.email;
+  }
+
   const credentialsChanged = Boolean(data.password || data.pin);
 
   if (data.password) {
@@ -83,7 +118,13 @@ export async function updateUser(
   }
   
   if (data.pin) {
-    if (data.pin.length !== 4) throw new Error('PIN must be exactly 4 digits');
+    if (!/^\d{4}$/.test(data.pin)) throw new AppError(400, 'PIN must be exactly 4 digits', 'INVALID_PIN');
+    // Fetch the user's current branchId to scope the uniqueness check
+    const existing = await prisma.user.findFirst({ where: { id, tenantId }, select: { branchId: true } });
+    const branchId = data.branchId ?? existing?.branchId ?? null;
+    if (branchId && (await isPinTakenInBranch(branchId, data.pin, id))) {
+      throw new AppError(409, 'هذا الرقم السري مستخدم بالفعل في هذا الفرع، يرجى اختيار رقم آخر', 'PIN_ALREADY_IN_USE');
+    }
     updateData.pinHash = await bcrypt.hash(data.pin, 10);
   }
 
