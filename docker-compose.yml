@@ -63,5 +63,17 @@ services:
     depends_on:
       - api
 
+  site:
+    build:
+      context: .
+      dockerfile: apps/site/Dockerfile
+      args:
+        # The marketing site's "Login / Get started" buttons point at the POS app.
+        PUBLIC_APP_URL: ${CLIENT_URL:-http://localhost}
+        SITE_URL: ${SITE_URL:-https://casheer.kodasoft.sa}
+    restart: unless-stopped
+    ports:
+      - "${SITE_PORT:-8081}:80"
+
 volumes:
   pgdata:

@@ -100,11 +100,11 @@ nano .env
 # Generate one with:  openssl rand -base64 48
 JWT_SECRET=Write_A_Random_Long_Secret_Key_Min_32_Chars!
 
-# Public URL of the web app (must be your real domain in production)
-CLIENT_URL=https://yourdomain.com
+# Public URL of the web app
+CLIENT_URL=https://pos.koda-ye.com
 
 # Public URL of the API (used for payment webhook callbacks)
-API_URL=https://yourdomain.com
+API_URL=https://pos.koda-ye.com
 
 # Port the WEB app listens on (we use 8080 so Nginx can safely use port 80 for SSL).
 PORT=8080
@@ -177,26 +177,24 @@ reachable at `/api/...` on the same port (proxied by the web container's nginx).
 
 ## 🔹 Step 6: Setup Nginx & Free SSL (HTTPS) with Certbot
 
-To serve your website safely with `https://yourdomain.com`:
+To serve your website safely with `https://pos.koda-ye.com`:
 
 ### 0. Point your domain at the server (DNS)
 
-Before requesting SSL, your domain must resolve to your EC2 IP. In your domain
-registrar's DNS settings create two **A records** (skip the `www` one if you do
-not want `www`):
+Before requesting SSL, `pos.koda-ye.com` must resolve to your EC2 IP. In your
+domain registrar's (or koda-ye DNS) settings create one **A record**:
 
 | Type | Name/Host | Value |
 | :--- | :--- | :--- |
-| A | `@` | `YOUR_EC2_PUBLIC_IP` |
-| A | `www` | `YOUR_EC2_PUBLIC_IP` |
+| A | `pos` | `YOUR_EC2_PUBLIC_IP` |
 
 DNS can take anywhere from a few minutes to 24 hours to propagate. Verify it
-works before continuing (replace with your domain):
+works before continuing:
 
 ```bash
-dig +short yourdomain.com
+dig +short pos.koda-ye.com
 # or on Windows/PowerShell:
-Resolve-DnsName yourdomain.com
+Resolve-DnsName pos.koda-ye.com
 ```
 
 ### 1. Install Nginx & Certbot:
@@ -209,11 +207,11 @@ sudo apt install -y nginx certbot python3-certbot-nginx
 sudo nano /etc/nginx/sites-available/kodasoft
 ```
 
-Paste the following configuration (replace `yourdomain.com` with your actual domain name):
+Paste the following configuration:
 
 ```nginx
 server {
-    server_name yourdomain.com www.yourdomain.com;
+    server_name pos.koda-ye.com;
 
     location / {
         proxy_pass http://localhost:8080;
@@ -235,7 +233,7 @@ sudo systemctl restart nginx
 
 ### 3. Get Free SSL Certificate (HTTPS):
 ```bash
-sudo certbot --nginx -d yourdomain.com -d www.yourdomain.com
+sudo certbot --nginx -d pos.koda-ye.com
 ```
 
 Follow the prompts on the screen (enter your email, agree to terms). Certbot will automatically configure HTTPS for you!

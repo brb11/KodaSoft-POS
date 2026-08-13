@@ -68,6 +68,42 @@ async function main() {
     },
   });
 
+  // Ensure the default tenant has an active enterprise subscription
+  await prisma.subscription.upsert({
+    where: { tenantId: tenant.id },
+    update: { plan: 'enterprise', status: 'ACTIVE' },
+    create: {
+      tenantId: tenant.id,
+      plan: 'enterprise',
+      status: 'ACTIVE',
+      periodStart: new Date(),
+      periodEnd: null,
+    },
+  });
+
+  // SaaS Platform Tenant + Super Admin (operator console access)
+  const platformTenant = await prisma.tenant.upsert({
+    where: { slug: 'casheer-platform' },
+    update: {},
+    create: {
+      name: 'KodaSoft-POS Platform',
+      slug: 'casheer-platform',
+      plan: 'enterprise',
+    },
+  });
+
+  await prisma.user.upsert({
+    where: { tenantId_email: { tenantId: platformTenant.id, email: 'admin@casheer.app' } },
+    update: {},
+    create: {
+      tenantId: platformTenant.id,
+      name: 'KodaSoft-POS Platform Admin',
+      email: 'admin@casheer.app',
+      passwordHash,
+      role: UserRole.SUPER_ADMIN,
+    },
+  });
+
   // Create Categories
   const catBeverages = await prisma.category.upsert({
     where: { tenantId_slug: { tenantId: tenant.id, slug: 'beverages' } },
@@ -182,6 +218,7 @@ async function main() {
   console.log(`Branch ID: ${branch.id}`);
   console.log(`Admin User: admin@kodasoft.com / admin123 (PIN: 1234)`);
   console.log(`Cashier User: cashier@kodasoft.com / (PIN: 0000)`);
+  console.log(`Super Admin (SaaS Console): admin@casheer.app / admin123`);
   console.log('----------------------------------------------------');
 }
 
