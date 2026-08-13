@@ -47,7 +47,7 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    command: sh -c "npx prisma@6 migrate deploy && node prisma/seed.js && node dist/main.js"
+    command: sh -c "npx prisma@6 migrate deploy && cd /app && node apps/api/prisma/seed.js && cd apps/api && node dist/main.js"
     # Uncomment to expose the API directly on the host (e.g. for a mobile client).
     # If you do, open port API_PORT in the AWS security group.
     # ports:
