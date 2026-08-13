@@ -15,6 +15,7 @@ RUN pnpm --filter @casheer/api build
 
 FROM base AS runtime
 ENV NODE_ENV=production
+ENV NODE_PATH=/app/node_modules
 WORKDIR /app
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/apps/api/package.json ./apps/api/package.json

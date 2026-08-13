@@ -106,8 +106,8 @@ CLIENT_URL=https://yourdomain.com
 # Public URL of the API (used for payment webhook callbacks)
 API_URL=https://yourdomain.com
 
-# Port the WEB app listens on (default 80). Leave as 80 unless you change it.
-PORT=80
+# Port the WEB app listens on (we use 8080 so Nginx can safely use port 80 for SSL).
+PORT=8080
 
 # Database credentials — docker-compose uses these to create the DB
 # (only use letters, numbers, - and _ characters)
@@ -132,7 +132,7 @@ PAYMENT_PROVIDER=stripe
 ```
 
 > ℹ️ **Ports:** `PORT` in this file controls where the **web app** is exposed on
-> your server (80 = normal HTTP). The API runs inside the Docker network on
+> your server (we recommend 8080). The API runs inside the Docker network on
 > port 3001 and is exposed to the internet **only** through the web container's
 > reverse proxy at `/api/` — you do not need to open port 3001 in AWS.
 
@@ -170,7 +170,7 @@ docker compose logs -f
 > ⚠️ **Change these default passwords immediately** after your first login
 > (Dashboard → Settings → Users). Never deploy with them in production.
 
-Your app is now running: the **web app** is on port **80** and the **API** is
+Your app is now running: the **web app** is on port **8080** on the server, and the **API** is
 reachable at `/api/...` on the same port (proxied by the web container's nginx).
 
 ---
@@ -216,7 +216,7 @@ server {
     server_name yourdomain.com www.yourdomain.com;
 
     location / {
-        proxy_pass http://localhost:80;
+        proxy_pass http://localhost:8080;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
