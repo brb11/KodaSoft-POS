@@ -9,7 +9,7 @@ FROM base AS build
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml turbo.json ./
 COPY apps/ ./apps/
 COPY packages/ ./packages/
-RUN pnpm install --frozen-lockfile
+RUN pnpm install --frozen-lockfile --shamefully-hoist
 RUN pnpm --filter @casheer/api exec prisma generate
 RUN pnpm --filter @casheer/api build
 
