@@ -3,13 +3,13 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: casheer_db
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-casheer_db}
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-casheer_db}"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -20,17 +20,38 @@ services:
       dockerfile: apps/api/Dockerfile
     restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql://postgres:postgres@db:5432/casheer_db
-      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
-      JWT_ACCESS_EXPIRES_IN: 15m
-      JWT_REFRESH_EXPIRES_IN: 7d
+      DATABASE_URL: postgresql://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD:-postgres}@db:5432/${POSTGRES_DB:-casheer_db}
+      # JWT_SECRET is required — `docker compose up` fails fast with a clear
+      # message instead of silently running with the insecure default.
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set in the root .env file}
+      JWT_ACCESS_EXPIRES_IN: ${JWT_ACCESS_EXPIRES_IN:-15m}
+      JWT_REFRESH_EXPIRES_IN: ${JWT_REFRESH_EXPIRES_IN:-7d}
       NODE_ENV: production
-      CLIENT_URL: ${CLIENT_URL:-http://localhost}
       PORT: 3001
+      CLIENT_URL: ${CLIENT_URL:-http://localhost}
+      # Used for payment-provider webhook callbacks (must be the public HTTPS URL).
+      API_URL: ${API_URL:-http://localhost}
+      # Billing / payments
+      PAYMENT_MODE: ${PAYMENT_MODE:-sandbox}
+      PAYMENT_PROVIDER: ${PAYMENT_PROVIDER:-stripe}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY:-}
+      PAYTABS_PROFILE_ID: ${PAYTABS_PROFILE_ID:-}
+      PAYTABS_SERVER_KEY: ${PAYTABS_SERVER_KEY:-}
+      PAYTABS_REGION: ${PAYTABS_REGION:-SAU}
+      MOYASAR_PUBLISHABLE_KEY: ${MOYASAR_PUBLISHABLE_KEY:-}
+      MOYASAR_SECRET_KEY: ${MOYASAR_SECRET_KEY:-}
+      # ZATCA at-rest encryption key. Optional — falls back to JWT_SECRET.
+      ZATCA_ENC_KEY: ${ZATCA_ENC_KEY:-}
     depends_on:
       db:
         condition: service_healthy
-    command: sh -c "npx prisma migrate deploy && node dist/main.js"
+    command: sh -c "npx prisma migrate deploy && node prisma/seed.js && node dist/main.js"
+    # Uncomment to expose the API directly on the host (e.g. for a mobile client).
+    # If you do, open port API_PORT in the AWS security group.
+    # ports:
+    #   - "${API_PORT:-3001}:3001"
 
   web:
     build:

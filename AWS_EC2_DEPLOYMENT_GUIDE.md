@@ -22,7 +22,7 @@ Before starting, make sure you have:
 5. **Instance Type**: Select **`t3.small`** or **`t3.medium`** (minimum 2 GB RAM recommended).
 6. **Key Pair**: Select or create a key pair (`.pem` file).
 7. **Network Settings (Security Group)**:
-   - Allow **SSH** (Port 22) - from Your IP or Anywhere.
+   - Allow **SSH** (Port 22) - from **My IP** (do NOT use Anywhere).
    - Allow **HTTP** (Port 80) - from Anywhere (0.0.0.0/0).
    - Allow **HTTPS** (Port 443) - from Anywhere (0.0.0.0/0).
 8. **Storage**: Set disk size to at least **20 GB** (gp3).
@@ -83,31 +83,58 @@ git clone https://github.com/YOUR_GITHUB_USERNAME/YOUR_REPOSITORY.git casheer
 # 2. Enter the project folder
 cd casheer
 
-# 3. Create the production environment file
+# 3. Create the production environment file from the template
 cp .env.example .env
 
 # 4. Edit the environment variables
 nano .env
 ```
 
+> ⚠️ This is the **root** `.env` used by Docker Compose. Do NOT confuse it with
+> `apps/api/.env` (that one is only for local development).
+
 ### ⚙️ Update these values inside `.env`:
 
 ```env
-# 1. Set a strong password for Database
+# REQUIRED — used to sign access/refresh tokens. 32+ random characters.
+# Generate one with:  openssl rand -base64 48
+JWT_SECRET=Write_A_Random_Long_Secret_Key_Min_32_Chars!
+
+# Public URL of the web app (must be your real domain in production)
+CLIENT_URL=https://yourdomain.com
+
+# Public URL of the API (used for payment webhook callbacks)
+API_URL=https://yourdomain.com
+
+# Port the WEB app listens on (default 80). Leave as 80 unless you change it.
+PORT=80
+
+# Database credentials — docker-compose uses these to create the DB
+# (only use letters, numbers, - and _ characters)
 POSTGRES_USER=postgres
-POSTGRES_PASSWORD=Write_A_Very_Strong_Password_Here_2026!
+POSTGRES_PASSWORD=Write_A_Very_Strong_Password_2026!
 POSTGRES_DB=casheer_db
 
-# 2. Set a strong secret key for JWT (Min 32 characters)
-JWT_SECRET=Write_A_Random_Long_Secret_Key_Here_Min_32_Chars!
-JWT_ACCESS_EXPIRES_IN=15m
-JWT_REFRESH_EXPIRES_IN=7d
+# Payments (sandbox by default; set to live + provider keys for real billing)
+PAYMENT_MODE=sandbox
+PAYMENT_PROVIDER=stripe
+# STRIPE_SECRET_KEY=...
+# STRIPE_WEBHOOK_SECRET=...
+# STRIPE_PUBLISHABLE_KEY=...
+# PAYTABS_PROFILE_ID=...
+# PAYTABS_SERVER_KEY=...
+# MOYASAR_PUBLISHABLE_KEY=...
+# MOYASAR_SECRET_KEY=...
 
-# 3. General Config
-NODE_ENV=production
-PORT=3001
-CLIENT_URL=https://yourdomain.com
+# Optional: separate key for ZATCA at-rest encryption (falls back to JWT_SECRET).
+# Generate one with `openssl rand -base64 32`, then paste the output here:
+# ZATCA_ENC_KEY=paste-the-generated-value
 ```
+
+> ℹ️ **Ports:** `PORT` in this file controls where the **web app** is exposed on
+> your server (80 = normal HTTP). The API runs inside the Docker network on
+> port 3001 and is exposed to the internet **only** through the web container's
+> reverse proxy at `/api/` — you do not need to open port 3001 in AWS.
 
 *Press `CTRL + O` then `ENTER` to save, and `CTRL + X` to exit `nano`.*
 
@@ -130,13 +157,47 @@ docker compose ps
 docker compose logs -f
 ```
 
-Your app is now running internally on port **80** (Web) and port **3001** (API)!
+> ℹ️ **On first start**, the API container automatically runs the database
+> **migrations** (`prisma migrate deploy`) and then the **seed script**, which
+> creates a default store you can log into immediately:
+>
+> | Login | Email | Password | PIN |
+> | :--- | :--- | :--- | :--- |
+> | **Owner** | `admin@kodasoft.com` | `admin123` | `1234` |
+> | **Cashier** | `cashier@kodasoft.com` | `admin123` | `0000` |
+> | **Platform admin** (SaaS console) | `admin@casheer.app` | `admin123` | — |
+>
+> ⚠️ **Change these default passwords immediately** after your first login
+> (Dashboard → Settings → Users). Never deploy with them in production.
+
+Your app is now running: the **web app** is on port **80** and the **API** is
+reachable at `/api/...` on the same port (proxied by the web container's nginx).
 
 ---
 
 ## 🔹 Step 6: Setup Nginx & Free SSL (HTTPS) with Certbot
 
 To serve your website safely with `https://yourdomain.com`:
+
+### 0. Point your domain at the server (DNS)
+
+Before requesting SSL, your domain must resolve to your EC2 IP. In your domain
+registrar's DNS settings create two **A records** (skip the `www` one if you do
+not want `www`):
+
+| Type | Name/Host | Value |
+| :--- | :--- | :--- |
+| A | `@` | `YOUR_EC2_PUBLIC_IP` |
+| A | `www` | `YOUR_EC2_PUBLIC_IP` |
+
+DNS can take anywhere from a few minutes to 24 hours to propagate. Verify it
+works before continuing (replace with your domain):
+
+```bash
+dig +short yourdomain.com
+# or on Windows/PowerShell:
+Resolve-DnsName yourdomain.com
+```
 
 ### 1. Install Nginx & Certbot:
 ```bash
@@ -191,6 +252,7 @@ Follow the prompts on the screen (enter your email, agree to terms). Certbot wil
 | **Update code & redeploy** | `git pull && docker compose up -d --build` |
 | **Database Backup** | `docker compose exec db pg_dump -U postgres casheer_db > backup.sql` |
 | **Restore Database** | `cat backup.sql \| docker compose exec -T db psql -U postgres casheer_db` |
+| **Full reset (deletes ALL data)** | `docker compose down -v` |
 
 ---
 
