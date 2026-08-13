@@ -34,6 +34,12 @@ import { startNotificationScheduler } from './modules/notifications/notification
 
 const app = express();
 
+// The API is only reachable through nginx reverse proxies (the web container,
+// and optionally host nginx in front of it), which set X-Forwarded-For. Tell
+// Express to trust them so rate limiting identifies real client IPs and
+// express-rate-limit does not reject every proxied request.
+app.set('trust proxy', true);
+
 // Security & Middleware
 app.use(helmet());
 app.use(
