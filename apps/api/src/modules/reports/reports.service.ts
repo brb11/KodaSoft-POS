@@ -542,6 +542,7 @@ export async function getSalesSummary(tenantId: string, branchId?: string, from?
 }
 
 export async function getDailySales(tenantId: string, branchId?: string, days: number = 7) {
+  days = Math.min(Math.max(Math.trunc(days) || 7, 1), 92);
   const since = new Date();
   since.setDate(since.getDate() - days);
 
@@ -582,6 +583,7 @@ export async function getDailySales(tenantId: string, branchId?: string, days: n
 }
 
 export async function getTopProducts(tenantId: string, branchId?: string, limit: number = 10) {
+  limit = Math.min(Math.max(Math.trunc(limit) || 10, 1), 100);
   const where: any = { order: { tenantId, status: 'COMPLETED' } };
   if (branchId) where.order.branchId = branchId;
 
@@ -636,6 +638,7 @@ export async function getHourlySales(tenantId: string, branchId?: string) {
 }
 
 export async function getRecentOrders(tenantId: string, limit: number = 15) {
+  limit = Math.min(Math.max(Math.trunc(limit) || 15, 1), 100);
   return prisma.order.findMany({
     where: { tenantId },
     include: {

@@ -135,10 +135,17 @@ export async function recordSettlement(tenantId: string, userId: string, dto: Cr
       },
     });
 
-    await tx.customer.update({
-      where: { id: customer.id },
+    // Atomic decrement guarded by the current balance: two concurrent
+    // settlements can both pass the read-based check above, but only one
+    // updateMany will match (creditBalance >= amount), so the balance can
+    // never go negative. count === 0 rolls the payment row back.
+    const decremented = await tx.customer.updateMany({
+      where: { id: customer.id, tenantId, creditBalance: { gte: amount } },
       data: { creditBalance: { decrement: amount } },
     });
+    if (decremented.count === 0) {
+      throw new AppError(409, 'The customer balance changed; please retry', 'PAYMENT_EXCEEDS_BALANCE');
+    }
 
     return created;
   });

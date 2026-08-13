@@ -3,6 +3,21 @@ import { prisma } from '../../lib/prisma';
 import { assertPlanLimit } from '../billing/plans';
 import { AppError } from '../../middleware/error.middleware';
 import { revokeUserSessions } from '../auth/auth.service';
+import type { CreateUserDto, UpdateUserDto } from './users.schema';
+
+const TENANT_ROLES = ['CASHIER', 'MANAGER', 'OWNER'] as const;
+type TenantRole = (typeof TENANT_ROLES)[number];
+
+// A manager may create/manage CASHIER and MANAGER accounts, but never an OWNER.
+function assertCanAssignRole(actingRole: string, targetRole: string | undefined): void {
+  if (!targetRole) return;
+  if (!TENANT_ROLES.includes(targetRole as TenantRole)) {
+    throw new AppError(400, 'Invalid role', 'INVALID_ROLE');
+  }
+  if (actingRole !== 'OWNER' && targetRole === 'OWNER') {
+    throw new AppError(403, 'Only the owner can assign the owner role', 'FORBIDDEN_ROLE_CHANGE');
+  }
+}
 
 /**
  * Returns true if `pin` is already used by another active user in the same branch.
@@ -42,17 +57,13 @@ export async function getUsers(tenantId: string) {
 }
 
 export async function createUser(
-  tenantId: string, 
-  data: { 
-    name: string; 
-    email: string; 
-    password?: string; 
-    pin?: string; 
-    role: any; 
-    branchId?: string 
-  }
+  tenantId: string,
+  actingRole: string,
+  data: CreateUserDto
 ) {
   await assertPlanLimit(tenantId, 'users');
+  assertCanAssignRole(actingRole, data.role);
+
   const existingUser = await prisma.user.findFirst({ 
     where: { email: data.email } 
   });
@@ -63,7 +74,7 @@ export async function createUser(
     name: data.name,
     email: data.email,
     role: data.role,
-    branchId: data.branchId,
+    branchId: data.branchId ?? null,
   };
 
   if (data.password) {
@@ -84,24 +95,44 @@ export async function createUser(
 }
 
 export async function updateUser(
-  tenantId: string, 
-  id: string, 
-  data: { 
-    name: string; 
-    email?: string;
-    role: any; 
-    branchId?: string; 
-    isActive: boolean;
-    password?: string;
-    pin?: string;
-  }
+  tenantId: string,
+  id: string,
+  actingUserId: string,
+  actingRole: string,
+  data: UpdateUserDto
 ) {
-  const updateData: any = {
-    name: data.name,
-    role: data.role,
-    isActive: data.isActive,
-    branchId: data.branchId || null
-  };
+  const target = await prisma.user.findFirst({
+    where: { id, tenantId },
+    select: { id: true, role: true, branchId: true, isActive: true },
+  });
+  if (!target) throw new AppError(404, 'User not found', 'USER_NOT_FOUND');
+
+  // Only the owner may modify an owner account.
+  if (target.role === 'OWNER' && actingRole !== 'OWNER') {
+    throw new AppError(403, 'Only the owner can manage owner accounts', 'FORBIDDEN_TARGET');
+  }
+
+  assertCanAssignRole(actingRole, data.role);
+
+  // A user may never change their own role (self-escalation guard).
+  if (id === actingUserId && data.role && data.role !== target.role) {
+    throw new AppError(403, 'You cannot change your own role', 'CANNOT_CHANGE_OWN_ROLE');
+  }
+
+  // Protect the last active owner from being demoted or deactivated.
+  if (target.role === 'OWNER' && (data.role && data.role !== 'OWNER' || data.isActive === false)) {
+    const ownerCount = await prisma.user.count({ where: { tenantId, role: 'OWNER', isActive: true } });
+    if (ownerCount <= 1) {
+      throw new AppError(400, 'Cannot demote or deactivate the last active owner', 'LAST_OWNER');
+    }
+  }
+
+  const updateData: any = {};
+
+  if (data.name !== undefined) updateData.name = data.name;
+  if (data.role !== undefined) updateData.role = data.role;
+  if (data.isActive !== undefined) updateData.isActive = data.isActive;
+  if (data.branchId !== undefined) updateData.branchId = data.branchId || null;
 
   if (data.email) {
     const existing = await prisma.user.findFirst({ where: { email: data.email } });
@@ -120,12 +151,16 @@ export async function updateUser(
   if (data.pin) {
     if (!/^\d{4}$/.test(data.pin)) throw new AppError(400, 'PIN must be exactly 4 digits', 'INVALID_PIN');
     // Fetch the user's current branchId to scope the uniqueness check
-    const existing = await prisma.user.findFirst({ where: { id, tenantId }, select: { branchId: true } });
-    const branchId = data.branchId ?? existing?.branchId ?? null;
+    const branchId = data.branchId ?? target.branchId ?? null;
     if (branchId && (await isPinTakenInBranch(branchId, data.pin, id))) {
       throw new AppError(409, 'هذا الرقم السري مستخدم بالفعل في هذا الفرع، يرجى اختيار رقم آخر', 'PIN_ALREADY_IN_USE');
     }
     updateData.pinHash = await bcrypt.hash(data.pin, 10);
+  }
+
+  // Checked last so a credentials-only update (e.g. { pin }) is still valid.
+  if (Object.keys(updateData).length === 0) {
+    throw new AppError(400, 'Nothing to update', 'EMPTY_UPDATE');
   }
 
   const user = await prisma.user.update({
@@ -142,7 +177,7 @@ export async function updateUser(
   return user;
 }
 
-export async function deleteUser(tenantId: string, id: string, actingUserId: string) {
+export async function deleteUser(tenantId: string, id: string, actingUserId: string, actingRole: string) {
   if (id === actingUserId) {
     throw new AppError(400, 'You cannot delete your own account', 'CANNOT_DELETE_SELF');
   }
@@ -156,6 +191,11 @@ export async function deleteUser(tenantId: string, id: string, actingUserId: str
     },
   });
   if (!user) throw new AppError(404, 'User not found', 'USER_NOT_FOUND');
+
+  // Only the owner may delete an owner account.
+  if (user.role === 'OWNER' && actingRole !== 'OWNER') {
+    throw new AppError(403, 'Only the owner can manage owner accounts', 'FORBIDDEN_TARGET');
+  }
 
   if (user.role === 'OWNER') {
     const ownerCount = await prisma.user.count({ where: { tenantId, role: 'OWNER', isActive: true } });

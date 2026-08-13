@@ -13,9 +13,25 @@ export async function requireActiveSubscription(
   try {
     const tenant = await prisma.tenant.findUnique({
       where: { id: req.user.tenantId },
-      include: { subscription: true },
+      include: {
+        subscription: true,
+        // JWT payload does not carry isActive — re-verify the acting user
+        // against the DB so a deactivated account cannot keep using a session.
+        users: { where: { id: req.user.sub }, select: { isActive: true } },
+      },
     });
     if (!tenant) return next(new AppError(404, 'Tenant not found'));
+
+    // Suspended tenants (SaaS console isActive: false) must be blocked even
+    // though their subscription row may still look ACTIVE.
+    if (!tenant.isActive) {
+      return next(new AppError(403, 'Your account has been suspended. Please contact support.', 'TENANT_SUSPENDED'));
+    }
+
+    // Deactivated user still holds a valid JWT until it expires.
+    if (tenant.users.length === 0 || !tenant.users[0].isActive) {
+      return next(new AppError(403, 'Your account has been deactivated', 'ACCOUNT_DEACTIVATED'));
+    }
 
     const sub = tenant.subscription;
     const now = new Date();

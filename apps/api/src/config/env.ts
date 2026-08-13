@@ -23,6 +23,9 @@ const envSchema = z.object({
   PAYTABS_REGION: z.string().default('SAU'),
   MOYASAR_PUBLISHABLE_KEY: z.string().optional(),
   MOYASAR_SECRET_KEY: z.string().optional(),
+  // ZATCA at-rest encryption. Falls back to JWT_SECRET when omitted so
+  // existing deployments keep working.
+  ZATCA_ENC_KEY: z.string().optional(),
 });
 
 const parsed = envSchema.safeParse(process.env);

@@ -16,7 +16,12 @@ export async function getActiveShift(tenantId: string, branchId: string, userId:
 
 export async function openShift(tenantId: string, branchId: string, userId: string, openingCash: number) {
   if (!branchId) throw new AppError(400, 'Branch is required to open a shift');
-  
+
+  // The branch is taken from the request body — verify it actually belongs to
+  // this tenant before creating anything in it (cross-tenant write guard).
+  const branch = await prisma.branch.findFirst({ where: { id: branchId, tenantId } });
+  if (!branch) throw new AppError(400, 'Branch not found', 'BRANCH_NOT_FOUND');
+
   const existing = await getActiveShift(tenantId, branchId, userId);
   if (existing) throw new AppError(400, 'You already have an open shift');
 

@@ -1,5 +1,6 @@
 import { Router, Response } from 'express';
 import { authenticate, AuthRequest } from '../../middleware/auth.middleware';
+import { requireActiveSubscription } from '../billing/subscription.guard';
 import { prisma } from '../../lib/prisma';
 import { z } from 'zod';
 import { getSettings } from './settings.service';
@@ -12,7 +13,7 @@ const updateSettingsSchema = z.object({
 });
 
 export const settingsRouter: Router = Router();
-settingsRouter.use(authenticate);
+settingsRouter.use(authenticate, requireActiveSubscription);
 
 settingsRouter.get('/', async (req: AuthRequest, res: Response) => {
   res.json({ success: true, data: await getSettings(req.user!.tenantId) });

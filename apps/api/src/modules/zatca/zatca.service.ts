@@ -1,6 +1,7 @@
-import { Prisma } from '@prisma/client';
+import { Prisma, ZatcaCredential } from '@prisma/client';
 import { prisma } from '../../lib/prisma';
 import { AppError } from '../../middleware/error.middleware';
+import { encryptSecret, decryptSecret } from '../../lib/zatca/encrypt';
 import {
   generateEccKeyPair,
   buildCsr,
@@ -109,6 +110,22 @@ function credentialSummary(cred: {
   };
 }
 
+// Secrets (private key, PEMs, CSID binary tokens/secrets) are stored
+// AES-GCM encrypted at rest (enc:v1: prefix). This maps a DB row to a copy
+// with every sensitive field decrypted; legacy plaintext rows pass through.
+function decryptCred(cred: ZatcaCredential) {
+  return {
+    ...cred,
+    privateKeyPem: decryptSecret(cred.privateKeyPem),
+    csrPem: decryptSecret(cred.csrPem),
+    selfSignedCertPem: decryptSecret(cred.selfSignedCertPem),
+    complianceToken: decryptSecret(cred.complianceToken),
+    complianceSecret: decryptSecret(cred.complianceSecret),
+    productionToken: decryptSecret(cred.productionToken),
+    productionSecret: decryptSecret(cred.productionSecret),
+  };
+}
+
 export async function getStatus(tenantId: string) {
   const credentials = await prisma.zatcaCredential.findMany({ where: { tenantId }, orderBy: { mode: 'asc' } });
   const [submittedCount, clearedCount, reportedCount, failedCount] = await Promise.all([
@@ -121,7 +138,7 @@ export async function getStatus(tenantId: string) {
   return {
     enabled: Boolean(active),
     activeMode: active?.mode ?? null,
-    credentials: credentials.map(credentialSummary),
+    credentials: credentials.map(decryptCred).map(credentialSummary),
     counts: { submitted: submittedCount, cleared: clearedCount, reported: reportedCount, failed: failedCount },
   };
 }
@@ -155,24 +172,29 @@ export async function generateCredentials(tenantId: string, dto: GenerateCredent
   });
   const selfSignedCert = dto.mode === 'sandbox' ? buildSelfSignedCertificate(subject, keyPair) : null;
 
+  // Store secrets encrypted at rest.
   const cred = existing
     ? await prisma.zatcaCredential.update({
         where: { id: existing.id },
-        data: { privateKeyPem: keyPair.privateKeyPem, csrPem: csr, selfSignedCertPem: selfSignedCert },
+        data: {
+          privateKeyPem: encryptSecret(keyPair.privateKeyPem),
+          csrPem: encryptSecret(csr),
+          selfSignedCertPem: encryptSecret(selfSignedCert),
+        },
       })
     : await prisma.zatcaCredential.create({
         data: {
           tenantId,
           mode: dto.mode,
-          privateKeyPem: keyPair.privateKeyPem,
-          csrPem: csr,
-          selfSignedCertPem: selfSignedCert,
+          privateKeyPem: encryptSecret(keyPair.privateKeyPem),
+          csrPem: encryptSecret(csr),
+          selfSignedCertPem: encryptSecret(selfSignedCert),
         },
       });
 
   const publicKey = x509Info(selfSignedCert ?? keyPair.publicKeyPem);
   return {
-    ...credentialSummary(cred),
+    ...credentialSummary(decryptCred(cred)),
     csr,
     selfSignedCert: selfSignedCert ? { pem: selfSignedCert, serialNumber: publicKey.serialNumberFormatted } : null,
   };
@@ -180,14 +202,16 @@ export async function generateCredentials(tenantId: string, dto: GenerateCredent
 
 export async function issueComplianceCsid(tenantId: string, dto: ComplianceCsidDto) {
   const cred = await prisma.zatcaCredential.findFirst({ where: { tenantId, mode: dto.mode } });
-  if (!cred?.csrPem || !cred.privateKeyPem) {
+  if (!cred) throw new AppError(404, 'Credentials not found');
+  const c = decryptCred(cred);
+  if (!c.csrPem || !c.privateKeyPem) {
     throw new AppError(400, 'Generate credentials first (POST /zatca/credentials)');
   }
   const client = new FaturaClient(dto.mode);
   let res: Awaited<ReturnType<FaturaClient['requestComplianceCsid']>>;
   try {
     res = await client.requestComplianceCsid({
-      csr: cred.csrPem,
+      csr: c.csrPem,
       otp: dto.otp,
     });
   } catch (err) {
@@ -205,13 +229,13 @@ export async function issueComplianceCsid(tenantId: string, dto: ComplianceCsidD
   const updated = await prisma.zatcaCredential.update({
     where: { id: cred.id },
     data: {
-      complianceToken: res.binarySecurityToken,
-      complianceSecret: res.secret,
+      complianceToken: encryptSecret(res.binarySecurityToken),
+      complianceSecret: encryptSecret(res.secret),
       complianceRequestId: res.requestID,
       complianceSerialNumber: serial,
     },
   });
-  return { ...credentialSummary(updated), complianceRequestId: res.requestID };
+  return { ...credentialSummary(decryptCred(updated)), complianceRequestId: res.requestID };
 }
 
 function complianceDocStatus(res: { validationResults?: unknown[]; status?: string } | null | undefined): 'PASS' | 'ERROR' {
@@ -235,28 +259,30 @@ function complianceDocStatus(res: { validationResults?: unknown[]; status?: stri
  */
 export async function runComplianceChecks(tenantId: string, dto: { mode: string }) {
   const cred = await prisma.zatcaCredential.findFirst({ where: { tenantId, mode: dto.mode } });
-  if (!cred?.csrPem || !cred.privateKeyPem) {
+  if (!cred) throw new AppError(404, 'Credentials not found');
+  const c = decryptCred(cred);
+  if (!c.csrPem || !c.privateKeyPem) {
     throw new AppError(400, 'Generate credentials first (POST /zatca/credentials)');
   }
-  if (!cred.complianceToken || !cred.complianceSecret) {
+  if (!c.complianceToken || !c.complianceSecret) {
     throw new AppError(400, 'Compliance CSID required before running compliance checks');
   }
-  const certPem = certPemFromBinaryToken(cred.complianceToken);
+  const certPem = certPemFromBinaryToken(c.complianceToken);
   if (!certPem) {
     throw new AppError(400, 'Compliance certificate could not be parsed');
   }
-  const privateKeyPem = cred.privateKeyPem;
+  const privateKeyPem = c.privateKeyPem;
 
   const settings = await readSettings(tenantId);
   const samples = buildComplianceSamples(
     { name: settings.storeName, vatNumber: settings.vatNumber },
-    { privateKeyPem: cred.privateKeyPem, certPem },
+    { privateKeyPem: c.privateKeyPem, certPem },
   );
 
   const client = new FaturaClient(dto.mode as 'sandbox' | 'production');
-  const token = client.buildAuthToken(cred.complianceToken, cred.complianceSecret);
+  const token = client.buildAuthToken(c.complianceToken, c.complianceSecret);
   const serialNumber =
-    cred.complianceSerialNumber || formatSerialNumber(x509Info(certPem).serialNumberHex);
+    c.complianceSerialNumber || formatSerialNumber(x509Info(certPem).serialNumberHex);
 
   const results = await Promise.all(
     samples.map(async (sample) => {
@@ -296,21 +322,23 @@ export async function runComplianceChecks(tenantId: string, dto: { mode: string 
     },
   });
 
-  return { ...credentialSummary(updated), complianceChecks: results, complianceChecksStatus: checkStatus };
+  return { ...credentialSummary(decryptCred(updated)), complianceChecks: results, complianceChecksStatus: checkStatus };
 }
 
 export async function issueProductionCsid(tenantId: string, dto: ProductionCsidDto) {
   const cred = await prisma.zatcaCredential.findFirst({ where: { tenantId, mode: 'production' } });
-  if (!cred?.csrPem || !cred.privateKeyPem) {
+  if (!cred) throw new AppError(404, 'Credentials not found');
+  const c = decryptCred(cred);
+  if (!c.csrPem || !c.privateKeyPem) {
     throw new AppError(400, 'Generate production credentials first (POST /zatca/credentials with mode=production)');
   }
-  if (!cred.complianceToken || !cred.complianceSecret) {
+  if (!c.complianceToken || !c.complianceSecret) {
     throw new AppError(400, 'Compliance CSID required before issuing a production CSID');
   }
   const client = new FaturaClient('production');
-  const token = client.buildAuthToken(cred.complianceToken, cred.complianceSecret);
+  const token = client.buildAuthToken(c.complianceToken, c.complianceSecret);
   const res = await client.requestProductionCsid({
-    complianceRequestId: cred.complianceRequestId || '',
+    complianceRequestId: c.complianceRequestId || '',
     otp: dto.otp,
     token,
   });
@@ -323,13 +351,13 @@ export async function issueProductionCsid(tenantId: string, dto: ProductionCsidD
   const updated = await prisma.zatcaCredential.update({
     where: { id: cred.id },
     data: {
-      productionToken: res.binarySecurityToken,
-      productionSecret: res.secret,
+      productionToken: encryptSecret(res.binarySecurityToken),
+      productionSecret: encryptSecret(res.secret),
       productionRequestId: res.requestID,
       productionSerialNumber: serial,
     },
   });
-  return { ...credentialSummary(updated), productionRequestId: res.requestID };
+  return { ...credentialSummary(decryptCred(updated)), productionRequestId: res.requestID };
 }
 
 export async function setEnabled(tenantId: string, dto: SetEnabledDto) {
@@ -380,20 +408,21 @@ export async function retrySubmission(tenantId: string, id: string) {
   }
   const active = await prisma.zatcaCredential.findFirst({ where: { tenantId, enabled: true } });
   if (!active) throw new AppError(400, 'ZATCA is not enabled');
+  const a = decryptCred(active);
 
-  const client = new FaturaClient(active.mode as 'sandbox' | 'production');
-  const token = client.buildAuthToken(active.complianceToken || active.productionToken || '', active.complianceSecret || active.productionSecret || '');
+  const client = new FaturaClient(a.mode as 'sandbox' | 'production');
+  const token = client.buildAuthToken(a.complianceToken || a.productionToken || '', a.complianceSecret || a.productionSecret || '');
 
   const result = await submitToFatura(client, {
     invoiceXmlBase64: Buffer.from(row.invoiceXml, 'utf8').toString('base64'),
     invoiceHash: row.invoiceHash,
     uuid: row.invoiceUuid.replace(/^urn:uuid:/, ''),
     invoiceType: row.invoiceType === 'TAX' ? 'standard' : 'simplified',
-    binarySecurityToken: active.complianceToken || active.productionToken || '',
+    binarySecurityToken: a.complianceToken || a.productionToken || '',
   }, {
     token,
-    compliancePrivateKeyPem: active.privateKeyPem || '',
-    serialNumber: active.complianceSerialNumber || active.productionSerialNumber || '',
+    compliancePrivateKeyPem: a.privateKeyPem || '',
+    serialNumber: a.complianceSerialNumber || a.productionSerialNumber || '',
   });
 
   const status = resultStatus(row.invoiceType === 'TAX', result);
@@ -478,6 +507,8 @@ export async function signAndSubmitOrder(
 ): Promise<{ signed: boolean; status?: string; error?: string; invoiceHash?: string; invoiceSignature?: string; invoiceXml?: string }> {
   const cred = await prisma.zatcaCredential.findFirst({ where: { tenantId, enabled: true } });
   if (!cred?.privateKeyPem) return { signed: false };
+  const c = decryptCred(cred);
+  if (!c.privateKeyPem) return { signed: false };
 
   const settings = await readSettings(tenantId);
   const branch = await prisma.branch.findFirst({ where: { id: order.branchId, tenantId } });
@@ -505,10 +536,10 @@ export async function signAndSubmitOrder(
   }
 
   // Signing certificate: production CSID > compliance CSID > self-signed (sandbox).
-  const signingToken = cred.productionToken || cred.complianceToken;
+  const signingToken = c.productionToken || c.complianceToken;
   const signingCertPem = certPemFromBinaryToken(signingToken);
-  const certPem = signingCertPem || cred.selfSignedCertPem;
-  const keyPem = cred.privateKeyPem;
+  const certPem = signingCertPem || c.selfSignedCertPem;
+  const keyPem = c.privateKeyPem;
   if (!certPem) {
     return { signed: false, error: 'No signing certificate available' };
   }
@@ -558,10 +589,10 @@ export async function signAndSubmitOrder(
 
   // Only submit when we hold a real CSID and the seller VAT is well-formed.
   if (signingToken && sellerVatValid) {
-    const client = new FaturaClient(cred.mode as 'sandbox' | 'production');
+    const client = new FaturaClient(c.mode as 'sandbox' | 'production');
     const token = client.buildAuthToken(
-      cred.productionToken || cred.complianceToken || '',
-      cred.productionSecret || cred.complianceSecret || '',
+      c.productionToken || c.complianceToken || '',
+      c.productionSecret || c.complianceSecret || '',
     );
     try {
       const result = await submitToFatura(
@@ -572,12 +603,12 @@ export async function signAndSubmitOrder(
           uuid: order.invoiceUuid.replace(/^urn:uuid:/, ''),
           invoiceType: invoiceTypeForFatura(order.invoiceType),
           binarySecurityToken: signingToken,
-          pih: invoiceType === 'tax' ? cred.lastInvoiceHash || undefined : undefined,
+          pih: invoiceType === 'tax' ? c.lastInvoiceHash || undefined : undefined,
         },
         {
           token,
           compliancePrivateKeyPem: keyPem,
-          serialNumber: (cred.productionSerialNumber || cred.complianceSerialNumber || formatSerialNumber(x509Info(certPem).serialNumberHex)),
+          serialNumber: (c.productionSerialNumber || c.complianceSerialNumber || formatSerialNumber(x509Info(certPem).serialNumberHex)),
         },
       );
       status = resultStatus(order.invoiceType === 'TAX', result as { status?: string });

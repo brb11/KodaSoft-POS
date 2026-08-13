@@ -15,6 +15,12 @@ export async function createExpense(tenantId: string, userId: string, role: stri
   if (dto.shiftId) {
     const shift = await prisma.shift.findFirst({ where: { id: dto.shiftId, branchId: dto.branchId } });
     if (!shift) throw new AppError(400, 'Shift not found for this branch');
+    // Expenses must only be attached to the currently open shift — a closed
+    // shift's drawer has already been reconciled, so new expenses on it would
+    // silently change the reconciliation without anyone noticing.
+    if (shift.status !== 'OPEN') {
+      throw new AppError(400, 'Cannot add an expense to a closed shift');
+    }
   }
 
   // Cash withdrawals from the drawer are owner/manager only; regular expenses
