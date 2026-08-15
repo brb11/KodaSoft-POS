@@ -4,11 +4,11 @@ import tailwindcss from '@tailwindcss/vite';
 
 // https://astro.build/config
 export default defineConfig({
-  site: process.env.SITE_URL || 'https://casheer.kodasoft.sa',
+  site: process.env.SITE_URL || 'https://pos.koda-ye.com',
   output: 'static',
   trailingSlash: 'never',
   redirects: {
-    '/': '/en',
+    '/': '/ar',
   },
   vite: {
     plugins: [tailwindcss()],

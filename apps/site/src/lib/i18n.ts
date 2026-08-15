@@ -1,5 +1,6 @@
 export type Locale = 'en' | 'ar';
-export const locales: Locale[] = ['en', 'ar'];
+// Arabic is the primary language; English is the secondary.
+export const locales: Locale[] = ['ar', 'en'];
 
 type DictNode = string | Record<string, unknown>;
 

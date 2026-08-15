@@ -17,7 +17,7 @@ COPY packages/ ./packages/
 ARG PUBLIC_APP_URL=http://localhost
 ENV PUBLIC_APP_URL=$PUBLIC_APP_URL
 # Canonical URL of the marketing site (used by Astro for SEO/sitemap).
-ARG SITE_URL=https://casheer.kodasoft.sa
+ARG SITE_URL=https://pos.koda-ye.com
 ENV SITE_URL=$SITE_URL
 
 RUN pnpm install --frozen-lockfile
