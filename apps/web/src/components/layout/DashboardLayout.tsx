@@ -122,7 +122,7 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
           {/* Logo Branding */}
           <div className="p-6 border-b border-slate-200/80 flex items-center gap-3">
             <img
-              src="/logo_transparent.png"
+              src={`${import.meta.env.BASE_URL}logo_transparent.png`}
               alt="KodaSoft Logo"
               className="w-10 h-10 object-contain drop-shadow-sm"
             />

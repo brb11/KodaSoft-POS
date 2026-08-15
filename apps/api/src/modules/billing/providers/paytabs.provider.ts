@@ -80,7 +80,7 @@ export class PayTabsProvider implements PaymentProvider {
           zip: '',
         },
         callback: `${env.API_URL}/api/v1/billing/webhook/paytabs`,
-        return: `${env.CLIENT_URL}/dashboard/settings?payment=return`,
+        return: `${env.CLIENT_URL}/app/dashboard/settings?payment=return`,
         // Give the gateway a stable hint; the authoritative price is checked
         // again server-side before the subscription is activated.
         reference: 'CASHEER',

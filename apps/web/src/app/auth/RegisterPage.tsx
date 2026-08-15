@@ -64,7 +64,7 @@ export const RegisterPage: React.FC = () => {
           <div className="inline-flex items-center justify-center p-4 bg-slate-50 rounded-2xl mb-3 shadow-inner border border-slate-100">
             <div className="flex items-center gap-3">
               <img
-                src="/logo_transparent.png"
+                src={`${import.meta.env.BASE_URL}logo_transparent.png`}
                 alt="KodaSoft Logo"
                 className="w-12 h-12 object-contain drop-shadow-sm"
               />

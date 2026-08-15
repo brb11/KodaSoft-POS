@@ -628,7 +628,7 @@ export const PosTerminal: React.FC = () => {
       <header className="bg-white border-b border-slate-200/80 px-4 xl:px-6 py-3 flex flex-col xl:flex-row items-center justify-between shadow-sm z-20 shrink-0 gap-3 xl:gap-0 w-full overflow-hidden">
         <div className="flex items-center gap-3 w-full xl:w-auto shrink-0 justify-center xl:justify-start">
           <img
-            src="/logo_transparent.png"
+            src={`${import.meta.env.BASE_URL}logo_transparent.png`}
             alt="KodaSoft Logo"
             className="w-10 h-10 object-contain drop-shadow-sm"
           />

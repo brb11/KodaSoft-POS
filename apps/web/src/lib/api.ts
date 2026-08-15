@@ -35,8 +35,9 @@ async function refreshAccessToken(): Promise<boolean> {
   } catch {
     // Refresh failed (expired/revoked): clear local auth and redirect.
     useAuthStore.getState().logout();
-    if (window.location.pathname !== '/login') {
-      window.location.href = '/login';
+    const loginPath = `${import.meta.env.BASE_URL}login`;
+    if (window.location.pathname !== loginPath) {
+      window.location.href = loginPath;
     }
     return false;
   }

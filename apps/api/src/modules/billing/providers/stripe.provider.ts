@@ -56,8 +56,8 @@ export class StripeProvider implements PaymentProvider {
   async createCheckoutSession(input: CheckoutInput): Promise<CheckoutResult> {
     const params = new URLSearchParams();
     params.set('mode', 'payment');
-    params.set('success_url', `${env.CLIENT_URL}/dashboard/settings?payment=success`);
-    params.set('cancel_url', `${env.CLIENT_URL}/dashboard/settings?payment=cancelled`);
+    params.set('success_url', `${env.CLIENT_URL}/app/dashboard/settings?payment=success`);
+    params.set('cancel_url', `${env.CLIENT_URL}/app/dashboard/settings?payment=cancelled`);
     params.set('customer_email', input.customerEmail);
     params.set('metadata[paymentId]', String(input.metadata.paymentId));
     params.set('line_items[0][quantity]', '1');

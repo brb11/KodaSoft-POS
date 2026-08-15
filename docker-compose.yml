@@ -68,9 +68,10 @@ services:
       context: .
       dockerfile: apps/site/Dockerfile
       args:
-        # The marketing site's "Login / Get started" buttons point at the POS app.
-        PUBLIC_APP_URL: ${CLIENT_URL:-http://localhost}
-        SITE_URL: ${SITE_URL:-https://casheer.kodasoft.sa}
+        # The site owns the domain root; the "Login / Get started" buttons point
+        # at the POS app, which lives under /app on the same domain.
+        PUBLIC_APP_URL: ${PUBLIC_APP_URL:-https://pos.koda-ye.com/app}
+        SITE_URL: ${SITE_URL:-https://pos.koda-ye.com}
     restart: unless-stopped
     ports:
       - "${SITE_PORT:-8081}:80"

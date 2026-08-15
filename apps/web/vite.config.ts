@@ -4,6 +4,8 @@ import path from 'path';
 
 export default defineConfig({
   plugins: [react()],
+  // The marketing site owns the domain root; the POS app lives under /app.
+  base: '/app/',
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
