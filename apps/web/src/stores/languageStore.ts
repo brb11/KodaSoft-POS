@@ -674,6 +674,97 @@ export interface Translations {
   saasCancelled: string;
   saasMemberSince: string;
 
+  // SaaS console v2
+  saasUsersNav: string;
+  saasPayments: string;
+  saasNewTenant: string;
+  saasCreateTenant: string;
+  saasTenantName: string;
+  saasOwnerName: string;
+  saasOwnerEmail: string;
+  saasOwnerPassword: string;
+  saasBranchName: string;
+  saasBranchAddress: string;
+  saasPhone: string;
+  saasSearch: string;
+  saasAll: string;
+  saasPlanFilter: string;
+  saasNoResults: string;
+  saasPrev: string;
+  saasNext: string;
+  saasPageOf: string;
+  saasDeleteTenant: string;
+  saasConfirmDeleteTenant: string;
+  saasTenantDeleted: string;
+  saasTenantCreated: string;
+  saasCreateFailed: string;
+  saasDeleteFailed: string;
+  saasTenantHasHistory: string;
+  saasSubscription: string;
+  saasSubscriptionStatus: string;
+  saasBillingCycle: string;
+  saasMonthly: string;
+  saasYearly: string;
+  saasAutoRenew: string;
+  saasPeriodStart: string;
+  saasPeriodEnd: string;
+  saasTrialStarted: string;
+  saasExtendTrial: string;
+  saasExtend: string;
+  saasProvider: string;
+  saasSaveChanges: string;
+  saasSaved: string;
+  saasProducts: string;
+  saasCategories: string;
+  saasCustomers: string;
+  saasAddUser: string;
+  saasUserPin: string;
+  saasResetPassword: string;
+  saasResetPasswordFor: string;
+  saasLastOwner: string;
+  edit: string;
+  saasAllTenants: string;
+  saasUserCreated: string;
+  saasUserUpdated: string;
+  saasUserDeleted: string;
+  saasConfirmDeleteUser: string;
+  saasPaymentAmount: string;
+  saasPaymentStatus: string;
+  saasPaymentDate: string;
+  saasPaymentMode: string;
+  saasRecordPayment: string;
+  saasPaymentNote: string;
+  saasPaymentRecorded: string;
+  saasMarkPaid: string;
+  saasMarkFailed: string;
+  saasMarkCanceled: string;
+  saasPaymentStatusUpdated: string;
+  saasCurrency: string;
+  saasPaid: string;
+  saasPending: string;
+  saasFailed: string;
+  saasCanceledPay: string;
+  saasRevenueTrend: string;
+  saasNewTenantsTrend: string;
+  saasOrdersTrend: string;
+  saasPlanDistribution: string;
+  saasSubStatusOverview: string;
+  saasTopTenants: string;
+  saasActiveSubscriptions: string;
+  saasTrialTenants: string;
+  saasExpiringSoon: string;
+  saasExpiringSoon7: string;
+  saasSubStatusAll: string;
+  saasClearFilter: string;
+  saasActiveFilters: string;
+  saasFilterStatus: string;
+  saasDate: string;
+  saasSelectTenant: string;
+  saasManual: string;
+  saasExpiry: string;
+  saasTenantCol: string;
+  saasUsageLabel: string;
+
   // Settings / Plan & Billing
   settingsTitle: string;
   settingsDesc: string;
@@ -1578,6 +1669,97 @@ const translations: Record<Language, Translations> = {
     saasCancelled: 'ملغى',
     saasMemberSince: 'عميل منذ',
 
+    // SaaS console v2
+    saasUsersNav: 'المستخدمون',
+    saasPayments: 'المدفوعات',
+    saasNewTenant: 'متجر جديد',
+    saasCreateTenant: 'إنشاء متجر',
+    saasTenantName: 'اسم المتجر',
+    saasOwnerName: 'اسم المالك',
+    saasOwnerEmail: 'بريد المالك الإلكتروني',
+    saasOwnerPassword: 'كلمة مرور المالك',
+    saasBranchName: 'اسم الفرع',
+    saasBranchAddress: 'عنوان الفرع',
+    saasPhone: 'الهاتف',
+    saasSearch: 'بحث...',
+    saasAll: 'الكل',
+    saasPlanFilter: 'تصفية حسب الباقة',
+    saasNoResults: 'لا توجد نتائج',
+    saasPrev: 'السابق',
+    saasNext: 'التالي',
+    saasPageOf: 'صفحة',
+    saasDeleteTenant: 'حذف المتجر',
+    saasConfirmDeleteTenant: 'حذف المتجر "{name}"؟ لا يمكن التراجع عن هذا الإجراء.',
+    saasTenantDeleted: 'تم حذف المتجر بنجاح',
+    saasTenantCreated: 'تم إنشاء المتجر بنجاح',
+    saasCreateFailed: 'فشل إنشاء المتجر',
+    saasDeleteFailed: 'فشل حذف المتجر',
+    saasTenantHasHistory: 'لا يمكن حذف المتجر لوجود سجل معاملات. يمكن تعليقه بدلاً من الحذف.',
+    saasSubscription: 'الاشتراك',
+    saasSubscriptionStatus: 'حالة الاشتراك',
+    saasBillingCycle: 'دورة الفوترة',
+    saasMonthly: 'شهري',
+    saasYearly: 'سنوي',
+    saasAutoRenew: 'التجديد التلقائي',
+    saasPeriodStart: 'بداية الفترة',
+    saasPeriodEnd: 'نهاية الفترة',
+    saasTrialStarted: 'بداية التجربة',
+    saasExtendTrial: 'تمديد التجربة (أيام)',
+    saasExtend: 'تمديد',
+    saasProvider: 'المزوّد',
+    saasSaveChanges: 'حفظ التغييرات',
+    saasSaved: 'تم الحفظ بنجاح',
+    saasProducts: 'المنتجات',
+    saasCategories: 'الأقسام',
+    saasCustomers: 'العملاء',
+    saasAddUser: 'إضافة مستخدم',
+    saasUserPin: 'الرقم السري (4 أرقام)',
+    saasResetPassword: 'إعادة تعيين كلمة المرور',
+    saasResetPasswordFor: 'إعادة تعيين كلمة المرور للمستخدم "{name}"',
+    saasLastOwner: 'لا يمكن حذف المالك الأخير، يجب تعيين مالك آخر أولاً',
+    edit: 'تعديل',
+    saasAllTenants: 'جميع المتاجر',
+    saasUserCreated: 'تم إنشاء المستخدم بنجاح',
+    saasUserUpdated: 'تم تحديث المستخدم بنجاح',
+    saasUserDeleted: 'تم حذف المستخدم بنجاح',
+    saasConfirmDeleteUser: 'حذف المستخدم "{name}"؟',
+    saasPaymentAmount: 'المبلغ',
+    saasPaymentStatus: 'حالة الدفعة',
+    saasPaymentDate: 'تاريخ الدفعة',
+    saasPaymentMode: 'الوضع',
+    saasRecordPayment: 'تسجيل دفعة يدوية',
+    saasPaymentNote: 'ملاحظة (اختياري)',
+    saasPaymentRecorded: 'تم تسجيل الدفعة وتفعيل الاشتراك',
+    saasMarkPaid: 'تحديد كمدفوع',
+    saasMarkFailed: 'تحديد كفشل',
+    saasMarkCanceled: 'إلغاء الدفعة',
+    saasPaymentStatusUpdated: 'تم تحديث حالة الدفعة',
+    saasCurrency: 'العملة',
+    saasPaid: 'مدفوع',
+    saasPending: 'قيد الانتظار',
+    saasFailed: 'فشل',
+    saasCanceledPay: 'ملغى',
+    saasRevenueTrend: 'اتجاه الإيرادات (آخر 30 يوم)',
+    saasNewTenantsTrend: 'متاجر جديدة (آخر 30 يوم)',
+    saasOrdersTrend: 'الطلبات اليومية (آخر 30 يوم)',
+    saasPlanDistribution: 'توزيع الباقات',
+    saasSubStatusOverview: 'حالة الاشتراكات',
+    saasTopTenants: 'أعلى المتاجر إيراداً',
+    saasActiveSubscriptions: 'اشتراكات نشطة',
+    saasTrialTenants: 'متاجر تجريبية',
+    saasExpiringSoon: 'تنتهي قريباً (7 أيام)',
+    saasExpiringSoon7: 'تنتهي قريباً (7 أيام)',
+    saasSubStatusAll: 'كل الحالات',
+    saasClearFilter: 'مسح الفلتر',
+    saasActiveFilters: 'الفلتر النشط',
+    saasFilterStatus: 'الحالة',
+    saasDate: 'التاريخ',
+    saasSelectTenant: 'اختر المتجر',
+    saasManual: 'يدوي',
+    saasExpiry: 'تاريخ الانتهاء',
+    saasTenantCol: 'المتجر',
+    saasUsageLabel: 'الاستخدام',
+
     // Settings / Plan & Billing
     settingsTitle: 'الإعدادات',
     settingsDesc: 'إعدادات المتجر والباقة والاشتراك',
@@ -2476,6 +2658,97 @@ const translations: Record<Language, Translations> = {
     saasPastDue: 'Past due',
     saasCancelled: 'Cancelled',
     saasMemberSince: 'Member since',
+
+    // SaaS console v2
+    saasUsersNav: 'Users',
+    saasPayments: 'Payments',
+    saasNewTenant: 'New Tenant',
+    saasCreateTenant: 'Create Tenant',
+    saasTenantName: 'Tenant name',
+    saasOwnerName: 'Owner name',
+    saasOwnerEmail: 'Owner email',
+    saasOwnerPassword: 'Owner password',
+    saasBranchName: 'Branch name',
+    saasBranchAddress: 'Branch address',
+    saasPhone: 'Phone',
+    saasSearch: 'Search...',
+    saasAll: 'All',
+    saasPlanFilter: 'Filter by plan',
+    saasNoResults: 'No results',
+    saasPrev: 'Prev',
+    saasNext: 'Next',
+    saasPageOf: 'Page',
+    saasDeleteTenant: 'Delete Tenant',
+    saasConfirmDeleteTenant: 'Delete tenant "{name}"? This cannot be undone.',
+    saasTenantDeleted: 'Tenant deleted successfully',
+    saasTenantCreated: 'Tenant created successfully',
+    saasCreateFailed: 'Failed to create tenant',
+    saasDeleteFailed: 'Failed to delete tenant',
+    saasTenantHasHistory: 'Tenant has transaction history and cannot be deleted. Suspend it instead.',
+    saasSubscription: 'Subscription',
+    saasSubscriptionStatus: 'Subscription status',
+    saasBillingCycle: 'Billing cycle',
+    saasMonthly: 'Monthly',
+    saasYearly: 'Yearly',
+    saasAutoRenew: 'Auto-renew',
+    saasPeriodStart: 'Period start',
+    saasPeriodEnd: 'Period end',
+    saasTrialStarted: 'Trial started',
+    saasExtendTrial: 'Extend trial (days)',
+    saasExtend: 'Extend',
+    saasProvider: 'Provider',
+    saasSaveChanges: 'Save changes',
+    saasSaved: 'Saved successfully',
+    saasProducts: 'Products',
+    saasCategories: 'Categories',
+    saasCustomers: 'Customers',
+    saasAddUser: 'Add User',
+    saasUserPin: 'PIN (4 digits)',
+    saasResetPassword: 'Reset password',
+    saasResetPasswordFor: 'Reset password for "{name}"',
+    saasLastOwner: 'Cannot delete the last owner, assign another owner first',
+    edit: 'Edit',
+    saasAllTenants: 'All stores',
+    saasUserCreated: 'User created successfully',
+    saasUserUpdated: 'User updated successfully',
+    saasUserDeleted: 'User deleted successfully',
+    saasConfirmDeleteUser: 'Delete user "{name}"?',
+    saasPaymentAmount: 'Amount',
+    saasPaymentStatus: 'Payment status',
+    saasPaymentDate: 'Payment date',
+    saasPaymentMode: 'Mode',
+    saasRecordPayment: 'Record manual payment',
+    saasPaymentNote: 'Note (optional)',
+    saasPaymentRecorded: 'Payment recorded and subscription activated',
+    saasMarkPaid: 'Mark paid',
+    saasMarkFailed: 'Mark failed',
+    saasMarkCanceled: 'Cancel payment',
+    saasPaymentStatusUpdated: 'Payment status updated',
+    saasCurrency: 'Currency',
+    saasPaid: 'Paid',
+    saasPending: 'Pending',
+    saasFailed: 'Failed',
+    saasCanceledPay: 'Cancelled',
+    saasRevenueTrend: 'Revenue trend (last 30 days)',
+    saasNewTenantsTrend: 'New tenants (last 30 days)',
+    saasOrdersTrend: 'Daily orders (last 30 days)',
+    saasPlanDistribution: 'Plan distribution',
+    saasSubStatusOverview: 'Subscription status',
+    saasTopTenants: 'Top tenants by revenue',
+    saasActiveSubscriptions: 'Active subscriptions',
+    saasTrialTenants: 'Trial tenants',
+    saasExpiringSoon: 'Expiring soon (7 days)',
+    saasExpiringSoon7: 'Expiring soon (7 days)',
+    saasSubStatusAll: 'All statuses',
+    saasClearFilter: 'Clear filter',
+    saasActiveFilters: 'Active filter',
+    saasFilterStatus: 'Status',
+    saasDate: 'Date',
+    saasSelectTenant: 'Select tenant',
+    saasManual: 'Manual',
+    saasExpiry: 'Expiry',
+    saasTenantCol: 'Tenant',
+    saasUsageLabel: 'Usage',
 
     // Settings / Plan & Billing
     settingsTitle: 'Settings',
