@@ -58,7 +58,7 @@ function refundedLineAmount(item: OrderItemRow): number {
   const qty = Number(item.quantity);
   const refunded = Number(item.refundedQuantity ?? 0);
   if (qty <= 0 || refunded <= 0) return 0;
-  const lineGross = Number(item.subtotal ?? Number(item.unitPrice) * qty) + Number(item.taxAmount ?? 0);
+  const lineGross = Number(item.subtotal ?? 0) + Number(item.taxAmount ?? 0) || Number(item.unitPrice) * qty;
   return lineGross * Math.min(refunded / qty, 1);
 }
 

@@ -108,9 +108,9 @@ export const PosTerminal: React.FC = () => {
             temp: Math.round(data.current.temperature_2m),
             code: data.current.weathercode,
           });
-        } catch {/* ignore weather errors */}
+        } catch {/* ignore weather errors */ }
       },
-      () => {/* geolocation denied – no weather shown */}
+      () => {/* geolocation denied – no weather shown */ }
     );
   }, []);
 
@@ -124,7 +124,7 @@ export const PosTerminal: React.FC = () => {
   const [catalogCategory, setCatalogCategory] = useState<string | null>(null);
   const [recentlyScannedId, setRecentlyScannedId] = useState<string | null>(null);
   const [showShortcutsHelp, setShowShortcutsHelp] = useState(false);
-  
+
   // Printing state
   const receiptRef = useRef<HTMLDivElement>(null);
   const [lastOrderDetails, setLastOrderDetails] = useState({
@@ -137,7 +137,7 @@ export const PosTerminal: React.FC = () => {
   const [activeShift, setActiveShift] = useState<any>(null);
   const [showShiftModal, setShowShiftModal] = useState(false);
   const [shiftAmount, setShiftAmount] = useState('');
-  const [shiftAction, setShiftAction] = useState<'OPEN'|'CLOSE'>('OPEN');
+  const [shiftAction, setShiftAction] = useState<'OPEN' | 'CLOSE'>('OPEN');
   const [resolvedBranchId, setResolvedBranchId] = useState<string | null>(useAuthStore.getState().user?.branchId || null);
 
   // Fetch branch name after resolvedBranchId is available
@@ -147,7 +147,7 @@ export const PosTerminal: React.FC = () => {
       const branches: any[] = res.data.data || [];
       const found = branches.find((b: any) => b.id === resolvedBranchId);
       if (found) setBranchName(found.name || '');
-    }).catch(() => {});
+    }).catch(() => { });
   }, [resolvedBranchId]);
 
   const [showOrderHistory, setShowOrderHistory] = useState(false);
@@ -159,7 +159,7 @@ export const PosTerminal: React.FC = () => {
   const [showCameraScan, setShowCameraScan] = useState(false);
   const [showCartPanel, setShowCartPanel] = useState(false);
   const [scanFeedback, setScanFeedback] = useState<{ id: number; ok: boolean; text: string } | null>(null);
-  
+
   const feedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const scanHighlightTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -248,6 +248,8 @@ export const PosTerminal: React.FC = () => {
     checkActiveShift();
     resolveBranch();
   }, [user]);
+
+  const lastAddedIdRef = useRef<string | null>(null);
 
   const resolveBranch = async () => {
     if (user?.branchId) {
@@ -404,7 +406,7 @@ export const PosTerminal: React.FC = () => {
       gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + dur);
       osc.start();
       osc.stop(ctx.currentTime + dur);
-      osc.onended = () => ctx.close().catch(() => {});
+      osc.onended = () => ctx.close().catch(() => { });
     } catch {
       /* Audio fallback */
     }
@@ -433,6 +435,7 @@ export const PosTerminal: React.FC = () => {
       sku: p.sku,
       taxRate: p.taxRate,
     });
+    lastAddedIdRef.current = p.id;
     triggerScanHighlight(p.id);
   };
 
@@ -440,6 +443,44 @@ export const PosTerminal: React.FC = () => {
     try {
       const trimmed = code.trim();
       if (!trimmed) return;
+
+      // Quantity multiplier shortcut (e.g. "*5" or "* 5")
+      const qtyMatch = trimmed.match(/^\*\s*(\d+)$/);
+      if (qtyMatch) {
+        setSearchQuery('');
+        const qtyToSet = parseInt(qtyMatch[1], 10);
+        const lastId = lastAddedIdRef.current;
+        if (qtyToSet > 0 && lastId) {
+          const itemInCart = items.find((i) => i.productId === lastId);
+          if (itemInCart) {
+            // Re-check inventory limit if needed
+            const available = stockFor(lastId);
+            if (inventoryEnabled && available !== null && qtyToSet > available) {
+              flashScan(false, translate(t.stockLimitReached, { name: itemInCart.name, available: String(available) }));
+              return;
+            }
+            updateQuantity(lastId, qtyToSet);
+            flashScan(true, `تم تعديل الكمية إلى ${qtyToSet}`);
+          }
+        }
+        return;
+      }
+
+      // Price modifier shortcut (e.g. "$150" or "=150" or "-150")
+      const priceMatch = trimmed.match(/^[\$=\-]\s*(\d+(\.\d+)?)$/);
+      if (priceMatch) {
+        setSearchQuery('');
+        const priceToSet = parseFloat(priceMatch[1]);
+        const lastId = lastAddedIdRef.current;
+        if (priceToSet >= 0 && lastId) {
+          const itemInCart = items.find((i) => i.productId === lastId);
+          if (itemInCart) {
+            updatePrice(lastId, priceToSet);
+            flashScan(true, `تم تعديل السعر إلى ${priceToSet}`);
+          }
+        }
+        return;
+      }
 
       const local = products.find((p) => p.barcode && p.barcode.trim() === trimmed);
       if (local) {
@@ -741,13 +782,13 @@ export const PosTerminal: React.FC = () => {
             </span>
           </div>
 
-            <button
-              onClick={apiLogout}
-              className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors shrink-0"
-              title={t.logout}
-            >
-              <LogOut className="w-5 h-5" />
-            </button>
+          <button
+            onClick={apiLogout}
+            className="p-2 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-xl transition-colors shrink-0"
+            title={t.logout}
+          >
+            <LogOut className="w-5 h-5" />
+          </button>
         </div>
       </header>
 
@@ -755,11 +796,10 @@ export const PosTerminal: React.FC = () => {
       {scanFeedback && (
         <div
           key={scanFeedback.id}
-          className={`fixed top-16 left-1/2 -translate-x-1/2 z-[75] px-5 py-3 rounded-2xl text-xs font-black shadow-2xl flex items-center gap-2.5 transition-all animate-bounce ${
-            scanFeedback.ok
+          className={`fixed top-16 left-1/2 -translate-x-1/2 z-[75] px-5 py-3 rounded-2xl text-xs font-black shadow-2xl flex items-center gap-2.5 transition-all animate-bounce ${scanFeedback.ok
               ? 'bg-emerald-600 text-white ring-4 ring-emerald-500/20'
               : 'bg-rose-600 text-white ring-4 ring-rose-600/20'
-          }`}
+            }`}
         >
           {scanFeedback.ok ? <CheckCircle2 className="w-5 h-5" /> : <XCircle className="w-5 h-5" />}
           {scanFeedback.text}
@@ -768,10 +808,10 @@ export const PosTerminal: React.FC = () => {
 
       {/* ── Main Workstation Content (Large Center: Added Products | Side: Order Details) ── */}
       <div className="flex-1 flex overflow-hidden">
-        
+
         {/* 🌟 LARGE MAIN CENTER AREA: Scanned / Added Products (الفاتورة الحالية والمنتجات المضافة) */}
         <div className="flex-1 flex flex-col p-3 sm:p-5 overflow-hidden">
-          
+
           {/* Top Search & Barcode Scanner Hub */}
           <div className="bg-white border border-slate-200 rounded-3xl p-4 shadow-sm mb-4">
             <div className="flex items-center justify-between mb-2">
@@ -829,7 +869,7 @@ export const PosTerminal: React.FC = () => {
 
           {/* LARGE CENTER BODY: Added Bill Products / Search Grid */}
           <div className="flex-1 flex flex-col overflow-hidden bg-white border border-slate-200/80 rounded-3xl p-5 shadow-sm">
-            
+
             {/* Case 1: User is actively typing in search -> show matching products grid */}
             {searchQuery.trim() ? (
               <div className="flex-1 flex flex-col overflow-hidden">
@@ -840,17 +880,15 @@ export const PosTerminal: React.FC = () => {
                   <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl border border-slate-200">
                     <button
                       onClick={() => setViewMode('grid')}
-                      className={`p-1.5 rounded-lg transition ${
-                        viewMode === 'grid' ? 'bg-cyan-500 text-white shadow-xs' : 'text-slate-500 hover:text-slate-900'
-                      }`}
+                      className={`p-1.5 rounded-lg transition ${viewMode === 'grid' ? 'bg-cyan-500 text-white shadow-xs' : 'text-slate-500 hover:text-slate-900'
+                        }`}
                     >
                       <LayoutGrid className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={() => setViewMode('list')}
-                      className={`p-1.5 rounded-lg transition ${
-                        viewMode === 'list' ? 'bg-cyan-500 text-white shadow-xs' : 'text-slate-500 hover:text-slate-900'
-                      }`}
+                      className={`p-1.5 rounded-lg transition ${viewMode === 'list' ? 'bg-cyan-500 text-white shadow-xs' : 'text-slate-500 hover:text-slate-900'
+                        }`}
                     >
                       <List className="w-3.5 h-3.5" />
                     </button>
@@ -858,11 +896,10 @@ export const PosTerminal: React.FC = () => {
                 </div>
 
                 <div
-                  className={`flex-1 overflow-y-auto ${
-                    viewMode === 'grid'
+                  className={`flex-1 overflow-y-auto ${viewMode === 'grid'
                       ? 'grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3.5'
                       : 'space-y-2'
-                  }`}
+                    }`}
                 >
                   {filteredProducts.length === 0 ? (
                     <div className="col-span-full h-full flex flex-col items-center justify-center text-slate-400 py-12">
@@ -986,9 +1023,8 @@ export const PosTerminal: React.FC = () => {
             {/* Card 5: Grand Total (Filled Blue Box) */}
             <div
               onClick={() => items.length > 0 && setShowPaymentModal(true)}
-              className={`col-span-2 sm:col-span-2 lg:col-span-2 bg-blue-600 text-white rounded-2xl p-4 flex items-center justify-between gap-3 shadow-lg shadow-blue-500/30 ring-2 ring-blue-400/40 transition cursor-pointer select-none active:scale-[0.98] ${
-                items.length === 0 ? 'opacity-55 cursor-not-allowed active:scale-100 shadow-none ring-0' : 'hover:bg-blue-700 hover:shadow-blue-500/40'
-              }`}
+              className={`col-span-2 sm:col-span-2 lg:col-span-2 bg-blue-600 text-white rounded-2xl p-4 flex items-center justify-between gap-3 shadow-lg shadow-blue-500/30 ring-2 ring-blue-400/40 transition cursor-pointer select-none active:scale-[0.98] ${items.length === 0 ? 'opacity-55 cursor-not-allowed active:scale-100 shadow-none ring-0' : 'hover:bg-blue-700 hover:shadow-blue-500/40'
+                }`}
             >
               <div className="text-start min-w-0">
                 <p className="text-[11px] text-white/80 font-extrabold mb-1.5 flex items-center gap-1.5">
@@ -1055,13 +1091,12 @@ export const PosTerminal: React.FC = () => {
 
         {/* 🌟 SIDEBAR PANEL (ON THE RIGHT): Details, Totals Summary & Payment Pad */}
         <div
-          className={`w-80 md:w-96 bg-white flex flex-col shrink-0 shadow-lg ltr:border-l rtl:border-r border-slate-200/80 ${
-            showCartPanel
+          className={`w-80 md:w-96 bg-white flex flex-col shrink-0 shadow-lg ltr:border-l rtl:border-r border-slate-200/80 ${showCartPanel
               ? 'fixed inset-y-0 ltr:right-0 rtl:left-0 z-50'
               : 'hidden'
-          } md:static md:flex md:z-auto`}
+            } md:static md:flex md:z-auto`}
         >
-          
+
           {/* Header of details sidebar */}
           <div className="p-4 border-b border-slate-200/80 flex items-center justify-between bg-slate-50/50">
             <div className="flex items-center gap-2">
@@ -1251,17 +1286,15 @@ export const PosTerminal: React.FC = () => {
                 <div className="flex items-center gap-1 bg-white p-1 rounded-xl border border-slate-200 shadow-xs">
                   <button
                     onClick={() => setViewMode('grid')}
-                    className={`p-2 rounded-lg transition ${
-                      viewMode === 'grid' ? 'bg-cyan-500 text-white shadow-xs' : 'text-slate-500 hover:text-slate-800'
-                    }`}
+                    className={`p-2 rounded-lg transition ${viewMode === 'grid' ? 'bg-cyan-500 text-white shadow-xs' : 'text-slate-500 hover:text-slate-800'
+                      }`}
                   >
                     <LayoutGrid className="w-4 h-4" />
                   </button>
                   <button
                     onClick={() => setViewMode('list')}
-                    className={`p-2 rounded-lg transition ${
-                      viewMode === 'list' ? 'bg-cyan-500 text-white shadow-xs' : 'text-slate-500 hover:text-slate-800'
-                    }`}
+                    className={`p-2 rounded-lg transition ${viewMode === 'list' ? 'bg-cyan-500 text-white shadow-xs' : 'text-slate-500 hover:text-slate-800'
+                      }`}
                   >
                     <List className="w-4 h-4" />
                   </button>
@@ -1293,11 +1326,10 @@ export const PosTerminal: React.FC = () => {
               <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
                 <button
                   onClick={() => setCatalogCategory(null)}
-                  className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
-                    catalogCategory === null
+                  className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${catalogCategory === null
                       ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md shadow-cyan-500/20'
                       : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
-                  }`}
+                    }`}
                 >
                   {t.allItems} ({products.length})
                 </button>
@@ -1305,11 +1337,10 @@ export const PosTerminal: React.FC = () => {
                   <button
                     key={c.id}
                     onClick={() => setCatalogCategory(c.name)}
-                    className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
-                      catalogCategory === c.name
+                    className={`px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${catalogCategory === c.name
                         ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md shadow-cyan-500/20'
                         : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
-                    }`}
+                      }`}
                   >
                     {localizedName(c.name, c.nameAr)}
                   </button>
@@ -1374,6 +1405,14 @@ export const PosTerminal: React.FC = () => {
             </div>
             <div className="space-y-2.5 text-xs">
               <div className="flex justify-between py-1.5 border-b border-slate-100">
+                <span className="text-slate-600">{t.shortcutModifyQuantity}</span>
+                <kbd className="bg-slate-100 px-2 py-0.5 rounded text-cyan-700 font-mono font-bold">*</kbd>
+              </div>
+              <div className="flex justify-between py-1.5 border-b border-slate-100">
+                <span className="text-slate-600">{t.shortcutModifyPrice}</span>
+                <kbd className="bg-slate-100 px-2 py-0.5 rounded text-cyan-700 font-mono font-bold">=</kbd>
+              </div>
+              <div className="flex justify-between py-1.5 border-b border-slate-100">
                 <span className="text-slate-600">{t.shortcutFocusSearch}</span>
                 <kbd className="bg-slate-100 px-2 py-0.5 rounded text-cyan-700 font-mono font-bold">F4</kbd>
               </div>
@@ -1431,7 +1470,7 @@ export const PosTerminal: React.FC = () => {
             <p className="text-xs text-slate-500 mb-6">
               {shiftAction === 'OPEN' ? t.openingCashDesc : t.closingCashDesc}
             </p>
-            
+
             <form onSubmit={handleShiftSubmit} className="space-y-4">
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">
@@ -1439,19 +1478,19 @@ export const PosTerminal: React.FC = () => {
                 </label>
                 <div className="relative">
                   <span className="absolute ltr:left-4 rtl:right-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold">{t.currency}</span>
-                  <input 
-                    type="number" 
-                    step="0.01" 
+                  <input
+                    type="number"
+                    step="0.01"
                     min="0"
-                    required 
+                    required
                     autoFocus
-                    value={shiftAmount} 
-                    onChange={e => setShiftAmount(e.target.value)} 
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl ltr:pl-8 ltr:pr-4 rtl:pr-8 rtl:pl-4 py-3 text-lg font-bold text-slate-900 focus:outline-none focus:border-cyan-500" 
+                    value={shiftAmount}
+                    onChange={e => setShiftAmount(e.target.value)}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl ltr:pl-8 ltr:pr-4 rtl:pr-8 rtl:pl-4 py-3 text-lg font-bold text-slate-900 focus:outline-none focus:border-cyan-500"
                   />
                 </div>
               </div>
-              
+
               <div className="flex gap-2 pt-2">
                 {shiftAction === 'CLOSE' && (
                   <button type="button" onClick={() => setShowShiftModal(false)} className="flex-1 py-3 border border-slate-200 rounded-xl font-bold text-slate-600 bg-white hover:bg-slate-50 text-sm">

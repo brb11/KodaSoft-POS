@@ -199,21 +199,23 @@ export async function createOrder(tenantId: string, cashierId: string, dto: Crea
         const modifier = item.variantId ? Number(variantMap.get(item.variantId)?.priceModifier ?? 0) : 0;
         const unitPrice = roundCents(Number(product.price) + modifier);
         const quantity = Number(item.quantity);
-        const lineSubtotal = roundCents(unitPrice * quantity);
+        const grossTotal = roundCents(unitPrice * quantity);
         const rate = product.taxRate ? Number(product.taxRate.rate) : DEFAULT_TAX_RATE;
-        return { item, product, unitPrice, quantity, lineSubtotal, rate };
+        return { item, product, unitPrice, quantity, grossTotal, rate };
       });
 
-      const subtotal = roundCents(lines.reduce((s, l) => s + l.lineSubtotal, 0));
-      const orderDiscount = roundCents(Math.min(Math.max(dto.discountAmount, 0), subtotal));
-      const lineDiscounts = allocateDiscount(lines.map((l) => l.lineSubtotal), orderDiscount);
+      const grossTotal = roundCents(lines.reduce((s, l) => s + l.grossTotal, 0));
+      const orderDiscount = roundCents(Math.min(Math.max(dto.discountAmount, 0), grossTotal));
+      const lineDiscounts = allocateDiscount(lines.map((l) => l.grossTotal), orderDiscount);
 
       const lineTaxes = lines.map((l, i) => {
-        const taxable = roundCents(l.lineSubtotal - lineDiscounts[i]);
-        return roundCents((taxable * l.rate) / 100);
+        const netLine = roundCents(l.grossTotal - lineDiscounts[i]);
+        return roundCents((netLine * l.rate) / (100 + l.rate));
       });
       const taxAmount = roundCents(lineTaxes.reduce((s, t) => s + t, 0));
-      const total = roundCents(subtotal - orderDiscount + taxAmount);
+      const lineSubtotals = lines.map((l, i) => roundCents(l.grossTotal - lineDiscounts[i] - lineTaxes[i]));
+      const subtotal = roundCents(lineSubtotals.reduce((s, t) => s + t, 0));
+      const total = roundCents(subtotal + taxAmount);
 
       const paidAmount = roundCents(Math.max(dto.paidAmount, 0));
       if (paidAmount < total) {
@@ -265,7 +267,7 @@ export async function createOrder(tenantId: string, cashierId: string, dto: Crea
               unitPrice: l.unitPrice,
               discountAmount: lineDiscounts[i],
               taxAmount: lineTaxes[i],
-              subtotal: l.lineSubtotal,
+              subtotal: lineSubtotals[i],
               modifiers: l.item.modifiers,
             })),
           },

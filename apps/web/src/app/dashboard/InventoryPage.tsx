@@ -212,9 +212,9 @@ export const InventoryPage: React.FC = () => {
             ) : (
               products.map((p) => {
                 const inv = stockFor(p);
-                const stock = inv?.quantity ?? 0;
-                const threshold = inv?.lowStockThreshold ?? 0;
-                const isLow = inv ? stock <= threshold : false;
+                const stock = Number(inv?.quantity ?? 0);
+                const threshold = Number(inv?.lowStockThreshold ?? 0);
+                const isLow = inv ? stock <= threshold && stock > 0 : false;
 
                 return (
                   <tr key={p.id} className="hover:bg-slate-50/80 transition-colors">
@@ -228,14 +228,22 @@ export const InventoryPage: React.FC = () => {
                     <td className="px-6 py-4 font-extrabold text-lg text-slate-900">{stock}</td>
                     <td className="px-6 py-4 text-slate-500 font-semibold">{threshold}</td>
                     <td className="px-6 py-4">
-                      {inv && isLow ? (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-extrabold bg-amber-50 text-amber-700 border border-amber-200">
-                          <AlertTriangle className="w-3 h-3" /> {t.lowStock}
-                        </span>
+                      {inv ? (
+                        stock <= 0 ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-extrabold bg-rose-50 text-rose-700 border border-rose-200">
+                            <XCircle className="w-3 h-3" /> {t.outOfStock || 'نفد'}
+                          </span>
+                        ) : isLow ? (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-extrabold bg-amber-50 text-amber-700 border border-amber-200">
+                            <AlertTriangle className="w-3 h-3" /> {t.lowStock}
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <CheckCircle className="w-3 h-3" /> {t.inStock}
+                          </span>
+                        )
                       ) : (
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                          <CheckCircle className="w-3 h-3" /> {t.inStock}
-                        </span>
+                        <span className="text-slate-400 text-xs">—</span>
                       )}
                     </td>
                   </tr>

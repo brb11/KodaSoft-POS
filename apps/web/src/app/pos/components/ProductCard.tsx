@@ -35,7 +35,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   const isOutOfStock = stock !== null && stock <= 0;
   const isLowStock = stock !== null && stock > 0 && stock <= 5;
   const taxPercent = Number(product.taxRate?.rate ?? 15);
-  const finalPrice = (Number(product.price) * (1 + taxPercent / 100)).toFixed(2);
+  const finalPrice = Number(product.price).toFixed(2);
 
   if (viewMode === 'list') {
     return (

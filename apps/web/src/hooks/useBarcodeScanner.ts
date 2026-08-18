@@ -62,19 +62,12 @@ export function useBarcodeScanner(onScan: (code: string) => void): void {
         return;
       }
 
-      if (gap === 0) {
-        // Very first key: just start observing. Never swallow it.
+      if (gap > BURST_GAP_MS) {
+        // Long gap — start a fresh burst with this character (could be the first
+        // keystroke of a new scanner read or a human resuming after a pause).
         buffer = e.key;
         lastKeyAt = now;
         scheduleReset();
-        return;
-      }
-
-      if (gap > BURST_GAP_MS) {
-        // A slow key means a human is typing — abandon the burst entirely so we
-        // never mis-detect real input as a scan.
-        buffer = '';
-        lastKeyAt = now;
         return;
       }
 

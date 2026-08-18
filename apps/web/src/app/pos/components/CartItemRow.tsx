@@ -32,9 +32,8 @@ export const CartItemRow: React.FC<CartItemRowProps> = ({
   const { t } = useLanguageStore();
   const rawRate = item.taxRate?.rate ?? item.taxRate ?? 15;
   const taxRate = Number(rawRate) || 15;
-  const taxMultiplier = 1 + (taxRate / 100);
-  const displayPrice = item.price === 0 ? '' : Math.round(item.price * taxMultiplier * 100) / 100;
-  const lineSubtotal = ((item.price * taxMultiplier) * item.quantity).toFixed(2);
+  const displayPrice = item.price === 0 ? '' : Math.round(item.price * 100) / 100;
+  const lineSubtotal = (item.price * item.quantity).toFixed(2);
 
   return (
     <div
@@ -72,7 +71,7 @@ export const CartItemRow: React.FC<CartItemRowProps> = ({
           value={displayPrice}
           onChange={(e) => {
             const val = parseFloat(e.target.value);
-            onUpdatePrice(item.productId, isNaN(val) ? 0 : val / taxMultiplier);
+            onUpdatePrice(item.productId, isNaN(val) ? 0 : val);
           }}
           className="w-14 bg-white border border-slate-200 rounded-md px-1 py-0.5 text-center font-extrabold text-slate-800 text-[11px] focus:outline-none focus:border-cyan-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
           title={t.priceEditTitle}

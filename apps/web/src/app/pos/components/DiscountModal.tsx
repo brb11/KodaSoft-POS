@@ -76,13 +76,16 @@ export const DiscountModal: React.FC<DiscountModalProps> = ({ open, onClose }) =
     onClose();
   };
 
-  // Mirrors cartStore.getTaxAmount so the preview exactly matches the applied cart.
-  const lineSubtotals = items.map((line) => line.price * line.quantity);
-  const lineDiscounts = allocateDiscount(lineSubtotals, amount);
+  // Mirrors cartStore calculations so the preview exactly matches the applied cart.
+  const grossTotal = roundCents(items.reduce((sum, line) => sum + roundCents(line.price * line.quantity), 0));
   const previewVat = roundCents(
-    items.reduce((sum, line, i) => sum + roundCents((lineSubtotals[i] - lineDiscounts[i]) * (line.taxRate ?? 15) / 100), 0)
+    items.reduce((sum, line) => sum + roundCents(line.price * line.quantity * (line.taxRate ?? 15) / (100 + (line.taxRate ?? 15))), 0)
   );
-  const previewTotal = roundCents(subtotal - amount + previewVat);
+  const previewSubtotal = roundCents(items.reduce((sum, line) => {
+    const rate = Number(line.taxRate ?? 15);
+    return sum + roundCents(line.price * line.quantity * 100 / (100 + rate));
+  }, 0));
+  const previewTotal = roundCents(previewSubtotal + previewVat - amount);
 
   return (
     <div className="fixed inset-0 bg-slate-900/50 flex items-center justify-center p-4 z-[78] backdrop-blur-sm">

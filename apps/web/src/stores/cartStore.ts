@@ -147,34 +147,29 @@ export const useCartStore = create<CartState>((set, get) => ({
   },
 
   getSubtotal: () => {
-    return roundCents(get().items.reduce((sum, item) => sum + roundCents(item.price * item.quantity), 0));
+    return roundCents(get().items.reduce((sum, item) => {
+      const rate = Number(item.taxRate ?? 15);
+      return sum + roundCents(item.price * item.quantity * 100 / (100 + rate));
+    }, 0));
   },
 
   getDiscountAmount: () => {
-    const subtotal = get().getSubtotal();
+    const grossTotal = roundCents(get().items.reduce((sum, item) => sum + roundCents(item.price * item.quantity), 0));
     const { discount, discountType } = get();
     if (discountType === 'percent') {
-      return roundCents((subtotal * discount) / 100);
+      return roundCents((grossTotal * discount) / 100);
     }
-    return Math.min(roundCents(discount), subtotal);
+    return Math.min(roundCents(discount), grossTotal);
   },
 
   getTaxAmount: () => {
-    const lines = get().items.map((item) => ({
-      subtotal: roundCents(item.price * item.quantity),
-      rate: Number(item.taxRate ?? 15),
-    }));
-    const lineSubtotals = lines.map((l) => l.subtotal);
-    const lineDiscounts = allocateDiscount(lineSubtotals, get().getDiscountAmount());
-    return roundCents(
-      lines.reduce(
-        (sum, l, i) => sum + roundCents((roundCents(l.subtotal - lineDiscounts[i]) * l.rate) / 100),
-        0
-      )
-    );
+    return roundCents(get().items.reduce((sum, item) => {
+      const rate = Number(item.taxRate ?? 15);
+      return sum + roundCents(item.price * item.quantity * rate / (100 + rate));
+    }, 0));
   },
 
   getTotal: () => {
-    return roundCents(get().getSubtotal() - get().getDiscountAmount() + get().getTaxAmount());
+    return roundCents(get().getSubtotal() + get().getTaxAmount() - get().getDiscountAmount());
   },
 }));

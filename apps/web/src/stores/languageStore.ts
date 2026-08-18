@@ -374,6 +374,8 @@ export interface Translations {
   noItemsInInvoice: string;
   addDiscountCta: string;
   keyboardShortcuts: string;
+  shortcutModifyQuantity: string;
+  shortcutModifyPrice: string;
   shortcutFocusSearch: string;
   shortcutAddCustomer: string;
   shortcutAddDiscount: string;
@@ -1054,7 +1056,7 @@ const translations: Record<Language, Translations> = {
     currentOrder: 'الطلب الحالي',
     clear: 'مسح السلة',
     cartEmpty: 'السلة فارغة حالياً',
-    subtotal: 'المجموع الفرعي',
+    subtotal: 'قبل الضريبة',
     vat: 'ضريبة القيمة المضافة (15%)',
     totalAmount: 'الإجمالي النهائي',
     payCash: 'دفع نقدي (كاش)',
@@ -1368,7 +1370,9 @@ const translations: Record<Language, Translations> = {
     itemsSummary: 'ملخص الأصناف المضافة',
     noItemsInInvoice: 'لا توجد عناصر بالفاتورة بعد',
     addDiscountCta: '+ إضافة خصم',
-    keyboardShortcuts: 'اختصارات لوحة التحكم',
+    keyboardShortcuts: 'اختصارات النظام',
+    shortcutModifyQuantity: 'تعديل كمية آخر عنصر مضاف',
+    shortcutModifyPrice: 'تعديل سعر آخر عنصر مضاف',
     shortcutFocusSearch: 'التركيز على خانة البحث',
     shortcutAddCustomer: 'تحديد/إضافة عميل',
     shortcutAddDiscount: 'إضافة خصم للفاتورة',
@@ -1597,7 +1601,7 @@ const translations: Record<Language, Translations> = {
     qtyCol: 'الكمية',
     unitPriceCol: 'سعر الوحدة',
     totalCol: 'الإجمالي',
-    subtotalCol: 'المجموع الفرعي:',
+    subtotalCol: 'قبل الضريبة:',
     vatCol: 'ضريبة القيمة المضافة (15%):',
     totalColValue: 'الإجمالي:',
     paidBy: 'مدفوع بواسطة {method}:',
@@ -2044,7 +2048,7 @@ const translations: Record<Language, Translations> = {
     currentOrder: 'Current Order',
     clear: 'Clear Cart',
     cartEmpty: 'Cart is currently empty',
-    subtotal: 'Subtotal',
+    subtotal: 'Pre-tax',
     vat: 'VAT (15%)',
     totalAmount: 'Total Amount',
     payCash: 'Pay Cash',
@@ -2358,8 +2362,10 @@ const translations: Record<Language, Translations> = {
     itemsSummary: 'Added items summary',
     noItemsInInvoice: 'No items in the invoice yet',
     addDiscountCta: '+ Add discount',
-    keyboardShortcuts: 'Keyboard shortcuts',
-    shortcutFocusSearch: 'Focus search',
+    keyboardShortcuts: 'System Shortcuts',
+    shortcutModifyQuantity: 'Modify quantity of last added item',
+    shortcutModifyPrice: 'Modify price of last added item',
+    shortcutFocusSearch: 'Focus Search Box',
     shortcutAddCustomer: 'Select / add customer',
     shortcutAddDiscount: 'Add invoice discount',
     shortcutOrderHistory: 'Previous orders',
@@ -2587,7 +2593,7 @@ const translations: Record<Language, Translations> = {
     qtyCol: 'Qty',
     unitPriceCol: 'Unit Price',
     totalCol: 'Total',
-    subtotalCol: 'Subtotal:',
+    subtotalCol: 'Pre-tax:',
     vatCol: 'VAT (15%):',
     totalColValue: 'Total:',
     paidBy: 'Paid by {method}:',
