@@ -23,7 +23,9 @@ import {
   ShieldCheck,
   AlertTriangle,
   X,
-  Menu
+  Menu,
+  Truck,
+  ShoppingCart
 } from 'lucide-react';
 
 export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -94,6 +96,8 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
     ...(trackInventory !== false ? [{ label: t.inventoryStock, path: '/dashboard/inventory', icon: Warehouse }] : []),
     { label: t.customers, path: '/dashboard/customers', icon: Contact },
     { label: t.customerAccounts, path: '/dashboard/accounts', icon: HandCoins },
+    { label: t.suppliers || 'Suppliers', path: '/dashboard/suppliers', icon: Truck },
+    { label: t.purchases || 'Purchases', path: '/dashboard/purchases', icon: ShoppingCart },
     { label: t.staffUsers, path: '/dashboard/users', icon: Users },
     { label: t.branches, path: '/dashboard/branches', icon: Building2 },
     { label: t.zatcaNav, path: '/dashboard/zatca', icon: ShieldCheck },

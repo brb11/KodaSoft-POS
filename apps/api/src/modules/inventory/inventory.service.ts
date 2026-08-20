@@ -89,9 +89,10 @@ export async function createAdjustments(tenantId: string, userId: string, dto: C
   return { batchId, count: adjustments.length, items: adjustments };
 }
 
-export async function listAdjustments(tenantId: string, query: { page: number; limit: number; branchId?: string }) {
-  const where: any = { type: 'adjustment', branch: { tenantId } };
+export async function listAdjustments(tenantId: string, query: { page: number; limit: number; branchId?: string; type?: string }) {
+  const where: any = { branch: { tenantId } };
   if (query.branchId) where.branchId = query.branchId;
+  if (query.type) where.type = query.type;
 
   const [total, rows] = await Promise.all([
     prisma.inventoryMovement.count({ where }),
@@ -121,6 +122,8 @@ export async function listAdjustments(tenantId: string, query: { page: number; l
     sku: m.product.sku,
     branchId: m.branchId,
     branchName: m.branch.name,
+    type: m.type,
+    referenceType: m.referenceType,
     quantity: Number(m.quantity),
     note: m.note,
     createdBy: m.createdBy,

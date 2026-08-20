@@ -16,6 +16,7 @@ export const adjustmentQuerySchema = z.object({
   page: z.coerce.number().min(1).default(1),
   limit: z.coerce.number().min(1).max(200).default(50),
   branchId: z.string().uuid().optional(),
+  type: z.enum(['sale', 'purchase', 'adjustment', 'return']).optional(),
 });
 
 export type CreateAdjustmentDto = z.infer<typeof createAdjustmentSchema>;

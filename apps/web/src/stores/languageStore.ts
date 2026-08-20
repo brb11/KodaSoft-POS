@@ -192,6 +192,9 @@ export interface Translations {
   fromDate: string;
   toDate: string;
   allBranches: string;
+  allSuppliers: string;
+  filters: string;
+  clearFilters: string;
   apply: string;
   noData: string;
   revenue: string;
@@ -526,6 +529,11 @@ export interface Translations {
   adjustedQuantity: string;
   adjustedBy: string;
   noAdjustments: string;
+  allTypes: string;
+  movementSale: string;
+  movementPurchase: string;
+  movementAdjustment: string;
+  movementReturn: string;
   currentStock: string;
   inventoryDisabled: string;
   inventoryDisabledDesc: string;
@@ -599,6 +607,7 @@ export interface Translations {
   taxRegistration: string;
   orderNumber: string;
   date: string;
+  type: string;
   cashierLabel: string;
   itemCol: string;
   qtyCol: string;
@@ -988,6 +997,77 @@ export interface Translations {
   billingYearly: string;
   saasPerYear: string;
   yearlySaveNote: string;
+
+  // Suppliers & Purchases
+  suppliers: string;
+  suppliersDesc: string;
+  addSupplier: string;
+  editSupplier: string;
+  deleteSupplierConfirm: string;
+  selectSupplier: string;
+  contactPerson: string;
+  outstandingBalance: string;
+  totalInvoices: string;
+  totalPayments: string;
+  purchaseInvoices: string;
+  purchasesDesc: string;
+  newPurchase: string;
+  editPurchase: string;
+  dueDate: string;
+  confirmInvoice: string;
+  cancelInvoice: string;
+  cancelled: string;
+  draft: string;
+  confirmed: string;
+  paymentSuccess: string;
+  paymentFailed: string;
+  noPayments: string;
+  noInvoices: string;
+  totalPurchases: string;
+  totalPaid: string;
+  allStatuses: string;
+  paidAmount: string;
+  purchaseInvoicesLabel: string;
+  paidByLabel: string;
+  balance: string;
+  purchases: string;
+  supplier: string;
+  operationFailed: string;
+  notFound: string;
+  editLabel: string;
+  cancelLabel: string;
+  items: string;
+  product: string;
+  unitPrice: string;
+  discount: string;
+  tax: string;
+  payments: string;
+  amount: string;
+  method: string;
+  note: string;
+  notes: string;
+  fillRequired: string;
+  saveSuccess: string;
+  saveFailed: string;
+  invoiceNumber: string;
+  addItem: string;
+  create: string;
+  update: string;
+  totalBalance: string;
+  nameLabel: string;
+  emailLabel: string;
+  vatNumberLabel: string;
+  invoices: string;
+  actionsLabel: string;
+  nameArabic: string;
+  addressLabel: string;
+  deleteLabel: string;
+  confirmDelete: string;
+  contactInfo: string;
+  reference: string;
+  confirm: string;
+  deleteSuccess: string;
+  deleteFailed: string;
 }
 
 export function translate(
@@ -1187,6 +1267,9 @@ const translations: Record<Language, Translations> = {
     fromDate: 'من تاريخ',
     toDate: 'إلى تاريخ',
     allBranches: 'كل الفروع',
+    allSuppliers: 'كل الموردين',
+    filters: 'الفلاتر',
+    clearFilters: 'مسح الفلاتر',
     apply: 'تطبيق',
     noData: 'لا توجد بيانات',
     revenue: 'الإيرادات',
@@ -1523,6 +1606,11 @@ const translations: Record<Language, Translations> = {
     adjustedQuantity: 'الكمية المسجلة',
     adjustedBy: 'بواسطة',
     noAdjustments: 'لا توجد تسويات بعد',
+    allTypes: 'جميع الأنواع',
+    movementSale: 'بيع',
+    movementPurchase: 'مشتريات',
+    movementAdjustment: 'تسوية',
+    movementReturn: 'مرتجع',
     currentStock: 'الكمية الحالية',
     inventoryDisabled: 'إدارة المخزون معطلة',
     inventoryDisabledDesc: 'تم إيقاف تتبع المخزون في الإعدادات. فعّله من صفحة الإعدادات لمتابعة الكميات.',
@@ -1596,6 +1684,7 @@ const translations: Record<Language, Translations> = {
     taxRegistration: 'الرقم الضريبي:',
     orderNumber: 'رقم الطلب:',
     date: 'التاريخ:',
+    type: 'النوع',
     cashierLabel: 'الكاشير:',
     itemCol: 'الصنف',
     qtyCol: 'الكمية',
@@ -1989,6 +2078,77 @@ const translations: Record<Language, Translations> = {
     billingYearly: 'سنوي',
     saasPerYear: 'سنوياً',
     yearlySaveNote: 'وفّر شهرين',
+
+    // Suppliers & Purchases
+    suppliers: 'الموردون',
+    suppliersDesc: 'إدارة الموردين وسجل المشتريات',
+    addSupplier: 'إضافة مورد',
+    editSupplier: 'تعديل مورد',
+    deleteSupplierConfirm: 'هل أنت متأكد من حذف "{name}"؟',
+    selectSupplier: 'اختر المورد...',
+    contactPerson: 'جهة الاتصال',
+    outstandingBalance: 'الرصيد المستحق',
+    totalInvoices: 'إجمالي الفواتير',
+    totalPayments: 'إجمالي المدفوعات',
+    purchaseInvoices: 'فواتير المشتريات',
+    purchasesDesc: 'إدارة فواتير مشتريات الموردين',
+    newPurchase: 'مشتريات جديدة',
+    editPurchase: 'تعديل فاتورة المشتريات',
+    dueDate: 'تاريخ الاستحقاق',
+    confirmInvoice: 'تأكيد وتحديث المخزون',
+    cancelInvoice: 'إلغاء الفاتورة',
+    cancelled: 'تم الإلغاء',
+    draft: 'مسودة',
+    confirmed: 'مؤكدة',
+    paymentSuccess: 'تم تسجيل الدفعة بنجاح',
+    paymentFailed: 'فشل تسجيل الدفعة',
+    noPayments: 'لا توجد مدفوعات بعد',
+    noInvoices: 'لا توجد فواتير مشتريات بعد',
+    totalPurchases: 'إجمالي المشتريات',
+    totalPaid: 'إجمالي المدفوع',
+    allStatuses: 'جميع الحالات',
+    paidAmount: 'المدفوع',
+    purchaseInvoicesLabel: 'فواتير المشتريات',
+    paidByLabel: 'الدفع بواسطة',
+    balance: 'الرصيد',
+    purchases: 'المشتريات',
+    supplier: 'المورد',
+    operationFailed: 'فشلت العملية',
+    notFound: 'غير موجود',
+    editLabel: 'تعديل',
+    cancelLabel: 'إلغاء',
+    items: 'المنتجات',
+    product: 'المنتج',
+    unitPrice: 'سعر الوحدة',
+    discount: 'الخصم',
+    tax: 'الضريبة',
+    payments: 'المدفوعات',
+    amount: 'المبلغ',
+    method: 'الطريقة',
+    note: 'ملاحظة',
+    notes: 'ملاحظات',
+    fillRequired: 'يرجى تعبئة جميع الحقول المطلوبة',
+    saveSuccess: 'تم الحفظ بنجاح',
+    saveFailed: 'فشل الحفظ',
+    invoiceNumber: 'رقم الفاتورة',
+    addItem: 'إضافة منتج',
+    create: 'إنشاء',
+    update: 'تحديث',
+    totalBalance: 'إجمالي الرصيد',
+    nameLabel: 'الاسم',
+    emailLabel: 'البريد الإلكتروني',
+    vatNumberLabel: 'الرقم الضريبي',
+    invoices: 'الفواتير',
+    actionsLabel: 'الإجراءات',
+    nameArabic: 'الاسم بالعربي',
+    addressLabel: 'العنوان',
+    deleteLabel: 'حذف',
+    confirmDelete: 'هل أنت متأكد من الحذف؟',
+    contactInfo: 'معلومات الاتصال',
+    reference: 'المرجع',
+    confirm: 'تأكيد',
+    deleteSuccess: 'تم الحذف بنجاح',
+    deleteFailed: 'فشل الحذف',
   },
   en: {
     // Navigation & Common
@@ -2179,6 +2339,9 @@ const translations: Record<Language, Translations> = {
     fromDate: 'From',
     toDate: 'To',
     allBranches: 'All Branches',
+    allSuppliers: 'All Suppliers',
+    filters: 'Filters',
+    clearFilters: 'Clear',
     apply: 'Apply',
     noData: 'No data',
     revenue: 'Revenue',
@@ -2515,6 +2678,11 @@ const translations: Record<Language, Translations> = {
     adjustedQuantity: 'Adjusted',
     adjustedBy: 'By',
     noAdjustments: 'No adjustments yet',
+    allTypes: 'All Types',
+    movementSale: 'Sale',
+    movementPurchase: 'Purchase',
+    movementAdjustment: 'Adjustment',
+    movementReturn: 'Return',
     currentStock: 'Current Stock',
     inventoryDisabled: 'Inventory tracking is disabled',
     inventoryDisabledDesc: 'Inventory tracking is turned off in settings. Enable it to monitor stock levels.',
@@ -2588,6 +2756,7 @@ const translations: Record<Language, Translations> = {
     taxRegistration: 'Tax Registration:',
     orderNumber: 'Order #:',
     date: 'Date:',
+    type: 'Type',
     cashierLabel: 'Cashier:',
     itemCol: 'Item',
     qtyCol: 'Qty',
@@ -2981,6 +3150,77 @@ const translations: Record<Language, Translations> = {
     billingYearly: 'Yearly',
     saasPerYear: 'per year',
     yearlySaveNote: 'Save 2 months',
+
+    // Suppliers & Purchases
+    suppliers: 'Suppliers',
+    suppliersDesc: 'Manage suppliers and purchase history',
+    addSupplier: 'Add Supplier',
+    editSupplier: 'Edit Supplier',
+    deleteSupplierConfirm: 'Are you sure you want to delete "{name}"?',
+    selectSupplier: 'Select supplier...',
+    contactPerson: 'Contact Person',
+    outstandingBalance: 'Outstanding Balance',
+    totalInvoices: 'Total Invoices',
+    totalPayments: 'Total Payments',
+    purchaseInvoices: 'Purchase Invoices',
+    purchasesDesc: 'Manage supplier purchase invoices',
+    newPurchase: 'New Purchase',
+    editPurchase: 'Edit Purchase Invoice',
+    dueDate: 'Due Date',
+    confirmInvoice: 'Confirm & Update Stock',
+    cancelInvoice: 'Cancel Invoice',
+    cancelled: 'Cancelled',
+    draft: 'Draft',
+    confirmed: 'Confirmed',
+    paymentSuccess: 'Payment recorded successfully',
+    paymentFailed: 'Payment failed',
+    noPayments: 'No payments yet',
+    noInvoices: 'No purchase invoices yet',
+    totalPurchases: 'Total Value',
+    totalPaid: 'Total Paid',
+    allStatuses: 'All Statuses',
+    paidAmount: 'Paid',
+    purchaseInvoicesLabel: 'Purchase Invoices',
+    paidByLabel: 'Paid by',
+    balance: 'Balance',
+    purchases: 'Purchases',
+    supplier: 'Supplier',
+    operationFailed: 'Operation failed',
+    notFound: 'Not found',
+    editLabel: 'Edit',
+    cancelLabel: 'Cancel',
+    items: 'Items',
+    product: 'Product',
+    unitPrice: 'Unit Price',
+    discount: 'Discount',
+    tax: 'Tax',
+    payments: 'Payments',
+    amount: 'Amount',
+    method: 'Method',
+    note: 'Note',
+    notes: 'Notes',
+    fillRequired: 'Please fill all required fields',
+    saveSuccess: 'Saved successfully',
+    saveFailed: 'Failed to save',
+    invoiceNumber: 'Invoice #',
+    addItem: 'Add Item',
+    create: 'Create',
+    update: 'Update',
+    totalBalance: 'Total Balance',
+    nameLabel: 'Name',
+    emailLabel: 'Email',
+    vatNumberLabel: 'VAT Number',
+    invoices: 'Invoices',
+    actionsLabel: 'Actions',
+    nameArabic: 'Arabic Name',
+    addressLabel: 'Address',
+    deleteLabel: 'Delete',
+    confirmDelete: 'Are you sure you want to delete?',
+    contactInfo: 'Contact Info',
+    reference: 'Reference',
+    confirm: 'Confirm',
+    deleteSuccess: 'Deleted successfully',
+    deleteFailed: 'Failed to delete',
   },
 };
 

@@ -15,6 +15,11 @@ import { CustomerAccountsPage } from './app/dashboard/CustomerAccountsPage';
 import { BranchesPage } from './app/dashboard/BranchesPage';
 import { SettingsPage } from './app/dashboard/SettingsPage';
 import { ZatcaPage } from './app/dashboard/ZatcaPage';
+import { SuppliersPage } from './app/dashboard/SuppliersPage';
+import { SupplierDetailPage } from './app/dashboard/SupplierDetailPage';
+import { PurchasesPage } from './app/dashboard/PurchasesPage';
+import { PurchaseFormPage } from './app/dashboard/PurchaseFormPage';
+import { PurchaseDetailPage } from './app/dashboard/PurchaseDetailPage';
 import { SaasConsole } from './app/saas/SaasConsole';
 import { SubscriptionGuard } from './components/guards/SubscriptionGuard';
 import { useAuthStore } from './stores/authStore';
@@ -173,6 +178,78 @@ export const App: React.FC = () => {
                 <SubscriptionGuard>
                   <DashboardLayout>
                     <ZatcaPage />
+                  </DashboardLayout>
+                </SubscriptionGuard>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/suppliers"
+            element={
+              <ProtectedRoute>
+                <SubscriptionGuard>
+                  <DashboardLayout>
+                    <SuppliersPage />
+                  </DashboardLayout>
+                </SubscriptionGuard>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/suppliers/:id"
+            element={
+              <ProtectedRoute>
+                <SubscriptionGuard>
+                  <DashboardLayout>
+                    <SupplierDetailPage />
+                  </DashboardLayout>
+                </SubscriptionGuard>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/purchases"
+            element={
+              <ProtectedRoute>
+                <SubscriptionGuard>
+                  <DashboardLayout>
+                    <PurchasesPage />
+                  </DashboardLayout>
+                </SubscriptionGuard>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/purchases/new"
+            element={
+              <ProtectedRoute>
+                <SubscriptionGuard>
+                  <DashboardLayout>
+                    <PurchaseFormPage />
+                  </DashboardLayout>
+                </SubscriptionGuard>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/purchases/:id"
+            element={
+              <ProtectedRoute>
+                <SubscriptionGuard>
+                  <DashboardLayout>
+                    <PurchaseDetailPage />
+                  </DashboardLayout>
+                </SubscriptionGuard>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/dashboard/purchases/:id/edit"
+            element={
+              <ProtectedRoute>
+                <SubscriptionGuard>
+                  <DashboardLayout>
+                    <PurchaseFormPage />
                   </DashboardLayout>
                 </SubscriptionGuard>
               </ProtectedRoute>

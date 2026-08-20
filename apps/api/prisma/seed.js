@@ -212,6 +212,158 @@ async function main() {
     }
   }
 
+  // ── Suppliers ──────────────────────────────────
+  const supplier1 = await prisma.supplier.findFirst({ where: { tenantId: tenant.id, name: 'Al-Jazeera Coffee Co.' } })
+    ?? await prisma.supplier.create({
+      data: {
+        tenantId: tenant.id,
+        name: 'Al-Jazeera Coffee Co.',
+        nameAr: 'شركة الجزيرة للقهوة',
+        email: 'sales@aljazeera-coffee.sa',
+        phone: '+966-11-456-7890',
+        address: '123 Roastery Rd, Al-Kharj',
+        city: 'Riyadh',
+        vatNumber: '310123456700003',
+        contactPerson: 'Ahmad Al-Mutairi',
+        notes: 'Primary coffee bean supplier – NET 30',
+      },
+    });
+
+  const supplier2 = await prisma.supplier.findFirst({ where: { tenantId: tenant.id, name: 'Gulf Bakery Supplies' } })
+    ?? await prisma.supplier.create({
+      data: {
+        tenantId: tenant.id,
+        name: 'Gulf Bakery Supplies',
+        nameAr: 'إمدادات الخليج للمخابز',
+        email: 'orders@gulfbakery.sa',
+        phone: '+966-13-321-4567',
+        address: '45 Industrial Area, Phase 2',
+        city: 'Dammam',
+        vatNumber: '300987654300003',
+        contactPerson: 'Fatima Al-Zahrani',
+      },
+    });
+
+  const supplier3 = await prisma.supplier.findFirst({ where: { tenantId: tenant.id, name: 'Nile Snacks Trading' } })
+    ?? await prisma.supplier.create({
+      data: {
+        tenantId: tenant.id,
+        name: 'Nile Snacks Trading',
+        nameAr: 'تجارة نايل للوجبات الخفيفة',
+        email: 'info@nile-snacks.com',
+        phone: '+966-12-654-3210',
+        address: '78 King Fahd Rd',
+        city: 'Jeddah',
+        vatNumber: '312112223300003',
+        contactPerson: 'Omar Hassan',
+      },
+    });
+
+  // ── Purchase Invoices ──────────────────────────
+  const existingInv1 = await prisma.purchaseInvoice.findFirst({ where: { tenantId: tenant.id, invoiceNumber: 'PO-2026-001' } });
+  if (!existingInv1) {
+    const inv1 = await prisma.purchaseInvoice.create({
+      data: {
+        tenantId: tenant.id,
+        branchId: branch.id,
+        supplierId: supplier1.id,
+        invoiceNumber: 'PO-2026-001',
+        invoiceDate: new Date('2026-08-01'),
+        dueDate: new Date('2026-08-31'),
+        status: 'CONFIRMED',
+        subtotal: 120.0,
+        taxAmount: 18.0,
+        total: 138.0,
+        paidAmount: 100.0,
+        notes: 'Coffee beans order',
+        createdBy: admin.id,
+        items: {
+          create: [
+            { productId: prod1.id, name: 'Espresso', sku: 'BEV-001', quantity: 50, unitPrice: 0.8, taxAmount: 6.0, subtotal: 40.0 },
+            { productId: prod2.id, name: 'Cappuccino', sku: 'BEV-002', quantity: 50, unitPrice: 1.2, taxAmount: 9.0, subtotal: 60.0 },
+          ],
+        },
+      },
+    });
+
+    await prisma.supplierPayment.create({
+      data: {
+        tenantId: tenant.id,
+        supplierId: supplier1.id,
+        purchaseInvoiceId: inv1.id,
+        amount: 100.0,
+        method: 'BANK_TRANSFER',
+        reference: 'TRF-20260805-001',
+        note: 'Partial payment for PO-2026-001',
+        createdBy: admin.id,
+      },
+    });
+  }
+
+  const existingInv2 = await prisma.purchaseInvoice.findFirst({ where: { tenantId: tenant.id, invoiceNumber: 'PO-2026-002' } });
+  if (!existingInv2) {
+    const inv2 = await prisma.purchaseInvoice.create({
+      data: {
+        tenantId: tenant.id,
+        branchId: branch.id,
+        supplierId: supplier2.id,
+        invoiceNumber: 'PO-2026-002',
+        invoiceDate: new Date('2026-08-05'),
+        dueDate: new Date('2026-09-04'),
+        status: 'CONFIRMED',
+        subtotal: 60.0,
+        taxAmount: 9.0,
+        total: 69.0,
+        paidAmount: 69.0,
+        notes: 'Bakery supplies restock',
+        createdBy: admin.id,
+        items: {
+          create: [
+            { productId: prod3.id, name: 'Croissant', sku: 'SNK-001', quantity: 80, unitPrice: 0.9, taxAmount: 10.8, subtotal: 72.0 },
+          ],
+        },
+      },
+    });
+
+    await prisma.supplierPayment.create({
+      data: {
+        tenantId: tenant.id,
+        supplierId: supplier2.id,
+        purchaseInvoiceId: inv2.id,
+        amount: 69.0,
+        method: 'CASH',
+        note: 'Full payment for PO-2026-002',
+        createdBy: admin.id,
+      },
+    });
+  }
+
+  const existingInv3 = await prisma.purchaseInvoice.findFirst({ where: { tenantId: tenant.id, invoiceNumber: 'PO-2026-003' } });
+  if (!existingInv3) {
+    await prisma.purchaseInvoice.create({
+      data: {
+        tenantId: tenant.id,
+        branchId: branch.id,
+        supplierId: supplier3.id,
+        invoiceNumber: 'PO-2026-003',
+        invoiceDate: new Date('2026-08-18'),
+        dueDate: new Date('2026-09-17'),
+        status: 'DRAFT',
+        subtotal: 0,
+        taxAmount: 0,
+        total: 0,
+        paidAmount: 0,
+        notes: 'Pending review – snacks bulk order',
+        createdBy: admin.id,
+        items: {
+          create: [
+            { productId: prod3.id, name: 'Croissant', sku: 'SNK-001', quantity: 200, unitPrice: 0.9, taxAmount: 27.0, subtotal: 180.0 },
+          ],
+        },
+      },
+    });
+  }
+
   console.log('✅ Seeding completed successfully!');
   console.log('----------------------------------------------------');
   console.log(`Tenant ID: ${tenant.id}`);

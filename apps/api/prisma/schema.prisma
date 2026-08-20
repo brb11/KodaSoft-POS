@@ -35,6 +35,9 @@ model Tenant {
   subscriptionPayments SubscriptionPayment[]
   zatcaCredentials ZatcaCredential[]
   invoiceSubmissions InvoiceSubmission[]
+  suppliers      Supplier[]
+  purchaseInvoices PurchaseInvoice[]
+  supplierPayments SupplierPayment[]
 
   @@map("tenants")
 }
@@ -114,6 +117,7 @@ model Branch {
   expenses           Expense[]
   inventoryMovements InventoryMovement[]
   customerPayments   CustomerPayment[]
+  purchaseInvoices   PurchaseInvoice[]
 
   @@map("branches")
 }
@@ -227,10 +231,11 @@ model Product {
   tenant             Tenant              @relation(fields: [tenantId], references: [id])
   category           Category?           @relation(fields: [categoryId], references: [id])
   taxRate            TaxRate?            @relation(fields: [taxRateId], references: [id])
-  variants           ProductVariant[]
-  inventory          Inventory[]
-  orderItems         OrderItem[]
-  inventoryMovements InventoryMovement[]
+   variants           ProductVariant[]
+   inventory          Inventory[]
+   orderItems         OrderItem[]
+   inventoryMovements InventoryMovement[]
+   purchaseItems      PurchaseItem[]
 
   @@unique([tenantId, sku])
   @@map("products")
@@ -652,4 +657,110 @@ model InvoiceSubmission {
   @@index([tenantId, status])
   @@index([orderId])
   @@map("invoice_submissions")
+}
+
+// ─────────────────────────────────────────────
+// SUPPLIERS
+// ─────────────────────────────────────────────
+model Supplier {
+  id            String   @id @default(uuid())
+  tenantId      String
+  name          String
+  nameAr        String?
+  email         String?
+  phone         String?
+  address       String?
+  city          String?
+  vatNumber     String?
+  contactPerson String?
+  notes         String?
+  balance       Decimal  @db.Decimal(10, 2) @default(0)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  tenant            Tenant              @relation(fields: [tenantId], references: [id])
+  purchaseInvoices  PurchaseInvoice[]
+  supplierPayments  SupplierPayment[]
+
+  @@map("suppliers")
+}
+
+// ─────────────────────────────────────────────
+// PURCHASE INVOICES
+// ─────────────────────────────────────────────
+model PurchaseInvoice {
+  id              String   @id @default(uuid())
+  tenantId        String
+  branchId        String
+  supplierId      String
+  invoiceNumber   String
+  invoiceDate     DateTime @default(now())
+  dueDate         DateTime?
+  subtotal        Decimal  @db.Decimal(10, 2) @default(0)
+  discountAmount  Decimal  @db.Decimal(10, 2) @default(0)
+  taxAmount       Decimal  @db.Decimal(10, 2) @default(0)
+  total           Decimal  @db.Decimal(10, 2) @default(0)
+  paidAmount      Decimal  @db.Decimal(10, 2) @default(0)
+  status          String   @default("DRAFT") // DRAFT | CONFIRMED | CANCELLED
+  notes           String?
+  createdBy       String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  tenant          Tenant              @relation(fields: [tenantId], references: [id])
+  branch          Branch              @relation(fields: [branchId], references: [id])
+  supplier        Supplier            @relation(fields: [supplierId], references: [id])
+  items           PurchaseItem[]
+  payments        SupplierPayment[]
+
+  @@unique([tenantId, invoiceNumber])
+  @@index([tenantId, status])
+  @@index([supplierId])
+  @@map("purchase_invoices")
+}
+
+// ─────────────────────────────────────────────
+// PURCHASE INVOICE ITEMS
+// ─────────────────────────────────────────────
+model PurchaseItem {
+  id                String  @id @default(uuid())
+  purchaseInvoiceId String
+  productId         String
+  variantId         String?
+  name              String
+  sku               String?
+  quantity          Decimal @db.Decimal(10, 3)
+  unitPrice         Decimal @db.Decimal(10, 2)
+  discountAmount    Decimal @db.Decimal(10, 2) @default(0)
+  taxAmount         Decimal @db.Decimal(10, 2) @default(0)
+  subtotal          Decimal @db.Decimal(10, 2)
+
+  purchaseInvoice PurchaseInvoice @relation(fields: [purchaseInvoiceId], references: [id], onDelete: Cascade)
+  product         Product         @relation(fields: [productId], references: [id])
+
+  @@map("purchase_items")
+}
+
+// ─────────────────────────────────────────────
+// SUPPLIER PAYMENTS
+// ─────────────────────────────────────────────
+model SupplierPayment {
+  id                String   @id @default(uuid())
+  tenantId          String
+  supplierId        String
+  purchaseInvoiceId String?
+  amount            Decimal  @db.Decimal(10, 2)
+  method            String   @default("CASH") // CASH | BANK_TRANSFER | CARD | CHECK
+  reference         String?
+  note              String?
+  createdBy         String?
+  createdAt         DateTime @default(now())
+
+  tenant          Tenant            @relation(fields: [tenantId], references: [id])
+  supplier        Supplier          @relation(fields: [supplierId], references: [id])
+  purchaseInvoice PurchaseInvoice? @relation(fields: [purchaseInvoiceId], references: [id])
+
+  @@index([tenantId, supplierId])
+  @@map("supplier_payments")
 }

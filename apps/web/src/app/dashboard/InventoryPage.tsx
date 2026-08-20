@@ -30,6 +30,8 @@ interface Adjustment {
   productNameAr?: string;
   sku?: string;
   branchName: string;
+  type: string;
+  referenceType?: string;
   quantity: number;
   note?: string;
   createdByName?: string;
@@ -40,6 +42,7 @@ export const InventoryPage: React.FC = () => {
   const [products, setProducts] = useState<Product[]>([]);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [adjustments, setAdjustments] = useState<Adjustment[]>([]);
+  const [typeFilter, setTypeFilter] = useState<string>('');
   const [branchId, setBranchId] = useState('');
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -66,8 +69,11 @@ export const InventoryPage: React.FC = () => {
   useEffect(() => {
     fetchInventory();
     fetchBranches();
-    fetchAdjustments();
   }, []);
+
+  useEffect(() => {
+    fetchAdjustments();
+  }, [typeFilter]);
 
   useEffect(() => {
     if (!branchId && branches.length > 0) {
@@ -98,7 +104,9 @@ export const InventoryPage: React.FC = () => {
 
   const fetchAdjustments = async () => {
     try {
-      const res = await api.get('/inventory/adjustments?limit=20');
+      const params = new URLSearchParams({ limit: '50' });
+      if (typeFilter) params.set('type', typeFilter);
+      const res = await api.get(`/inventory/adjustments?${params.toString()}`);
       setAdjustments(res.data.data.items || []);
     } catch (err) {
       console.error('Failed to fetch adjustments:', err);
@@ -260,12 +268,26 @@ export const InventoryPage: React.FC = () => {
           <History className="w-4 h-4 text-cyan-600" />
           <h2 className="font-extrabold text-slate-900 text-sm">{t.adjustmentHistory}</h2>
           <span className="text-slate-400 text-[10px] font-semibold">{t.adjustmentHistoryDesc}</span>
+          <div className="ml-auto">
+            <select
+              value={typeFilter}
+              onChange={(e) => setTypeFilter(e.target.value)}
+              className="text-xs border border-slate-200 rounded-lg px-2 py-1 bg-white text-slate-700 font-semibold focus:outline-none focus:ring-2 focus:ring-cyan-500"
+            >
+              <option value="">{t.allTypes}</option>
+              <option value="sale">{t.movementSale}</option>
+              <option value="purchase">{t.movementPurchase}</option>
+              <option value="adjustment">{t.movementAdjustment}</option>
+              <option value="return">{t.movementReturn}</option>
+            </select>
+          </div>
         </div>
-        <table className="w-full text-left text-xs min-w-[640px]">
+        <table className="w-full text-left text-xs min-w-[740px]">
           <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase tracking-wider font-bold">
             <tr>
               <th className="px-6 py-3">{t.date}</th>
               <th className="px-6 py-3">{t.productName}</th>
+              <th className="px-6 py-3">{t.type}</th>
               <th className="px-6 py-3">{t.branch}</th>
               <th className="px-6 py-3">{t.adjustedQuantity}</th>
               <th className="px-6 py-3">{t.notesLabel}</th>
@@ -274,7 +296,7 @@ export const InventoryPage: React.FC = () => {
           </thead>
           <tbody className="divide-y divide-slate-100">
             {adjustments.length === 0 ? (
-              <tr><td colSpan={6} className="px-6 py-8 text-center text-slate-400">{t.noAdjustments}</td></tr>
+              <tr><td colSpan={7} className="px-6 py-8 text-center text-slate-400">{t.noAdjustments}</td></tr>
             ) : (
               adjustments.map((a) => (
                 <tr key={a.id} className="hover:bg-slate-50/80 transition-colors">
@@ -282,6 +304,16 @@ export const InventoryPage: React.FC = () => {
                   <td className="px-6 py-3 font-bold text-slate-900">
                     {localizedName(a.productName, a.productNameAr)}
                     {a.sku && <span className="ml-2 font-mono text-[10px] text-slate-400">{a.sku}</span>}
+                  </td>
+                  <td className="px-6 py-3">
+                    <span className={`inline-flex items-center font-bold rounded-lg px-2 py-0.5 text-[10px] ${
+                      a.type === 'purchase' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
+                      a.type === 'sale' ? 'bg-amber-50 text-amber-700 border border-amber-200' :
+                      a.type === 'return' ? 'bg-purple-50 text-purple-700 border border-purple-200' :
+                      'bg-slate-100 text-slate-600 border border-slate-200'
+                    }`}>
+                      {t[`movement${a.type.charAt(0).toUpperCase() + a.type.slice(1)}` as keyof typeof t] || a.type}
+                    </span>
                   </td>
                   <td className="px-6 py-3 text-slate-600 font-semibold">{a.branchName}</td>
                   <td className="px-6 py-3">
