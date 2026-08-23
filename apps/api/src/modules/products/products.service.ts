@@ -6,7 +6,6 @@ import type { CreateProductDto, UpdateProductDto } from './products.schema';
 
 export const PRODUCT_CSV_HEADER = [
   'name',
-  'nameAr',
   'category',
   'sku',
   'barcode',
@@ -114,7 +113,6 @@ export async function exportProductsCsv(tenantId: string): Promise<{ filename: s
 
   const rows = products.map((p) => ({
     name: p.name,
-    nameAr: p.nameAr ?? '',
     category: p.category?.name ?? '',
     sku: p.sku ?? '',
     barcode: p.barcode ?? '',
@@ -240,7 +238,6 @@ export async function importProducts(tenantId: string, csv: string): Promise<Imp
       const categoryId = categoryName ? await resolveCategory(categoryName) : undefined;
       const data = {
         name,
-        nameAr: field(r, 'nameAr').trim() || undefined,
         categoryId,
         barcode: field(r, 'barcode').trim() || undefined,
         description: field(r, 'description').trim() || undefined,

@@ -1,14 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { X, PauseCircle, Play, Trash2, Loader2, ShoppingBag } from 'lucide-react';
 import { api } from '../../../lib/api';
-import { useLanguageStore, translate, localizedName } from '../../../stores/languageStore';
+import { useLanguageStore, translate } from '../../../stores/languageStore';
 import { useCartStore } from '../../../stores/cartStore';
 
 interface HeldItem {
   productId: string;
   variantId?: string;
   name: string;
-  nameAr?: string;
   price: number;
   quantity: number;
   sku?: string;
@@ -163,7 +162,7 @@ export const HeldOrdersModal: React.FC<HeldOrdersModalProps> = ({ open, onClose,
                       </p>
                       {order.items?.length > 0 && (
                         <p className="text-[10px] text-slate-400 mt-0.5 truncate">
-                          {order.items.map((i) => localizedName(i.name, i.nameAr)).join('، ')}
+                          {order.items.map((i) => i.name).join('، ')}
                         </p>
                       )}
                     </div>

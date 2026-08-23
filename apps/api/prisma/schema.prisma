@@ -211,7 +211,6 @@ model Product {
   tenantId       String
   categoryId     String?
   name           String
-  nameAr         String?
   sku            String?
   barcode        String?
   description    String?

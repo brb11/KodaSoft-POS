@@ -9,7 +9,6 @@ import {
 interface Product {
   id: string;
   name: string;
-  nameAr?: string | null;
   sku?: string | null;
   barcode?: string | null;
   price: number | string;
@@ -294,7 +293,7 @@ export const PurchaseFormPage: React.FC = () => {
                           className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-cyan-500">
                           <option value="">{t.selectProduct || 'Select product...'}</option>
                           {products.map((p) => (
-                            <option key={p.id} value={p.id}>{localizedName(p.name, p.nameAr ?? undefined)} {p.sku ? `(${p.sku})` : ''}</option>
+                            <option key={p.id} value={p.id}>{p.name} {p.sku ? `(${p.sku})` : ''}</option>
                           ))}
                         </select>
                       </td>

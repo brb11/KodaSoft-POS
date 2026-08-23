@@ -369,7 +369,7 @@ export async function getInventoryReport(tenantId: string, opts: { branchId?: st
   const [stock, movRows] = await Promise.all([
     prisma.inventory.findMany({
       where: invWhere,
-      include: { product: { select: { id: true, name: true, nameAr: true, sku: true, cost: true, category: { select: { name: true, nameAr: true } } } } },
+      include: { product: { select: { id: true, name: true, sku: true, cost: true, category: { select: { name: true, nameAr: true } } } } },
       orderBy: { updatedAt: 'desc' },
     }),
     prisma.inventoryMovement.groupBy({
@@ -388,7 +388,6 @@ export async function getInventoryReport(tenantId: string, opts: { branchId?: st
       id: inv.id,
       productId: inv.productId,
       name: inv.product.name,
-      nameAr: inv.product.nameAr,
       sku: inv.product.sku,
       cost: Number(inv.product.cost),
       category: inv.product.category?.name || '',

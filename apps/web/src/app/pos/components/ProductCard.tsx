@@ -5,7 +5,6 @@ import { localizedName, translate, useLanguageStore } from '../../../stores/lang
 interface Product {
   id: string;
   name: string;
-  nameAr?: string;
   price: number;
   sku?: string;
   barcode?: string;
@@ -52,7 +51,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           <div>
             <div className="flex items-center gap-2">
               <h4 className="font-extrabold text-xs text-slate-800 group-hover:text-cyan-600 transition-colors">
-                {localizedName(product.name, product.nameAr)}
+                {product.name}
               </h4>
               {product.category && (
                 <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded-md font-semibold">
@@ -135,7 +134,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         </div>
 
         <h3 className="font-extrabold text-xs text-slate-800 group-hover:text-cyan-600 transition-colors line-clamp-2 leading-snug">
-          {localizedName(product.name, product.nameAr)}
+          {product.name}
         </h3>
 
         {(product.sku || product.barcode) && (

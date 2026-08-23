@@ -4,7 +4,6 @@ export interface CartItem {
   productId: string;
   variantId?: string;
   name: string;
-  nameAr?: string;
   price: number;
   quantity: number;
   sku?: string;
@@ -29,7 +28,7 @@ interface CartState {
   customer: CustomerInfo | null;
   discount: number; // percentage or fixed
   discountType: 'percent' | 'fixed';
-  addItem: (product: { id: string; name: string; nameAr?: string; price: number; sku?: string; taxRate?: any }) => void;
+  addItem: (product: { id: string; name: string; price: number; sku?: string; taxRate?: any }) => void;
   removeItem: (productId: string) => void;
   updateQuantity: (productId: string, quantity: number) => void;
   updatePrice: (productId: string, price: number) => void;
@@ -91,7 +90,6 @@ export const useCartStore = create<CartState>((set, get) => ({
           {
             productId: product.id,
             name: product.name,
-            nameAr: product.nameAr,
             price: Number(product.price),
             quantity: 1,
             sku: product.sku,

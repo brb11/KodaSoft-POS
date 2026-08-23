@@ -102,7 +102,7 @@ export async function listAdjustments(tenantId: string, query: { page: number; l
       skip: (query.page - 1) * query.limit,
       take: query.limit,
       include: {
-        product: { select: { id: true, name: true, nameAr: true, sku: true } },
+        product: { select: { id: true, name: true, sku: true } },
         branch: { select: { id: true, name: true } },
       },
     }),
@@ -118,7 +118,6 @@ export async function listAdjustments(tenantId: string, query: { page: number; l
     id: m.id,
     productId: m.productId,
     productName: m.product.name,
-    productNameAr: m.product.nameAr,
     sku: m.product.sku,
     branchId: m.branchId,
     branchName: m.branch.name,

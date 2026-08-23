@@ -70,7 +70,7 @@ export async function getPurchaseById(tenantId: string, id: string) {
       branch: { select: { id: true, name: true } },
       items: {
         include: {
-          product: { select: { id: true, name: true, nameAr: true, sku: true } },
+          product: { select: { id: true, name: true, sku: true } },
         },
       },
       payments: {

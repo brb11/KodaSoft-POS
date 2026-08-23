@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../../lib/api';
-import { useLanguageStore, localizedName, alternateName } from '../../stores/languageStore';
+import { useLanguageStore, localizedName } from '../../stores/languageStore';
 import { BarcodeCameraModal } from '../pos/components/BarcodeCameraModal';
 import {
   Plus, Search, Edit2, Trash2, Package, Upload, Download,
@@ -24,7 +24,6 @@ interface InventoryRecord {
 interface Product {
   id: string;
   name: string;
-  nameAr?: string;
   sku?: string;
   barcode?: string;
   price: number;
@@ -61,7 +60,7 @@ export const ProductsPage: React.FC = () => {
 
   // form
   const [formData, setFormData] = useState({
-    name: '', nameAr: '', categoryId: '', sku: '', barcode: '',
+    name: '', categoryId: '', sku: '', barcode: '',
     price: '', cost: '', type: 'retail', stockQty: '', stockBranchId: '',
   });
   const [submitting, setSubmitting] = useState(false);
@@ -115,7 +114,7 @@ export const ProductsPage: React.FC = () => {
     setEditingProduct(null);
     setSaveMsg(null);
     setFormData({
-      name: '', nameAr: '', categoryId: categories[0]?.id || '',
+      name: '', categoryId: categories[0]?.id || '',
       sku: '', barcode: '', price: '', cost: '', type: 'retail',
       stockQty: '', stockBranchId: defaultBranchId(),
     });
@@ -127,7 +126,6 @@ export const ProductsPage: React.FC = () => {
     setSaveMsg(null);
     setFormData({
       name: product.name || '',
-      nameAr: product.nameAr || '',
       categoryId: product.categoryId || '',
       sku: product.sku || '',
       barcode: product.barcode || '',
@@ -154,7 +152,6 @@ export const ProductsPage: React.FC = () => {
     try {
       const payload = {
         name: formData.name,
-        nameAr: formData.nameAr || undefined,
         categoryId: formData.categoryId || undefined,
         sku: formData.sku || undefined,
         barcode: formData.barcode || undefined,
@@ -354,10 +351,7 @@ export const ProductsPage: React.FC = () => {
                 return (
                   <tr key={p.id} className="hover:bg-slate-50/80 transition-colors">
                     <td className="px-6 py-4 font-bold text-slate-900">
-                      {localizedName(p.name, p.nameAr)}
-                      {alternateName(p.name, p.nameAr) && (
-                        <span className="block text-[11px] text-slate-400 font-normal mt-0.5">{alternateName(p.name, p.nameAr)}</span>
-                      )}
+                      {p.name}
                     </td>
                     <td className="px-6 py-4">
                       <span className="bg-slate-100 text-slate-600 px-2.5 py-1 rounded-lg text-[10px] font-bold border border-slate-200/80">
@@ -421,22 +415,13 @@ export const ProductsPage: React.FC = () => {
             <div className="overflow-y-auto flex-1 px-6 py-4">
               <form id="product-form" onSubmit={handleSubmit} className="space-y-4 text-xs">
 
-                {/* Names */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-slate-700 font-bold mb-1">{t.productNameEn}</label>
-                    <input type="text" required value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-800 focus:outline-none focus:border-cyan-500 focus:bg-white shadow-sm"
-                      placeholder={t.productNamePlaceholder} />
-                  </div>
-                  <div>
-                    <label className="block text-slate-700 font-bold mb-1">{t.productNameAr}</label>
-                    <input type="text" value={formData.nameAr}
-                      onChange={(e) => setFormData({ ...formData, nameAr: e.target.value })}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-800 focus:outline-none focus:border-cyan-500 focus:bg-white shadow-sm"
-                      placeholder={t.productNameArPlaceholder} />
-                  </div>
+                {/* Name */}
+                <div>
+                  <label className="block text-slate-700 font-bold mb-1">{t.productName}</label>
+                  <input type="text" required value={formData.name}
+                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-800 focus:outline-none focus:border-cyan-500 focus:bg-white shadow-sm"
+                    placeholder={t.productNamePlaceholder} />
                 </div>
 
                 {/* Category & Type */}

@@ -433,8 +433,6 @@ export interface Translations {
   uncategorized: string;
   editProduct: string;
   createProduct: string;
-  productNameEn: string;
-  productNameAr: string;
   typeCol: string;
   retail: string;
   fnb: string;
@@ -447,7 +445,6 @@ export interface Translations {
   failedSaveProduct: string;
   selectCategory: string;
   productNamePlaceholder: string;
-  productNameArPlaceholder: string;
   skuPlaceholder: string;
   barcodePlaceholder: string;
   pricePlaceholder: string;
@@ -1510,8 +1507,6 @@ const translations: Record<Language, Translations> = {
     uncategorized: 'بدون تصنيف',
     editProduct: 'تعديل المنتج',
     createProduct: 'إنشاء منتج جديد',
-    productNameEn: 'اسم المنتج (إنجليزي)',
-    productNameAr: 'اسم المنتج (عربي)',
     typeCol: 'النوع',
     retail: 'تجزئة',
     fnb: 'أغذية ومشروبات (F&B)',
@@ -1524,7 +1519,6 @@ const translations: Record<Language, Translations> = {
     failedSaveProduct: 'فشل حفظ المنتج',
     selectCategory: '-- اختر التصنيف --',
     productNamePlaceholder: 'مثال: لاتيه',
-    productNameArPlaceholder: 'مثال: لاتيه',
     skuPlaceholder: 'BEV-003',
     barcodePlaceholder: '600000000004',
     pricePlaceholder: '5.00',
@@ -2582,8 +2576,6 @@ const translations: Record<Language, Translations> = {
     uncategorized: 'Uncategorized',
     editProduct: 'Edit Product',
     createProduct: 'Create New Product',
-    productNameEn: 'Product Name (English)',
-    productNameAr: 'Product Name (Arabic)',
     typeCol: 'Type',
     retail: 'Retail',
     fnb: 'Food & Beverage (F&B)',
@@ -2596,7 +2588,6 @@ const translations: Record<Language, Translations> = {
     failedSaveProduct: 'Failed to save product',
     selectCategory: '-- Select Category --',
     productNamePlaceholder: 'e.g. Latte',
-    productNameArPlaceholder: 'مثال: لاتيه',
     skuPlaceholder: 'BEV-003',
     barcodePlaceholder: '600000000004',
     pricePlaceholder: '5.00',

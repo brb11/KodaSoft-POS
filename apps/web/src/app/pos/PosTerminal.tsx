@@ -60,7 +60,6 @@ import {
 interface Product {
   id: string;
   name: string;
-  nameAr?: string;
   price: number;
   sku?: string;
   barcode?: string;
@@ -302,7 +301,6 @@ export const PosTerminal: React.FC = () => {
   const mapProduct = (p: any): Product => ({
     id: p.id,
     name: p.name,
-    nameAr: p.nameAr,
     price: Number(p.price),
     sku: p.sku,
     barcode: p.barcode,
@@ -384,7 +382,7 @@ export const PosTerminal: React.FC = () => {
     const available = stockFor(product.id, product);
     if (available === null) return true;
     if (qtyInCart(product.id) + 1 > available) {
-      flashScan(false, translate(t.stockLimitReached, { name: localizedName(product.name, product.nameAr), available: String(available) }));
+      flashScan(false, translate(t.stockLimitReached, { name: product.name, available: String(available) }));
       return false;
     }
     return true;
@@ -430,7 +428,6 @@ export const PosTerminal: React.FC = () => {
     addItem({
       id: p.id,
       name: p.name,
-      nameAr: p.nameAr,
       price: Number(p.price),
       sku: p.sku,
       taxRate: p.taxRate,
@@ -486,7 +483,7 @@ export const PosTerminal: React.FC = () => {
       if (local) {
         addProductToCart(local);
         setSearchQuery('');
-        flashScan(true, `${t.scanAdded}: ${localizedName(local.name, local.nameAr)}`);
+        flashScan(true, `${t.scanAdded}: ${local.name}`);
         return;
       }
 
@@ -497,7 +494,6 @@ export const PosTerminal: React.FC = () => {
           const product: Product = {
             id: p.id,
             name: p.name,
-            nameAr: p.nameAr,
             price: Number(p.price),
             sku: p.sku,
             barcode: p.barcode,
@@ -511,7 +507,7 @@ export const PosTerminal: React.FC = () => {
           addItem(product);
           triggerScanHighlight(product.id);
           setSearchQuery('');
-          flashScan(true, `${t.scanAdded}: ${localizedName(product.name, product.nameAr)}`);
+          flashScan(true, `${t.scanAdded}: ${product.name}`);
           return;
         }
         flashScan(false, t.barcodeNotFound);
@@ -570,7 +566,7 @@ export const PosTerminal: React.FC = () => {
       paidAmount,
       items: items.map((i) => ({
         productId: i.productId,
-        name: localizedName(i.name, i.nameAr),
+        name: i.name,
         quantity: i.quantity,
         unitPrice: i.price,
         subtotal: i.price * i.quantity,
@@ -1150,7 +1146,7 @@ export const PosTerminal: React.FC = () => {
                 <div key={item.productId} className="flex items-center justify-between text-xs py-1.5 border-b border-slate-100">
                   <div className="truncate ltr:pr-2 rtl:pl-2">
                     <span className="font-bold text-slate-800 block truncate">
-                      {localizedName(item.name, item.nameAr)}
+                      {item.name}
                     </span>
                     <span className="text-[10px] text-slate-400">
                       {item.quantity} × {t.currency} {item.price.toFixed(2)}
@@ -1375,7 +1371,7 @@ export const PosTerminal: React.FC = () => {
                       stock={stockFor(p.id, p)}
                       onSelect={(product) => {
                         addProductToCart(product);
-                        flashScan(true, `${t.scanAdded}: ${localizedName(product.name, product.nameAr)}`);
+                        flashScan(true, `${t.scanAdded}: ${product.name}`);
                       }}
                       viewMode={viewMode}
                       skuPrefixLabel={t.skuPrefix}

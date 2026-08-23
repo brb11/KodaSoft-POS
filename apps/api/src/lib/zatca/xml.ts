@@ -77,7 +77,6 @@ export function serializeXml(node: Node): string {
 export interface ZatcaInvoiceLine {
   id: string;
   name: string;
-  nameAr?: string;
   quantity: number;
   /** Unit price EXCLUDING tax. */
   unitPrice: number;
@@ -260,7 +259,6 @@ export function buildUnsignedInvoice(input: ZatcaInvoiceInput): { doc: Document;
     const taxable = round2(lineSubtotal - lineDiscount);
     const lineTax = round2((taxable * line.taxPercent) / 100);
     const names: Child[] = [el(doc, 'cbc:Name', {}, [line.name])];
-    if (line.nameAr) names.push(el(doc, 'cbc:Name', { languageID: 'ar' }, [line.nameAr]));
 
     root.appendChild(
       el(doc, 'cac:InvoiceLine', {}, [

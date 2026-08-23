@@ -1,12 +1,11 @@
 import React from 'react';
 import { Plus, Minus, Trash2, Tag } from 'lucide-react';
-import { localizedName, useLanguageStore } from '../../../stores/languageStore';
+import { useLanguageStore } from '../../../stores/languageStore';
 
 interface CartItemRowProps {
   item: {
     productId: string;
     name: string;
-    nameAr?: string;
     price: number;
     quantity: number;
     sku?: string;
@@ -50,7 +49,7 @@ export const CartItemRow: React.FC<CartItemRowProps> = ({
         </div>
         <div className="truncate">
           <h4 className="text-[13px] font-extrabold text-slate-900 truncate">
-            {localizedName(item.name, item.nameAr)}
+            {item.name}
           </h4>
           {item.sku && (
             <span className="text-[10px] text-slate-400 font-mono flex items-center gap-1 mt-0.5">

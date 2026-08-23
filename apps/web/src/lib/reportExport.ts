@@ -168,7 +168,7 @@ export function reportToSections(key: ReportKey, t: Translations, data: any): Re
           title: t.breakdown,
           headers: [t.invProduct, t.invQuantity, t.invThreshold, t.invExpiryDate, t.statusCol, t.invTotalValue],
           rows: (data.currentStock as any[]).map((s) => [
-            localizedName(s.name, s.nameAr) || s.name,
+            s.name || '',
             String(s.quantity),
             String(s.lowStockThreshold),
             s.expiryDate ? new Date(s.expiryDate).toLocaleDateString() : '',

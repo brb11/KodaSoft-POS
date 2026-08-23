@@ -568,7 +568,6 @@ export async function signAndSubmitOrder(
     lines: order.items.map((item, idx) => ({
       id: String(idx + 1),
       name: item.name,
-      nameAr: undefined,
       quantity: item.quantity,
       unitPrice: item.unitPrice,
       taxPercent: item.taxRate,

@@ -4,7 +4,6 @@ const heldOrderItemSchema = z.object({
   productId: z.string().uuid(),
   variantId: z.string().uuid().nullable().optional(),
   name: z.string().min(1),
-  nameAr: z.string().nullable().optional(),
   sku: z.string().nullable().optional(),
   price: z.coerce.number().min(0),
   quantity: z.coerce.number().positive(),

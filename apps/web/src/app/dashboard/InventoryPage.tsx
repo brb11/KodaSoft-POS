@@ -8,7 +8,6 @@ import { Warehouse, AlertTriangle, CheckCircle, SlidersHorizontal, Loader2, Chec
 interface Product {
   id: string;
   name: string;
-  nameAr?: string;
   sku?: string;
   category?: { name: string; nameAr?: string };
   inventory?: {
@@ -27,7 +26,6 @@ interface Branch {
 interface Adjustment {
   id: string;
   productName: string;
-  productNameAr?: string;
   sku?: string;
   branchName: string;
   type: string;
@@ -226,7 +224,7 @@ export const InventoryPage: React.FC = () => {
 
                 return (
                   <tr key={p.id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="px-6 py-4 font-bold text-slate-900">{localizedName(p.name, p.nameAr)}</td>
+                    <td className="px-6 py-4 font-bold text-slate-900">{p.name}</td>
                     <td className="px-6 py-4 font-mono text-slate-500">{p.sku || '-'}</td>
                     <td className="px-6 py-4">
                       <span className="bg-slate-100 text-slate-600 px-2.5 py-1 rounded-lg text-[10px] font-bold border border-slate-200/80">
@@ -302,7 +300,7 @@ export const InventoryPage: React.FC = () => {
                 <tr key={a.id} className="hover:bg-slate-50/80 transition-colors">
                   <td className="px-6 py-3 text-slate-500 whitespace-nowrap">{new Date(a.createdAt).toLocaleString()}</td>
                   <td className="px-6 py-3 font-bold text-slate-900">
-                    {localizedName(a.productName, a.productNameAr)}
+                    {a.productName}
                     {a.sku && <span className="ml-2 font-mono text-[10px] text-slate-400">{a.sku}</span>}
                   </td>
                   <td className="px-6 py-3">
@@ -342,7 +340,7 @@ export const InventoryPage: React.FC = () => {
                 <select value={form.productId} onChange={(e) => setForm({ ...form, productId: e.target.value })}
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-800 focus:outline-none focus:border-cyan-500 shadow-sm">
                   <option value="">{t.selectProduct}</option>
-                  {products.map((p) => (<option key={p.id} value={p.id}>{localizedName(p.name, p.nameAr)}{p.sku ? ` (${p.sku})` : ''}</option>))}
+                  {products.map((p) => (<option key={p.id} value={p.id}>{p.name}{p.sku ? ` (${p.sku})` : ''}</option>))}
                 </select>
               </div>
 

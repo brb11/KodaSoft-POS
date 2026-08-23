@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../../../lib/api';
-import { useLanguageStore, localizedName } from '../../../stores/languageStore';
+import { useLanguageStore } from '../../../stores/languageStore';
 import { toQuery, ReportFilters } from './ReportFilters';
 import { Boxes, AlertTriangle, CalendarX, Flame, ArrowRightLeft } from 'lucide-react';
 import { ReportExportButton } from './ReportExportButton';
@@ -90,7 +90,7 @@ export const InventoryTab: React.FC<{ filters: ReportFilters }> = ({ filters }) 
           <tbody className="divide-y divide-slate-100">
             {list.map((r: any) => (
               <tr key={r.id} className="hover:bg-slate-50/80">
-                <td className="px-6 py-3.5 font-bold text-slate-900">{localizedName(r.name, r.nameAr)}</td>
+                <td className="px-6 py-3.5 font-bold text-slate-900">{r.name}</td>
                 <td className="px-6 py-3.5 text-slate-600 font-semibold">{r.quantity}</td>
                 <td className="px-6 py-3.5 text-slate-600 font-semibold">{r.lowStockThreshold}</td>
                 <td className="px-6 py-3.5 text-slate-600">{r.expiryDate ? new Date(r.expiryDate).toLocaleDateString() : '-'}</td>

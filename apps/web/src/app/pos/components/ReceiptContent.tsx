@@ -1,6 +1,6 @@
 import React, { forwardRef } from 'react';
 import { useCartStore } from '../../../stores/cartStore';
-import { useLanguageStore, translate, localizedName, paymentMethodLabel } from '../../../stores/languageStore';
+import { useLanguageStore, translate, paymentMethodLabel } from '../../../stores/languageStore';
 import { ZatcaQr } from './ZatcaQr';
 
 interface ReceiptContentProps {
@@ -68,7 +68,7 @@ export const ReceiptContent = forwardRef<HTMLDivElement, ReceiptContentProps>(
             {items.map((item, idx) => (
               <tr key={idx} className="align-top">
                 <td className="py-1 pr-2 max-w-[120px] break-words">
-                  {localizedName(item.name, item.nameAr)}
+                  {item.name}
                   <div className="text-[10px] text-gray-500">{t.currency} {item.price.toFixed(2)} {t.eachUnit}</div>
                 </td>
                 <td className="py-1 text-center">{item.quantity}</td>
