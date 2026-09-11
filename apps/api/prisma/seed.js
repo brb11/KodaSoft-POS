@@ -152,7 +152,7 @@ async function main() {
       categoryId: catBeverages.id,
       taxRateId: vat15.id,
       name: 'Espresso',
-      nameAr: 'إسبريسو',
+
       sku: 'BEV-001',
       barcode: '600000000001',
       price: 3.5,
@@ -169,7 +169,7 @@ async function main() {
       categoryId: catBeverages.id,
       taxRateId: vat15.id,
       name: 'Cappuccino',
-      nameAr: 'كابوتشينو',
+
       sku: 'BEV-002',
       barcode: '600000000002',
       price: 4.5,
@@ -186,7 +186,7 @@ async function main() {
       categoryId: catSnacks.id,
       taxRateId: vat15.id,
       name: 'Croissant',
-      nameAr: 'كرواسون',
+
       sku: 'SNK-001',
       barcode: '600000000003',
       price: 2.75,
