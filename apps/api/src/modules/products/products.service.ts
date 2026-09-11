@@ -18,6 +18,63 @@ export const PRODUCT_CSV_HEADER = [
   'isActive',
 ];
 
+// Ensure no barcode in the payload duplicates another barcode in the payload
+// or an existing product/unit barcode of the tenant.
+async function assertBarcodesAvailable(
+  tenantId: string,
+  barcodes: string[],
+  opts: { ignoreProductId?: string; ignoreUnitIds?: string[] } = {},
+) {
+  const unique = [...new Set(barcodes.map((b) => b.trim()).filter(Boolean))];
+  if (unique.length !== barcodes.filter((b) => b?.trim()).length) {
+    throw new AppError(409, 'Duplicate barcode in the submitted units', 'BARCODE_EXISTS');
+  }
+  if (unique.length === 0) return;
+
+  const [productClash, unitClash] = await Promise.all([
+    prisma.product.findFirst({
+      where: { tenantId, barcode: { in: unique }, ...(opts.ignoreProductId ? { id: { not: opts.ignoreProductId } } : {}) },
+      select: { id: true },
+    }),
+    prisma.productUnit.findFirst({
+      where: {
+        tenantId,
+        barcode: { in: unique },
+        isActive: true,
+        ...(opts.ignoreUnitIds?.length ? { id: { notIn: opts.ignoreUnitIds } } : {}),
+      },
+      select: { id: true },
+    }),
+  ]);
+  if (productClash || unitClash) {
+    throw new AppError(409, 'Barcode already exists for another product or unit', 'BARCODE_EXISTS');
+  }
+}
+
+type UnitInput = { name: string; barcode?: string; factor: number; price: number };
+
+// Replace-all strategy for a product's selling units. Ids change on every
+// save; carts/orders snapshot unit data so nothing breaks.
+async function syncProductUnits(tenantId: string, productId: string, units: UnitInput[]) {
+  const barcodes = units.map((u) => u.barcode).filter((b): b is string => Boolean(b?.trim()));
+  await assertBarcodesAvailable(tenantId, barcodes);
+  await prisma.$transaction([
+    prisma.productUnit.deleteMany({ where: { productId } }),
+    ...units.map((u) =>
+      prisma.productUnit.create({
+        data: {
+          tenantId,
+          productId,
+          name: u.name.trim(),
+          barcode: u.barcode?.trim() || null,
+          factor: u.factor,
+          price: u.price,
+        },
+      }),
+    ),
+  ]);
+}
+
 export async function getProducts(
   tenantId: string,
   query: { page: number; limit: number; search?: string; categoryId?: string; isActive?: boolean },
@@ -39,7 +96,7 @@ export async function getProducts(
       where,
       skip,
       take: limit,
-      include: { category: true, taxRate: true, inventory: true },
+      include: { category: true, taxRate: true, inventory: true, units: { where: { isActive: true }, orderBy: { createdAt: 'asc' } } },
       orderBy: { createdAt: 'desc' },
     }),
     prisma.product.count({ where }),
@@ -51,15 +108,39 @@ export async function getProducts(
 export async function getProductById(tenantId: string, id: string) {
   const product = await prisma.product.findFirst({
     where: { id, tenantId },
-    include: { category: true, taxRate: true, variants: true, inventory: true },
+    include: {
+      category: true,
+      taxRate: true,
+      variants: true,
+      inventory: true,
+      units: { orderBy: { createdAt: 'asc' } },
+    },
   });
   if (!product) throw new AppError(404, 'Product not found');
   return product;
 }
 
 export async function getProductByBarcode(tenantId: string, barcode: string) {
+  const code = barcode.trim();
+
+  // Selling-unit barcodes take priority: the scan means "sell one of this
+  // unit" (e.g. a whole carton), not one base piece.
+  const unit = await prisma.productUnit.findFirst({
+    where: { tenantId, barcode: code, isActive: true },
+    include: {
+      product: { include: { category: true, taxRate: true, variants: true, inventory: true } },
+    },
+  });
+  if (unit && unit.product.isActive) {
+    const p = unit.product;
+    return {
+      ...p,
+      soldUnit: { id: unit.id, name: unit.name, factor: Number(unit.factor), price: Number(unit.price) },
+    };
+  }
+
   const product = await prisma.product.findFirst({
-    where: { barcode, tenantId, isActive: true },
+    where: { barcode: code, tenantId, isActive: true },
     include: { category: true, taxRate: true, variants: true, inventory: true },
   });
   if (!product) throw new AppError(404, 'Product not found');
@@ -72,12 +153,63 @@ export async function createProduct(tenantId: string, dto: CreateProductDto) {
     const existing = await prisma.product.findFirst({ where: { tenantId, sku: dto.sku } });
     if (existing) throw new AppError(409, 'SKU already exists');
   }
-  return prisma.product.create({ data: { ...dto, tenantId } });
+  const { units, ...data } = dto;
+  if (units?.length || dto.barcode) {
+    await assertBarcodesAvailable(tenantId, [...(units ?? []).map((u) => u.barcode).filter((b): b is string => Boolean(b)), ...(dto.barcode ? [dto.barcode] : [])]);
+  }
+  const product = await prisma.product.create({
+    data: {
+      ...data,
+      tenantId,
+      units: units?.length
+        ? { create: units.map((u) => ({ tenantId, name: u.name.trim(), barcode: u.barcode?.trim() || null, factor: u.factor, price: u.price })) }
+        : undefined,
+    },
+    include: { units: true },
+  });
+  return product;
 }
 
 export async function updateProduct(tenantId: string, id: string, dto: UpdateProductDto) {
-  await getProductById(tenantId, id);
-  return prisma.product.update({ where: { id }, data: dto });
+  const existing = await getProductById(tenantId, id);
+  const { units, ...data } = dto;
+  const scalarData = data as any;
+
+  if (units !== undefined) {
+    // Full replace: the product's own current unit rows are deleted first, so
+    // their barcodes may be reused by the incoming set without clashing.
+    await assertBarcodesAvailable(
+      tenantId,
+      [
+        ...units.map((u) => u.barcode).filter((b): b is string => Boolean(b)),
+        ...(dto.barcode ? [dto.barcode] : []),
+      ],
+      { ignoreProductId: id, ignoreUnitIds: existing.units.map((u) => u.id) },
+    );
+
+    return prisma.$transaction(async (tx) => {
+      await tx.product.update({ where: { id }, data: scalarData });
+      await tx.productUnit.deleteMany({ where: { productId: id } });
+      if (units.length) {
+        await tx.productUnit.createMany({
+          data: units.map((u) => ({
+            tenantId,
+            productId: id,
+            name: u.name.trim(),
+            barcode: u.barcode?.trim() || null,
+            factor: u.factor,
+            price: u.price,
+          })),
+        });
+      }
+      return tx.product.findUniqueOrThrow({
+        where: { id },
+        include: { category: true, taxRate: true, variants: true, inventory: true, units: { orderBy: { createdAt: 'asc' } } },
+      });
+    });
+  }
+
+  return prisma.product.update({ where: { id }, data: scalarData, include: { units: { orderBy: { createdAt: 'asc' } } } });
 }
 
 export async function deleteProduct(tenantId: string, id: string) {

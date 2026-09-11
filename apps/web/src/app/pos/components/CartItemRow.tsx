@@ -5,6 +5,9 @@ import { useLanguageStore } from '../../../stores/languageStore';
 interface CartItemRowProps {
   item: {
     productId: string;
+    unitId?: string;
+    unitName?: string;
+    unitFactor?: number;
     name: string;
     price: number;
     quantity: number;
@@ -13,9 +16,9 @@ interface CartItemRowProps {
   };
   currency: string;
   isHighlighted?: boolean;
-  onUpdateQuantity: (productId: string, qty: number) => void;
-  onUpdatePrice: (productId: string, price: number) => void;
-  onRemoveItem: (productId: string) => void;
+  onUpdateQuantity: (productId: string, qty: number, unitId?: string) => void;
+  onUpdatePrice: (productId: string, price: number, unitId?: string) => void;
+  onRemoveItem: (productId: string, unitId?: string) => void;
   onTryAddMore?: () => void;
 }
 
@@ -50,6 +53,11 @@ export const CartItemRow: React.FC<CartItemRowProps> = ({
         <div className="truncate">
           <h4 className="text-[13px] font-extrabold text-slate-900 truncate">
             {item.name}
+            {item.unitName && (
+              <span className="ms-1.5 inline-flex items-center rounded-md bg-violet-50 border border-violet-200 px-1.5 py-px text-[10px] font-extrabold text-violet-700 align-middle">
+                {item.unitName}
+              </span>
+            )}
           </h4>
           {item.sku && (
             <span className="text-[10px] text-slate-400 font-mono flex items-center gap-1 mt-0.5">
@@ -70,7 +78,7 @@ export const CartItemRow: React.FC<CartItemRowProps> = ({
           value={displayPrice}
           onChange={(e) => {
             const val = parseFloat(e.target.value);
-            onUpdatePrice(item.productId, isNaN(val) ? 0 : val);
+            onUpdatePrice(item.productId, isNaN(val) ? 0 : val, item.unitId);
           }}
           className="w-14 bg-white border border-slate-200 rounded-md px-1 py-0.5 text-center font-extrabold text-slate-800 text-[11px] focus:outline-none focus:border-cyan-500 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
           title={t.priceEditTitle}
@@ -80,7 +88,7 @@ export const CartItemRow: React.FC<CartItemRowProps> = ({
       {/* Quantity Stepper Controls */}
       <div className="flex items-center gap-1 bg-slate-50 p-0.5 rounded-xl border border-slate-200">
         <button
-          onClick={() => onUpdateQuantity(item.productId, item.quantity - 1)}
+          onClick={() => onUpdateQuantity(item.productId, item.quantity - 1, item.unitId)}
           className="w-6 h-6 rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900 flex items-center justify-center transition-colors shadow-2xs"
         >
           <Minus className="w-3 h-3" />
@@ -90,7 +98,7 @@ export const CartItemRow: React.FC<CartItemRowProps> = ({
           min="1"
           step="1"
           value={item.quantity === 0 ? '' : item.quantity}
-          onChange={(e) => onUpdateQuantity(item.productId, parseInt(e.target.value, 10) || 0)}
+          onChange={(e) => onUpdateQuantity(item.productId, parseInt(e.target.value, 10) || 0, item.unitId)}
           className="text-xs font-black w-7 text-center text-slate-900 bg-transparent focus:bg-white focus:outline-none rounded py-0.5 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
         />
         <button
@@ -98,7 +106,7 @@ export const CartItemRow: React.FC<CartItemRowProps> = ({
             if (onTryAddMore) {
               onTryAddMore();
             } else {
-              onUpdateQuantity(item.productId, item.quantity + 1);
+              onUpdateQuantity(item.productId, item.quantity + 1, item.unitId);
             }
           }}
           className="w-6 h-6 rounded-lg bg-white border border-slate-200 text-slate-600 hover:bg-slate-100 hover:text-slate-900 flex items-center justify-center transition-colors shadow-2xs"
@@ -116,8 +124,8 @@ export const CartItemRow: React.FC<CartItemRowProps> = ({
       </div>
 
       {/* Remove Button */}
-      <button
-        onClick={() => onRemoveItem(item.productId)}
+        <button
+          onClick={() => onRemoveItem(item.productId, item.unitId)}
         className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors"
         title={t.deleteItem}
       >

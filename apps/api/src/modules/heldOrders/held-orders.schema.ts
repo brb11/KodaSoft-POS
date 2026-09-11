@@ -3,6 +3,9 @@ import { z } from 'zod';
 const heldOrderItemSchema = z.object({
   productId: z.string().uuid(),
   variantId: z.string().uuid().nullable().optional(),
+  unitId: z.string().uuid().nullable().optional(),
+  unitName: z.string().nullable().optional(),
+  unitFactor: z.coerce.number().positive().default(1),
   name: z.string().min(1),
   sku: z.string().nullable().optional(),
   price: z.coerce.number().min(0),

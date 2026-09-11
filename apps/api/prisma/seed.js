@@ -13,7 +13,7 @@ async function main() {
     create: {
       name: 'KodaSoft Main Store',
       slug: 'kodasoft-default',
-      plan: 'enterprise',
+      plan: 'enterprise'
     },
   });
 

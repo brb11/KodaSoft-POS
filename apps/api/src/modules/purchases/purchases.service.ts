@@ -85,6 +85,29 @@ export async function getPurchaseById(tenantId: string, id: string) {
   return invoice;
 }
 
+// Look up selling units referenced by purchase lines. The returned factor is
+// applied when confirmed so stock is always posted in base units.
+async function resolveUnitMap(
+  tenantId: string,
+  items: { productId: string; unitId?: string }[],
+): Promise<Map<string, { name: string; factor: number }>> {
+  const ids = [...new Set(items.filter((i) => i.unitId).map((i) => i.unitId as string))];
+  if (ids.length === 0) return new Map();
+  const units = await prisma.productUnit.findMany({
+    where: { id: { in: ids }, tenantId, isActive: true },
+    select: { id: true, productId: true, name: true, factor: true },
+  });
+  const map = new Map<string, { name: string; factor: number }>();
+  for (const u of units) {
+    map.set(u.id, { name: u.name, factor: Number(u.factor) });
+    // A unit must belong to the product on its line.
+    if (!items.some((i) => i.unitId === u.id && i.productId === u.productId)) {
+      throw new AppError(400, 'Selling unit does not belong to the line product', 'UNIT_MISMATCH');
+    }
+  }
+  return map;
+}
+
 export async function createPurchase(tenantId: string, userId: string, dto: CreatePurchaseDto) {
   // Validate supplier and branch
   const [supplier, branch] = await Promise.all([
@@ -114,15 +137,20 @@ export async function createPurchase(tenantId: string, userId: string, dto: Crea
     }
   }
 
+  const unitMap = await resolveUnitMap(tenantId, dto.items);
+
   // Calculate line totals
   const lineItems = dto.items.map((item) => {
     const lineSubtotal = roundCents(item.quantity * item.unitPrice);
     const lineDiscount = roundCents(item.discountAmount);
     const taxable = roundCents(lineSubtotal - lineDiscount);
     const lineTax = roundCents((taxable * item.taxRate) / 100);
+    const unit = item.unitId ? unitMap.get(item.unitId) : undefined;
     return {
       productId: item.productId,
       variantId: item.variantId || null,
+      unitName: unit?.name ?? null,
+      unitFactor: unit?.factor ?? 1,
       name: item.name,
       sku: item.sku || productMap.get(item.productId)?.sku || null,
       quantity: item.quantity,
@@ -190,15 +218,19 @@ export async function updatePurchase(tenantId: string, id: string, dto: UpdatePu
     // Delete old items and recreate
     await prisma.purchaseItem.deleteMany({ where: { purchaseInvoiceId: id } });
 
+    const unitMap = await resolveUnitMap(tenantId, dto.items);
     const lineItems = dto.items.map((item) => {
       const lineSubtotal = roundCents(item.quantity * item.unitPrice);
       const lineDiscount = roundCents(item.discountAmount);
       const taxable = roundCents(lineSubtotal - lineDiscount);
       const lineTax = roundCents((taxable * item.taxRate) / 100);
+      const unit = item.unitId ? unitMap.get(item.unitId) : undefined;
       return {
         purchaseInvoiceId: id,
         productId: item.productId,
         variantId: item.variantId || null,
+        unitName: unit?.name ?? null,
+        unitFactor: unit?.factor ?? 1,
         name: item.name,
         sku: item.sku || null,
         quantity: item.quantity,
@@ -266,9 +298,9 @@ export async function confirmPurchase(tenantId: string, userId: string, id: stri
 
   // Update inventory and supplier balance in a transaction
   await prisma.$transaction(async (tx) => {
-    // Update stock for each item
+    // Update stock for each item (base units: quantity × unit factor)
     for (const item of existing.items) {
-      const delta = Number(item.quantity);
+      const delta = Number(item.quantity) * Number(item.unitFactor ?? 1);
 
       // Increment stock or create new inventory record
       const updated = await tx.inventory.updateMany({

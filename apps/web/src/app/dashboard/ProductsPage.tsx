@@ -30,10 +30,30 @@ interface Product {
   cost: number;
   type: string;
   isActive: boolean;
+  unit?: string | null;
   category?: Category;
   categoryId?: string;
   inventory?: InventoryRecord[];
+  units?: ProductUnitRow[];
 }
+
+interface ProductUnitRow {
+  id: string;
+  name: string;
+  barcode?: string | null;
+  factor: number;
+  price: number;
+}
+
+interface UnitFormRow {
+  id?: string;
+  name: string;
+  barcode: string;
+  factor: string;
+  price: string;
+}
+
+const emptyUnitRow = (): UnitFormRow => ({ name: '', barcode: '', factor: '', price: '' });
 
 // ── helper ──────────────────────────────────────────────────────────────────
 function totalStock(product: Product): number {
@@ -62,7 +82,9 @@ export const ProductsPage: React.FC = () => {
   const [formData, setFormData] = useState({
     name: '', categoryId: '', sku: '', barcode: '',
     price: '', cost: '', type: 'retail', stockQty: '', stockBranchId: '',
+    baseUnit: '',
   });
+  const [unitRows, setUnitRows] = useState<UnitFormRow[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [saveMsg, setSaveMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -116,8 +138,9 @@ export const ProductsPage: React.FC = () => {
     setFormData({
       name: '', categoryId: categories[0]?.id || '',
       sku: '', barcode: '', price: '', cost: '', type: 'retail',
-      stockQty: '', stockBranchId: defaultBranchId(),
+      stockQty: '', stockBranchId: defaultBranchId(), baseUnit: '',
     });
+    setUnitRows([]);
     setShowModal(true);
   };
 
@@ -134,9 +157,22 @@ export const ProductsPage: React.FC = () => {
       type: product.type || 'retail',
       stockQty: '',
       stockBranchId: defaultBranchId(),
+      baseUnit: product.unit || '',
     });
+    setUnitRows(
+      (product.units || []).map((u) => ({
+        id: u.id,
+        name: u.name,
+        barcode: u.barcode || '',
+        factor: String(u.factor ?? 1),
+        price: String(u.price ?? ''),
+      })),
+    );
     setShowModal(true);
   };
+
+  const updateUnitRow = (index: number, patch: Partial<UnitFormRow>) =>
+    setUnitRows((rows) => rows.map((r, i) => (i === index ? { ...r, ...patch } : r)));
 
   // current stock shown inside inventory section
   const currentStock: number | null = (() => {
@@ -150,14 +186,36 @@ export const ProductsPage: React.FC = () => {
     setSubmitting(true);
     setSaveMsg(null);
     try {
+      // Selling units: keep rows with a name; each needs a factor > 0.
+      const cleanedUnits = unitRows
+        .filter((r) => r.name.trim())
+        .map((r) => ({
+          name: r.name.trim(),
+          barcode: r.barcode.trim() || undefined,
+          factor: Number(r.factor) || 1,
+          price: Number(r.price),
+        }));
+      if (cleanedUnits.some((u) => !(u.factor > 0))) {
+        setSaveMsg({ ok: false, text: `❌ ${t.unitFactorPositive}` });
+        setSubmitting(false);
+        return;
+      }
+      if (cleanedUnits.some((u) => !(u.price >= 0)) || cleanedUnits.some((u) => !Number.isFinite(u.price))) {
+        setSaveMsg({ ok: false, text: `❌ ${t.unitPriceRequired}` });
+        setSubmitting(false);
+        return;
+      }
+
       const payload = {
         name: formData.name,
         categoryId: formData.categoryId || undefined,
         sku: formData.sku || undefined,
         barcode: formData.barcode || undefined,
+        unit: formData.baseUnit.trim() ? formData.baseUnit.trim() : editingProduct ? null : undefined,
         price: Number(formData.price),
         cost: Number(formData.cost || 0),
         type: formData.type,
+        units: cleanedUnits,
       };
 
       let productId = editingProduct?.id;
@@ -473,7 +531,12 @@ export const ProductsPage: React.FC = () => {
                 {/* Price & Cost */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-slate-700 font-bold mb-1">{t.priceLabel}</label>
+                    <label className="block text-slate-700 font-bold mb-1">
+                      {t.priceLabel}
+                      {formData.baseUnit.trim() && (
+                        <span className="ms-1 text-[10px] font-semibold text-cyan-600">/ {formData.baseUnit.trim()}</span>
+                      )}
+                    </label>
                     <input type="number" step="0.01" required value={formData.price}
                       onChange={(e) => setFormData({ ...formData, price: e.target.value })}
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-800 focus:outline-none focus:border-cyan-500 shadow-sm"
@@ -485,6 +548,70 @@ export const ProductsPage: React.FC = () => {
                       onChange={(e) => setFormData({ ...formData, cost: e.target.value })}
                       className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-800 focus:outline-none focus:border-cyan-500 shadow-sm"
                       placeholder={t.costPlaceholder} />
+                  </div>
+                </div>
+
+                {/* Base unit */}
+                <div>
+                  <label className="block text-slate-700 font-bold mb-1">{t.baseUnit}</label>
+                  <input type="text" list="common-units" value={formData.baseUnit}
+                    onChange={(e) => setFormData({ ...formData, baseUnit: e.target.value })}
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-slate-800 focus:outline-none focus:border-cyan-500 shadow-sm"
+                    placeholder={t.baseUnitPlaceholder} />
+                  <datalist id="common-units">
+                    {['PCS', 'Dozen', 'Carton', 'Pack', 'Tray', 'Box', 'KG', 'Gram', 'Liter', 'Meter'].map((u) => (
+                      <option key={u} value={u} />
+                    ))}
+                  </datalist>
+                </div>
+
+                {/* ── Selling Units ──────────────────────────────────────────── */}
+                <div className="rounded-2xl border border-slate-200 overflow-hidden">
+                  <div className="bg-gradient-to-r from-violet-50 to-purple-50 px-4 py-3 border-b border-slate-200 flex items-center gap-2">
+                    <Package className="w-4 h-4 text-violet-600 shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-[11px] font-extrabold text-violet-800 uppercase tracking-wider">{t.sellingUnits}</p>
+                      <p className="text-[10px] text-violet-600 mt-0.5">{t.sellingUnitsHint}</p>
+                    </div>
+                  </div>
+                  <div className="p-3 space-y-2 bg-white">
+                    {unitRows.length === 0 && (
+                      <p className="text-[11px] text-slate-400 text-center py-1.5">{t.noSellingUnits}</p>
+                    )}
+                    {unitRows.map((row, idx) => (
+                      <div key={idx} className="rounded-xl border border-slate-200 p-2 space-y-1.5 bg-slate-50/60">
+                        <div className="grid grid-cols-[1fr_auto] gap-1.5 items-start">
+                          <input type="text" list="common-units" value={row.name}
+                            onChange={(e) => updateUnitRow(idx, { name: e.target.value })}
+                            className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-slate-800 focus:outline-none focus:border-violet-500"
+                            placeholder={t.unitNameCol} />
+                          <button type="button"
+                            onClick={() => setUnitRows((rows) => rows.filter((_, i) => i !== idx))}
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                            title={t.deleteItem}>
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                        <div className="grid grid-cols-3 gap-1.5">
+                          <input type="text" value={row.barcode}
+                            onChange={(e) => updateUnitRow(idx, { barcode: e.target.value })}
+                            className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-slate-800 font-mono text-[11px] focus:outline-none focus:border-violet-500"
+                            placeholder={t.unitBarcodeCol} />
+                          <input type="number" min="0" step="0.001" value={row.factor}
+                            onChange={(e) => updateUnitRow(idx, { factor: e.target.value })}
+                            className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-slate-800 text-center focus:outline-none focus:border-violet-500"
+                            placeholder={t.conversionQty} title={t.conversionQty} />
+                          <input type="number" min="0" step="0.01" value={row.price}
+                            onChange={(e) => updateUnitRow(idx, { price: e.target.value })}
+                            className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-slate-800 text-center focus:outline-none focus:border-violet-500"
+                            placeholder={t.unitPriceCol} title={t.unitPriceCol} />
+                        </div>
+                      </div>
+                    ))}
+                    <button type="button" onClick={() => setUnitRows((rows) => [...rows, emptyUnitRow()])}
+                      className="w-full py-2 rounded-xl border border-dashed border-violet-300 text-violet-600 hover:bg-violet-50 font-bold text-[11px] transition-colors flex items-center justify-center gap-1">
+                      <Plus className="w-3.5 h-3.5" /> {t.addSellingUnit}
+                    </button>
                   </div>
                 </div>
 

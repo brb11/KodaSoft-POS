@@ -13,6 +13,10 @@ function roundCents(n: number): number {
   return Math.round((n + Number.EPSILON) * 100) / 100;
 }
 
+function round3(n: number): number {
+  return Math.round((n + Number.EPSILON) * 1000) / 1000;
+}
+
 // Sum of on-account (STORE_CREDIT) payment amounts. These represent the
 // portion of an order charged to the customer's credit account rather than
 // collected as cash/card.
@@ -186,22 +190,41 @@ export async function createOrder(tenantId: string, cashierId: string, dto: Crea
       const variantIds = dto.items.filter((i) => i.variantId).map((i) => i.variantId as string);
       const variants = variantIds.length ? await tx.productVariant.findMany({ where: { id: { in: variantIds } } }) : [];
 
+      const unitIds = [...new Set(dto.items.filter((i) => i.unitId).map((i) => i.unitId as string))];
+      const units = unitIds.length
+        ? await tx.productUnit.findMany({ where: { id: { in: unitIds }, tenantId, isActive: true } })
+        : [];
+
       const productMap = new Map(products.map((p) => [p.id, p]));
       const variantMap = new Map(variants.map((v) => [v.id, v]));
+      const unitMap = new Map(units.map((u) => [u.id, u]));
 
       for (const product of products) {
         if (!product.isActive) throw new AppError(400, `Product "${product.name}" is inactive`);
       }
 
-      // Server-authoritative line pricing from the database.
+      // Server-authoritative line pricing from the database. When the line
+      // references a selling unit (carton/pack/…), its fixed DB price and
+      // conversion factor are used; stock is consumed in base units.
       const lines = dto.items.map((item) => {
         const product = productMap.get(item.productId)!;
         const modifier = item.variantId ? Number(variantMap.get(item.variantId)?.priceModifier ?? 0) : 0;
-        const unitPrice = roundCents(Number(product.price) + modifier);
+        let unitRow = null as (typeof units)[number] | null;
+        if (item.unitId) {
+          const u = unitMap.get(item.unitId);
+          if (!u || u.productId !== product.id) {
+            throw new AppError(400, `Invalid selling unit for product "${product.name}"`);
+          }
+          unitRow = u;
+        }
+        const unitPrice = unitRow ? Number(unitRow.price) : roundCents(Number(product.price) + modifier);
+        const unitFactor = unitRow ? Number(unitRow.factor) : 1;
+        const unitName = unitRow ? unitRow.name : null;
         const quantity = Number(item.quantity);
+        const quantityBase = round3(quantity * unitFactor);
         const grossTotal = roundCents(unitPrice * quantity);
         const rate = product.taxRate ? Number(product.taxRate.rate) : DEFAULT_TAX_RATE;
-        return { item, product, unitPrice, quantity, grossTotal, rate };
+        return { item, product, unitRow, unitName, unitFactor, unitPrice, quantity, quantityBase, grossTotal, rate };
       });
 
       const grossTotal = roundCents(lines.reduce((s, l) => s + l.grossTotal, 0));
@@ -261,6 +284,9 @@ export async function createOrder(tenantId: string, cashierId: string, dto: Crea
             create: lines.map((l, i) => ({
               productId: l.product.id,
               variantId: l.item.variantId,
+              unitId: l.unitRow?.id,
+              unitName: l.unitName,
+              unitFactor: l.unitFactor,
               name: l.item.name,
               sku: l.item.sku,
               quantity: l.quantity,
@@ -283,7 +309,8 @@ export async function createOrder(tenantId: string, cashierId: string, dto: Crea
         include: { items: true, payments: true },
       });
 
-      // Atomic stock guard: decrement only if quantity is sufficient.
+      // Atomic stock guard: decrement only if the base-unit quantity
+      // (sale quantity × unit factor) is sufficient.
       for (const l of lines) {
         if (!inventoryEnabled || !l.product.trackInventory) continue;
         const result = await tx.inventory.updateMany({
@@ -291,9 +318,9 @@ export async function createOrder(tenantId: string, cashierId: string, dto: Crea
             productId: l.product.id,
             variantId: l.item.variantId ?? null,
             branchId: dto.branchId,
-            quantity: { gte: l.quantity },
+            quantity: { gte: l.quantityBase },
           },
-          data: { quantity: { decrement: l.quantity } },
+          data: { quantity: { decrement: l.quantityBase } },
         });
         if (result.count === 0) {
           throw new AppError(400, `Insufficient stock for product "${l.product.name}"`, 'INSUFFICIENT_STOCK');
@@ -305,9 +332,10 @@ export async function createOrder(tenantId: string, cashierId: string, dto: Crea
             productId: l.product.id,
             variantId: l.item.variantId,
             type: 'sale',
-            quantity: -l.quantity,
+            quantity: -l.quantityBase,
             referenceId: newOrder.id,
             referenceType: 'order',
+            note: l.unitName ? `${round3(l.quantity)} × ${l.unitName}` : undefined,
             createdBy: cashierId,
           },
         });
@@ -415,12 +443,13 @@ export async function voidOrder(tenantId: string, id: string, cashierId: string,
       });
     }
 
-    // Restore inventory
+    // Restore inventory (in base units: sale quantity × unit factor)
     for (const item of order.items) {
       if (!inventoryEnabled || !item.product?.trackInventory) continue;
+      const baseQty = round3(Number(item.quantity) * Number(item.unitFactor ?? 1));
       await tx.inventory.updateMany({
         where: { productId: item.productId, variantId: item.variantId ?? null, branchId: order.branchId },
-        data: { quantity: { increment: item.quantity } },
+        data: { quantity: { increment: baseQty } },
       });
 
       await tx.inventoryMovement.create({
@@ -429,7 +458,7 @@ export async function voidOrder(tenantId: string, id: string, cashierId: string,
           productId: item.productId,
           variantId: item.variantId,
           type: 'adjustment',
-          quantity: Math.abs(Number(item.quantity)),
+          quantity: Math.abs(baseQty),
           referenceId: id,
           referenceType: 'void',
           note: reason,
@@ -465,12 +494,15 @@ export async function refundOrder(tenantId: string, id: string, cashierId: strin
 
     if (itemsToRefund.length === 0) throw new AppError(400, 'Nothing left to refund');
 
-    // Restore stock, record a return movement and track refunded quantity per line.
+    // Restore stock (base units), record a return movement and track refunded
+    // quantity per line. Refund quantities are in the line's selling unit.
     for (const { line, quantity } of itemsToRefund) {
+      const factor = Number(line.unitFactor ?? 1);
+      const baseQty = round3(quantity * factor);
       if (inventoryEnabled && line.product?.trackInventory) {
         await tx.inventory.updateMany({
           where: { productId: line.productId, variantId: line.variantId ?? null, branchId: order.branchId },
-          data: { quantity: { increment: quantity } },
+          data: { quantity: { increment: baseQty } },
         });
       }
 
@@ -481,10 +513,10 @@ export async function refundOrder(tenantId: string, id: string, cashierId: strin
             productId: line.productId,
             variantId: line.variantId,
             type: 'return',
-            quantity,
+            quantity: baseQty,
             referenceId: order.id,
             referenceType: 'refund',
-            note: dto.reason,
+            note: line.unitName ? `${round3(quantity)} × ${line.unitName}` : dto.reason,
             createdBy: cashierId,
           },
         });

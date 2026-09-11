@@ -3,6 +3,10 @@ import { create } from 'zustand';
 export interface CartItem {
   productId: string;
   variantId?: string;
+  unitId?: string;
+  unitName?: string;
+  /** Base units contained in one selling unit (carton of 12 → 12). */
+  unitFactor: number;
   name: string;
   price: number;
   quantity: number;
@@ -28,10 +32,13 @@ interface CartState {
   customer: CustomerInfo | null;
   discount: number; // percentage or fixed
   discountType: 'percent' | 'fixed';
-  addItem: (product: { id: string; name: string; price: number; sku?: string; taxRate?: any }) => void;
-  removeItem: (productId: string) => void;
-  updateQuantity: (productId: string, quantity: number) => void;
-  updatePrice: (productId: string, price: number) => void;
+  addItem: (
+    product: { id: string; name: string; price: number; sku?: string; taxRate?: any },
+    unit?: { unitId?: string; unitName?: string; unitFactor?: number; price?: number },
+  ) => void;
+  removeItem: (productId: string, unitId?: string) => void;
+  updateQuantity: (productId: string, quantity: number, unitId?: string) => void;
+  updatePrice: (productId: string, price: number, unitId?: string) => void;
   setDiscount: (amount: number, type: 'percent' | 'fixed') => void;
   setCustomer: (customer: CustomerInfo | null) => void;
   clearCart: () => void;
@@ -72,15 +79,20 @@ export const useCartStore = create<CartState>((set, get) => ({
 
   setCustomer: (customer) => set({ customer }),
 
-  addItem: (product) => {
+  addItem: (product, unit) => {
     set((state) => {
-      const existing = state.items.find((item) => item.productId === product.id);
+      const unitKey = unit?.unitId ?? null;
+      // Same product sold in a different unit (piece vs carton) is a
+      // separate line: match on productId AND unitId.
+      const existing = state.items.find(
+        (item) => item.productId === product.id && (item.unitId ?? null) === unitKey,
+      );
       if (existing) {
         return {
           items: state.items.map((item) =>
-            item.productId === product.id
+            item.productId === product.id && (item.unitId ?? null) === unitKey
               ? { ...item, quantity: item.quantity + 1 }
-              : item
+              : item,
           ),
         };
       }
@@ -90,7 +102,10 @@ export const useCartStore = create<CartState>((set, get) => ({
           {
             productId: product.id,
             name: product.name,
-            price: Number(product.price),
+            price: unit?.price != null ? Number(unit.price) : Number(product.price),
+            unitId: unit?.unitId,
+            unitName: unit?.unitName,
+            unitFactor: unit?.unitFactor ?? 1,
             quantity: 1,
             sku: product.sku,
             taxRate: Number(product.taxRate?.rate ?? product.taxRate ?? 15),
@@ -100,29 +115,35 @@ export const useCartStore = create<CartState>((set, get) => ({
     });
   },
 
-  removeItem: (productId) => {
+  removeItem: (productId, unitId) => {
     set((state) => ({
-      items: state.items.filter((item) => item.productId !== productId),
-    }));
-  },
-
-  updateQuantity: (productId, quantity) => {
-    if (quantity <= 0) {
-      get().removeItem(productId);
-      return;
-    }
-    set((state) => ({
-      items: state.items.map((item) =>
-        item.productId === productId ? { ...item, quantity } : item
+      items: state.items.filter(
+        (item) => !(item.productId === productId && (item.unitId ?? null) === (unitId ?? null)),
       ),
     }));
   },
 
-  updatePrice: (productId, price) => {
+  updateQuantity: (productId, quantity, unitId) => {
+    if (quantity <= 0) {
+      get().removeItem(productId, unitId);
+      return;
+    }
+    set((state) => ({
+      items: state.items.map((item) =>
+        item.productId === productId && (item.unitId ?? null) === (unitId ?? null)
+          ? { ...item, quantity }
+          : item,
+      ),
+    }));
+  },
+
+  updatePrice: (productId, price, unitId) => {
     if (price < 0) return;
     set((state) => ({
       items: state.items.map((item) =>
-        item.productId === productId ? { ...item, price } : item
+        item.productId === productId && (item.unitId ?? null) === (unitId ?? null)
+          ? { ...item, price }
+          : item,
       ),
     }));
   },
@@ -137,7 +158,8 @@ export const useCartStore = create<CartState>((set, get) => ({
 
   restoreCart: (snapshot) => {
     set({
-      items: snapshot.items,
+      // Older snapshots predate selling units — default their factor.
+      items: (snapshot.items || []).map((item) => ({ ...item, unitFactor: item.unitFactor ?? 1 })),
       customer: snapshot.customer,
       discount: snapshot.discount,
       discountType: snapshot.discountType,

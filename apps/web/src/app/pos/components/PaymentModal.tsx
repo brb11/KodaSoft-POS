@@ -65,8 +65,20 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ open, onClose, total
   const setMethod = (id: number, method: PaymentMethod) =>
     setRows((rs) => rs.map((r) => (r.id === id ? { ...r, method } : r)));
 
+  // True when exactly two rows exist and they are CASH + CARD (the classic
+  // split). In that case editing either amount auto-fills the other one so
+  // the two payments always balance to the total.
+  const isCashCardPair = (rs: Row[]) =>
+    rs.length === 2 && rs[0].method !== 'STORE_CREDIT' && rs[1].method !== 'STORE_CREDIT';
+
   const setAmount = (id: number, amount: string) =>
-    setRows((rs) => rs.map((r) => (r.id === id ? { ...r, amount } : r)));
+    setRows((rs) => {
+      const updated = rs.map((r) => (r.id === id ? { ...r, amount } : r));
+      if (!isCashCardPair(updated) || amount.trim() === '') return updated;
+      const edited = updated.find((r) => r.id === id)!;
+      const rest = roundCents(total - parseAmount(edited.amount));
+      return updated.map((r) => (r.id === id ? r : { ...r, amount: String(Math.max(rest, 0)) }));
+    });
 
   const removeRow = (id: number) => setRows((rs) => (rs.length > 1 ? rs.filter((r) => r.id !== id) : rs));
 
@@ -156,6 +168,11 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({ open, onClose, total
 
         {/* Payment rows */}
         <div className="flex-1 overflow-y-auto px-6 py-4 space-y-2.5">
+          {isCashCardPair(rows) && (
+            <p className="text-[11px] font-semibold text-cyan-600 bg-cyan-50 border border-cyan-100 rounded-xl px-3 py-2">
+              {t.splitAutoBalance}
+            </p>
+          )}
           {rows.map((row) => {
             const meta = methodMeta(row.method);
             return (

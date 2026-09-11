@@ -3,6 +3,7 @@ import { z } from 'zod';
 const purchaseItemSchema = z.object({
   productId: z.string().uuid(),
   variantId: z.string().uuid().optional(),
+  unitId: z.string().uuid().optional(),
   name: z.string().min(1),
   sku: z.string().optional(),
   quantity: z.number().positive('Quantity must be positive'),

@@ -7,6 +7,9 @@ import { useCartStore } from '../../../stores/cartStore';
 interface HeldItem {
   productId: string;
   variantId?: string;
+  unitId?: string;
+  unitName?: string;
+  unitFactor?: number;
   name: string;
   price: number;
   quantity: number;
@@ -72,7 +75,7 @@ export const HeldOrdersModal: React.FC<HeldOrdersModalProps> = ({ open, onClose,
     setBusyId(order.id);
     try {
       useCartStore.getState().restoreCart({
-        items: order.items || [],
+        items: (order.items || []).map((it) => ({ ...it, unitFactor: it.unitFactor ?? 1 })),
         customer: order.customer || null,
         discount: Number(order.discount || 0),
         discountType: order.discountType === 'fixed' ? 'fixed' : 'percent',

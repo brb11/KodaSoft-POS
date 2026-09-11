@@ -57,6 +57,8 @@ import {
   Wallet
 } from 'lucide-react';
 
+const roundCents = (n: number): number => Math.round((n + Number.EPSILON) * 100) / 100;
+
 interface Product {
   id: string;
   name: string;
@@ -67,6 +69,7 @@ interface Product {
   category?: { name: string; nameAr?: string };
   trackInventory?: boolean;
   inventory?: { branchId: string; quantity: number }[];
+  units?: { id: string; name: string; barcode?: string | null; factor: number; price: number }[];
 }
 
 interface Category {
@@ -248,7 +251,7 @@ export const PosTerminal: React.FC = () => {
     resolveBranch();
   }, [user]);
 
-  const lastAddedIdRef = useRef<string | null>(null);
+  const lastAddedRef = useRef<{ productId: string; unitId?: string } | null>(null);
 
   const resolveBranch = async () => {
     if (user?.branchId) {
@@ -308,6 +311,13 @@ export const PosTerminal: React.FC = () => {
     taxRate: p.taxRate ? Number(p.taxRate.rate) : undefined,
     trackInventory: p.trackInventory,
     inventory: p.inventory || [],
+    units: (p.units || []).map((u: any) => ({
+      id: u.id,
+      name: u.name,
+      barcode: u.barcode ?? null,
+      factor: Number(u.factor),
+      price: Number(u.price),
+    })),
   });
 
   const fetchData = async () => {
@@ -372,16 +382,19 @@ export const PosTerminal: React.FC = () => {
     return inv ? Number(inv.quantity) : 0;
   };
 
-  const qtyInCart = (productId: string): number => {
-    const item = items.find((i) => i.productId === productId);
-    return item?.quantity ?? 0;
+  const qtyInCartBase = (productId: string): number => {
+    // Base units already committed to the cart across ALL lines of the
+    // product (a carton line of factor 12 counts as 12 pieces).
+    return items
+      .filter((i) => i.productId === productId)
+      .reduce((sum, i) => sum + i.quantity * (i.unitFactor || 1), 0);
   };
 
-  const tryAddToCart = (product: Product): boolean => {
+  const tryAddToCart = (product: Product, extraBaseUnits = 1): boolean => {
     if (!inventoryEnabled) return true;
     const available = stockFor(product.id, product);
     if (available === null) return true;
-    if (qtyInCart(product.id) + 1 > available) {
+    if (qtyInCartBase(product.id) + extraBaseUnits > available) {
       flashScan(false, translate(t.stockLimitReached, { name: product.name, available: String(available) }));
       return false;
     }
@@ -423,16 +436,13 @@ export const PosTerminal: React.FC = () => {
     scanHighlightTimer.current = setTimeout(() => setRecentlyScannedId(null), 1400);
   };
 
-  const addProductToCart = (p: Product) => {
-    if (!tryAddToCart(p)) return;
-    addItem({
-      id: p.id,
-      name: p.name,
-      price: Number(p.price),
-      sku: p.sku,
-      taxRate: p.taxRate,
-    });
-    lastAddedIdRef.current = p.id;
+  const addProductToCart = (p: Product, unit?: { id: string; name: string; factor: number; price: number }) => {
+    if (!tryAddToCart(p, unit ? unit.factor : 1)) return;
+    addItem(
+      { id: p.id, name: p.name, price: Number(p.price), sku: p.sku, taxRate: p.taxRate },
+      unit ? { unitId: unit.id, unitName: unit.name, unitFactor: unit.factor, price: unit.price } : undefined,
+    );
+    lastAddedRef.current = { productId: p.id, unitId: unit?.id };
     triggerScanHighlight(p.id);
   };
 
@@ -446,17 +456,23 @@ export const PosTerminal: React.FC = () => {
       if (qtyMatch) {
         setSearchQuery('');
         const qtyToSet = parseInt(qtyMatch[1], 10);
-        const lastId = lastAddedIdRef.current;
-        if (qtyToSet > 0 && lastId) {
-          const itemInCart = items.find((i) => i.productId === lastId);
+        const last = lastAddedRef.current;
+        if (qtyToSet > 0 && last) {
+          const itemInCart = items.find(
+            (i) => i.productId === last.productId && (i.unitId ?? null) === (last.unitId ?? null),
+          );
           if (itemInCart) {
-            // Re-check inventory limit if needed
-            const available = stockFor(lastId);
-            if (inventoryEnabled && available !== null && qtyToSet > available) {
+            // Re-check inventory limit in base units
+            const available = stockFor(last.productId);
+            if (
+              inventoryEnabled &&
+              available !== null &&
+              qtyToSet * (itemInCart.unitFactor || 1) > available
+            ) {
               flashScan(false, translate(t.stockLimitReached, { name: itemInCart.name, available: String(available) }));
               return;
             }
-            updateQuantity(lastId, qtyToSet);
+            updateQuantity(last.productId, qtyToSet, last.unitId);
             flashScan(true, `تم تعديل الكمية إلى ${qtyToSet}`);
           }
         }
@@ -468,15 +484,28 @@ export const PosTerminal: React.FC = () => {
       if (priceMatch) {
         setSearchQuery('');
         const priceToSet = parseFloat(priceMatch[1]);
-        const lastId = lastAddedIdRef.current;
-        if (priceToSet >= 0 && lastId) {
-          const itemInCart = items.find((i) => i.productId === lastId);
+        const last = lastAddedRef.current;
+        if (priceToSet >= 0 && last) {
+          const itemInCart = items.find(
+            (i) => i.productId === last.productId && (i.unitId ?? null) === (last.unitId ?? null),
+          );
           if (itemInCart) {
-            updatePrice(lastId, priceToSet);
+            updatePrice(last.productId, priceToSet, last.unitId);
             flashScan(true, `تم تعديل السعر إلى ${priceToSet}`);
           }
         }
         return;
+      }
+
+      // Selling-unit barcodes first: scanning a carton code adds one carton.
+      for (const p of products) {
+        const unit = (p.units || []).find((u) => u.barcode && u.barcode.trim() === trimmed);
+        if (unit) {
+          addProductToCart(p, unit);
+          setSearchQuery('');
+          flashScan(true, `${t.scanAdded}: ${p.name} (${unit.name})`);
+          return;
+        }
       }
 
       const local = products.find((p) => p.barcode && p.barcode.trim() === trimmed);
@@ -491,6 +520,9 @@ export const PosTerminal: React.FC = () => {
         const res = await api.get(`/products/barcode/${encodeURIComponent(trimmed)}`);
         const p = res.data?.data;
         if (p && p.id) {
+          const soldUnit = p.soldUnit
+            ? { id: p.soldUnit.id as string, name: p.soldUnit.name as string, factor: Number(p.soldUnit.factor), price: Number(p.soldUnit.price) }
+            : undefined;
           const product: Product = {
             id: p.id,
             name: p.name,
@@ -501,13 +533,18 @@ export const PosTerminal: React.FC = () => {
             taxRate: p.taxRate,
             trackInventory: p.trackInventory,
             inventory: p.inventory || [],
+            units: soldUnit ? [soldUnit] : [],
           };
           setProducts((prev) => (prev.some((x) => x.id === product.id) ? prev : [...prev, product]));
-          if (!tryAddToCart(product)) return;
-          addItem(product);
+          if (!tryAddToCart(product, soldUnit ? soldUnit.factor : 1)) return;
+          addItem(
+            { id: product.id, name: product.name, price: Number(product.price), sku: product.sku, taxRate: product.taxRate },
+            soldUnit ? { unitId: soldUnit.id, unitName: soldUnit.name, unitFactor: soldUnit.factor, price: soldUnit.price } : undefined,
+          );
+          lastAddedRef.current = { productId: product.id, unitId: soldUnit?.id };
           triggerScanHighlight(product.id);
           setSearchQuery('');
-          flashScan(true, `${t.scanAdded}: ${product.name}`);
+          flashScan(true, `${t.scanAdded}: ${soldUnit ? `${product.name} (${soldUnit.name})` : product.name}`);
           return;
         }
         flashScan(false, t.barcodeNotFound);
@@ -566,10 +603,11 @@ export const PosTerminal: React.FC = () => {
       paidAmount,
       items: items.map((i) => ({
         productId: i.productId,
-        name: i.name,
+        unitId: i.unitId,
+        name: i.unitName ? `${i.name} (${i.unitName})` : i.name,
         quantity: i.quantity,
         unitPrice: i.price,
-        subtotal: i.price * i.quantity,
+        subtotal: roundCents(i.price * i.quantity),
       })),
       payments,
     };
@@ -946,17 +984,20 @@ export const PosTerminal: React.FC = () => {
                 <div className="flex-1 overflow-y-auto space-y-1.5 ltr:pr-1 rtl:pl-1">
                   {items.map((item) => (
                     <CartItemRow
-                      key={item.productId}
+                      key={`${item.productId}:${item.unitId ?? 'base'}`}
                       item={item}
                       currency={t.currency}
-                      isHighlighted={recentlyScannedId === item.productId}
-                      onUpdateQuantity={updateQuantity}
-                      onUpdatePrice={updatePrice}
-                      onRemoveItem={removeItem}
+                      isHighlighted={
+                        recentlyScannedId === item.productId &&
+                        lastAddedRef.current?.unitId === item.unitId
+                      }
+                      onUpdateQuantity={(id, qty, unitId) => updateQuantity(id, qty, unitId)}
+                      onUpdatePrice={(id, price, unitId) => updatePrice(id, price, unitId)}
+                      onRemoveItem={(id, unitId) => removeItem(id, unitId)}
                       onTryAddMore={() => {
                         const p = products.find((x) => x.id === item.productId);
-                        if (!p || tryAddToCart(p)) {
-                          updateQuantity(item.productId, item.quantity + 1);
+                        if (!p || tryAddToCart(p, item.unitFactor || 1)) {
+                          updateQuantity(item.productId, item.quantity + 1, item.unitId);
                         }
                       }}
                     />

@@ -14,6 +14,8 @@ interface Product {
   price: number | string;
   cost: number | string;
   taxRate?: { rate: number } | number | null;
+  unit?: string | null;
+  units?: { id: string; name: string; factor: number; price: number }[];
 }
 
 interface Supplier { id: string; name: string; nameAr?: string | null; }
@@ -21,6 +23,7 @@ interface Branch { id: string; name: string; }
 
 interface LineItem {
   productId: string;
+  unitId: string;
   name: string;
   sku: string;
   quantity: number;
@@ -30,7 +33,7 @@ interface LineItem {
 }
 
 const emptyLine = (): LineItem => ({
-  productId: '', name: '', sku: '', quantity: 1, unitPrice: 0, discountAmount: 0, taxRate: 15,
+  productId: '', unitId: '', name: '', sku: '', quantity: 1, unitPrice: 0, discountAmount: 0, taxRate: 15,
 });
 
 const round2 = (n: number) => Math.round((n + Number.EPSILON) * 100) / 100;
@@ -87,15 +90,24 @@ export const PurchaseFormPage: React.FC = () => {
         setDueDate(inv.dueDate ? new Date(inv.dueDate).toISOString().split('T')[0] : '');
         setDiscountAmount(Number(inv.discountAmount));
         setNotes(inv.notes || '');
-        setItems(inv.items.map((it: any) => ({
-          productId: it.productId,
-          name: it.name,
-          sku: it.sku || '',
-          quantity: Number(it.quantity),
-          unitPrice: Number(it.unitPrice),
-          discountAmount: Number(it.discountAmount),
-          taxRate: 15,
-        })));
+        // Purchase items only snapshot unitName/unitFactor — best-effort
+        // re-match against the product's current selling units by name.
+        setItems(inv.items.map((it: any) => {
+          const prod = (prodRes.data.data.items || []).find((p: any) => p.id === it.productId);
+          const matched = it.unitName
+            ? (prod?.units || []).find((u: any) => u.name === it.unitName)
+            : null;
+          return {
+            productId: it.productId,
+            unitId: matched?.id || '',
+            name: it.name,
+            sku: it.sku || '',
+            quantity: Number(it.quantity),
+            unitPrice: Number(it.unitPrice),
+            discountAmount: Number(it.discountAmount),
+            taxRate: 15,
+          };
+        }));
       }
     } catch (err) {
       console.error('Failed to load form data:', err);
@@ -119,11 +131,18 @@ export const PurchaseFormPage: React.FC = () => {
     updated[index] = {
       ...updated[index],
       productId: p.id,
+      unitId: '',
       name: p.name,
       sku: p.sku || '',
       unitPrice: Number(p.cost) || Number(p.price),
       taxRate: getProductTaxRate(p.id),
     };
+    setItems(updated);
+  };
+
+  const onUnitSelect = (index: number, unitId: string) => {
+    const updated = [...items];
+    updated[index] = { ...updated[index], unitId };
     setItems(updated);
   };
 
@@ -161,6 +180,7 @@ export const PurchaseFormPage: React.FC = () => {
         notes: notes || undefined,
         items: items.filter((it) => it.productId).map((it) => ({
           productId: it.productId,
+          unitId: it.unitId || undefined,
           name: it.name,
           sku: it.sku || undefined,
           quantity: it.quantity,
@@ -274,7 +294,8 @@ export const PurchaseFormPage: React.FC = () => {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-100">
-                  <th className="px-4 py-2.5 text-start text-xs font-bold text-slate-500 w-[250px]">{t.product || 'Product'}</th>
+                  <th className="px-4 py-2.5 text-start text-xs font-bold text-slate-500 w-[220px]">{t.product || 'Product'}</th>
+                  <th className="px-4 py-2.5 text-start text-xs font-bold text-slate-500 w-[110px]">{t.purchaseUnit || 'Unit'}</th>
                   <th className="px-4 py-2.5 text-start text-xs font-bold text-slate-500 w-20">{t.qtyCol || 'Qty'}</th>
                   <th className="px-4 py-2.5 text-start text-xs font-bold text-slate-500 w-28">{t.unitPrice || 'Unit Price'}</th>
                   <th className="px-4 py-2.5 text-start text-xs font-bold text-slate-500 w-24">{t.discount || 'Discount'}</th>
@@ -296,6 +317,21 @@ export const PurchaseFormPage: React.FC = () => {
                             <option key={p.id} value={p.id}>{p.name} {p.sku ? `(${p.sku})` : ''}</option>
                           ))}
                         </select>
+                      </td>
+                      <td className="px-3 py-2">
+                        {(() => {
+                          const p = products.find((x) => x.id === item.productId);
+                          const unitOptions = p?.units || [];
+                          return (
+                            <select value={item.unitId} onChange={(e) => onUnitSelect(i, e.target.value)} disabled={!p}
+                              className="w-full bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-xs focus:outline-none focus:border-cyan-500 disabled:opacity-50">
+                              <option value="">{t.baseUnitOption || 'Base'}{p?.unit ? ` (${p.unit})` : ''}</option>
+                              {unitOptions.map((u) => (
+                                <option key={u.id} value={u.id}>{u.name} ×{u.factor}</option>
+                              ))}
+                            </select>
+                          );
+                        })()}
                       </td>
                       <td className="px-3 py-2">
                         <input type="number" min="0.001" step="0.001" value={item.quantity} onChange={(e) => updateItem(i, 'quantity', Number(e.target.value))}

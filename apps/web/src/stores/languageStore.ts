@@ -609,6 +609,20 @@ export interface Translations {
   itemCol: string;
   qtyCol: string;
   unitPriceCol: string;
+  baseUnit: string;
+  baseUnitPlaceholder: string;
+  sellingUnits: string;
+  sellingUnitsHint: string;
+  noSellingUnits: string;
+  unitNameCol: string;
+  unitBarcodeCol: string;
+  conversionQty: string;
+  addSellingUnit: string;
+  unitFactorPositive: string;
+  unitPriceRequired: string;
+  purchaseUnit: string;
+  baseUnitOption: string;
+  splitAutoBalance: string;
   totalCol: string;
   subtotalCol: string;
   vatCol: string;
@@ -1683,6 +1697,20 @@ const translations: Record<Language, Translations> = {
     itemCol: 'الصنف',
     qtyCol: 'الكمية',
     unitPriceCol: 'سعر الوحدة',
+    baseUnit: 'الوحدة الأساسية',
+    baseUnitPlaceholder: 'قطعة، كجم، لتر… (اختياري)',
+    sellingUnits: 'وحدات البيع الإضافية',
+    sellingUnitsHint: 'مثال: كرتونة = 12 قطعة بسعر وباركود خاصين. يُخصم المخزون بالوحدة الأساسية.',
+    noSellingUnits: 'لا توجد وحدات بيع إضافية',
+    unitNameCol: 'اسم الوحدة',
+    unitBarcodeCol: 'الباركود',
+    conversionQty: 'كمية التحويل',
+    addSellingUnit: 'إضافة وحدة',
+    unitFactorPositive: 'كمية التحويل يجب أن تكون أكبر من صفر',
+    unitPriceRequired: 'سعر الوحدة غير صالح',
+    purchaseUnit: 'الوحدة',
+    baseUnitOption: 'أساسية',
+    splitAutoBalance: 'يتم موازنة مبلغ النقدي والشبكة تلقائياً',
     totalCol: 'الإجمالي',
     subtotalCol: 'قبل الضريبة:',
     vatCol: 'ضريبة القيمة المضافة (15%):',
@@ -2752,6 +2780,20 @@ const translations: Record<Language, Translations> = {
     itemCol: 'Item',
     qtyCol: 'Qty',
     unitPriceCol: 'Unit Price',
+    baseUnit: 'Base unit',
+    baseUnitPlaceholder: 'Piece, kg, liter… (optional)',
+    sellingUnits: 'Additional Selling Units',
+    sellingUnitsHint: 'e.g. Carton = 12 pieces with its own barcode & price. Stock is deducted in base units.',
+    noSellingUnits: 'No additional selling units',
+    unitNameCol: 'Unit name',
+    unitBarcodeCol: 'Barcode',
+    conversionQty: 'Conversion qty',
+    addSellingUnit: 'Add unit',
+    unitFactorPositive: 'Conversion quantity must be greater than zero',
+    unitPriceRequired: 'Invalid unit price',
+    purchaseUnit: 'Unit',
+    baseUnitOption: 'Base',
+    splitAutoBalance: 'Cash & card amounts auto-balance',
     totalCol: 'Total',
     subtotalCol: 'Pre-tax:',
     vatCol: 'VAT (15%):',

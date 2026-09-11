@@ -111,7 +111,7 @@ async function main() {
     create: {
       tenantId: tenant.id,
       name: 'Beverages',
-      nameAr: 'مشروبات',
+
       slug: 'beverages',
       sortOrder: 1,
     },
@@ -123,7 +123,7 @@ async function main() {
     create: {
       tenantId: tenant.id,
       name: 'Snacks',
-      nameAr: 'وجبات خفيفة',
+
       slug: 'snacks',
       sortOrder: 2,
     },
@@ -221,7 +221,7 @@ async function main() {
     create: {
       tenantId: tenant.id,
       name: 'Al-Jazeera Coffee Co.',
-      nameAr: 'شركة الجزيرة للقهوة',
+
       email: 'sales@aljazeera-coffee.sa',
       phone: '+966-11-456-7890',
       address: '123 Roastery Rd, Al-Kharj',
@@ -238,7 +238,7 @@ async function main() {
     create: {
       tenantId: tenant.id,
       name: 'Gulf Bakery Supplies',
-      nameAr: 'إمدادات الخليج للمخابز',
+
       email: 'orders@gulfbakery.sa',
       phone: '+966-13-321-4567',
       address: '45 Industrial Area, Phase 2',
@@ -254,7 +254,7 @@ async function main() {
     create: {
       tenantId: tenant.id,
       name: 'Nile Snacks Trading',
-      nameAr: 'تجارة نايل للوجبات الخفيفة',
+
       email: 'info@nile-snacks.com',
       phone: '+966-12-654-3210',
       address: '78 King Fahd Rd',

@@ -3,6 +3,7 @@ import { z } from 'zod';
 export const createOrderItemSchema = z.object({
   productId: z.string().uuid(),
   variantId: z.string().uuid().optional(),
+  unitId: z.string().uuid().optional(),
   name: z.string().min(1),
   sku: z.string().optional(),
   quantity: z.coerce.number().positive(),
