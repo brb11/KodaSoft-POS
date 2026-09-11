@@ -82,7 +82,7 @@ export const ProductsPage: React.FC = () => {
   const [formData, setFormData] = useState({
     name: '', categoryId: '', sku: '', barcode: '',
     price: '', cost: '', type: 'retail', stockQty: '', stockBranchId: '',
-    baseUnit: '',
+    baseUnit: '', isActive: true,
   });
   const [unitRows, setUnitRows] = useState<UnitFormRow[]>([]);
   const [submitting, setSubmitting] = useState(false);
@@ -138,7 +138,7 @@ export const ProductsPage: React.FC = () => {
     setFormData({
       name: '', categoryId: categories[0]?.id || '',
       sku: '', barcode: '', price: '', cost: '', type: 'retail',
-      stockQty: '', stockBranchId: defaultBranchId(), baseUnit: '',
+      stockQty: '', stockBranchId: defaultBranchId(), baseUnit: '', isActive: true,
     });
     setUnitRows([]);
     setShowModal(true);
@@ -158,6 +158,7 @@ export const ProductsPage: React.FC = () => {
       stockQty: '',
       stockBranchId: defaultBranchId(),
       baseUnit: product.unit || '',
+      isActive: product.isActive,
     });
     setUnitRows(
       (product.units || []).map((u) => ({
@@ -215,6 +216,7 @@ export const ProductsPage: React.FC = () => {
         price: Number(formData.price),
         cost: Number(formData.cost || 0),
         type: formData.type,
+        isActive: formData.isActive,
         units: cleanedUnits,
       };
 
@@ -282,6 +284,21 @@ export const ProductsPage: React.FC = () => {
       fetchProducts();
     } catch (err) {
       console.error('Failed to delete product:', err);
+    }
+  };
+
+  // ── status toggle ───────────────────────────────────────────────────────────
+  const [togglingId, setTogglingId] = useState<string | null>(null);
+  const toggleActive = async (p: Product) => {
+    setTogglingId(p.id);
+    try {
+      await api.put(`/products/${p.id}`, { isActive: !p.isActive });
+      await fetchProducts();
+    } catch (err: any) {
+      console.error('Failed to toggle product status:', err);
+      alert(err?.response?.data?.message || t.failedSaveProduct);
+    } finally {
+      setTogglingId(null);
     }
   };
 
@@ -437,9 +454,19 @@ export const ProductsPage: React.FC = () => {
                       )}
                     </td>
                     <td className="px-6 py-4">
-                      <span className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold uppercase ${p.isActive ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-700 border border-rose-200'}`}>
+                      <button
+                        onClick={() => toggleActive(p)}
+                        disabled={togglingId === p.id}
+                        title={p.isActive ? t.inactive : t.active}
+                        className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-extrabold uppercase cursor-pointer transition-all disabled:opacity-60 ${
+                          p.isActive
+                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100'
+                            : 'bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100'
+                        }`}
+                      >
+                        {togglingId === p.id && <Loader2 className="w-3 h-3 animate-spin" />}
                         {p.isActive ? t.active : t.inactive}
-                      </span>
+                      </button>
                     </td>
                     <td className="px-6 py-4 text-right space-x-2">
                       <button onClick={() => openEditModal(p)} className="p-2 bg-slate-100 hover:bg-cyan-50 text-slate-600 hover:text-cyan-700 rounded-xl transition-colors border border-slate-200" title="Edit">
@@ -526,6 +553,25 @@ export const ProductsPage: React.FC = () => {
                       </button>
                     </div>
                   </div>
+                </div>
+
+                {/* Status */}
+                <div className="flex items-center justify-between gap-3 p-3.5 rounded-xl border border-slate-200 bg-slate-50">
+                  <div>
+                    <p className="text-xs font-extrabold text-slate-800">{t.status}</p>
+                    <p className="text-[10px] text-slate-500 font-semibold mt-0.5">
+                      {formData.isActive ? t.active : t.inactive}
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={formData.isActive}
+                    onClick={() => setFormData({ ...formData, isActive: !formData.isActive })}
+                    className={`relative w-12 h-7 rounded-full transition-colors shrink-0 ${formData.isActive ? 'bg-gradient-to-r from-cyan-500 to-blue-600' : 'bg-slate-300'}`}
+                  >
+                    <span className={`absolute top-1 w-5 h-5 bg-white rounded-full shadow transition-all ${formData.isActive ? 'left-6' : 'left-1'}`} />
+                  </button>
                 </div>
 
                 {/* Price & Cost */}

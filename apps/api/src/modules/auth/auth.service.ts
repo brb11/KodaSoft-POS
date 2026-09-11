@@ -5,7 +5,7 @@ import { Request } from 'express';
 import { prisma } from '../../lib/prisma';
 import { env } from '../../config/env';
 import { AppError } from '../../middleware/error.middleware';
-import { getPlan, PLANS } from '../billing/plans';
+import { getPlan } from '../billing/plans';
 import { refreshTokenTtlSeconds } from './auth.cookies';
 import type { LoginDto, PinLoginDto, SignupDto } from './auth.schema';
 
@@ -76,10 +76,12 @@ export async function signup(dto: SignupDto, req?: Request) {
   const existing = await prisma.user.findFirst({ where: { email: dto.email.toLowerCase() } });
   if (existing) throw new AppError(409, 'An account with this email already exists');
 
-  const planKey = dto.plan ?? 'starter';
-  if (!PLANS.some((p) => p.key === planKey)) throw new AppError(422, 'Invalid plan selected');
-  const plan = getPlan(planKey);
-  const billingCycle = dto.billingCycle ?? 'monthly';
+  // The customer never selects a plan at signup (Requirement #3). The
+  // organization is created on a free trial of the default plan; the platform
+  // administrator assigns the plan later from the SaaS console. Every store
+  // under the organization inherits this subscription automatically.
+  const plan = getPlan();
+  const billingCycle = 'monthly';
   const periodEnd = new Date(Date.now() + plan.trialDays * 24 * 60 * 60 * 1000);
   const slug = await generateUniqueSlug(dto.storeName);
   const passwordHash = await bcrypt.hash(dto.password, 10);

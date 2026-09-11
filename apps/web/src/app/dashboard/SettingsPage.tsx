@@ -1,22 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '../../lib/api';
 import { useLanguageStore } from '../../stores/languageStore';
-import { useAuthStore } from '../../stores/authStore';
-import { useBillingStore, type CheckoutInfo, type PaymentRecord, type BillingCycle } from '../../stores/billingStore';
 import { useSettingsStore } from '../../stores/settingsStore';
-import { CheckoutModal } from '../../components/billing/CheckoutModal';
 import {
   Settings,
   Store,
-  CreditCard,
   Save,
   Check,
   ShieldCheck,
   Sparkles,
   Loader2,
   Crown,
-  AlertTriangle,
-  History,
+  CreditCard,
 } from 'lucide-react';
 
 interface BillingOverview {
@@ -26,17 +21,12 @@ interface BillingOverview {
   priceYearly: number;
   currency: string;
   status: string;
-  trialStarted: string | null;
   periodEnd: string | null;
-  autoRenew: boolean;
   limits: { users: number; branches: number; products: number };
   usage: { users: number; branches: number; products: number };
   features: string[];
-  billingCycle: BillingCycle;
-  plans: { key: string; name: string; priceMonthly: number; priceYearly: number; trialDays: number }[];
+  billingCycle: 'monthly' | 'yearly';
 }
-
-const PLAN_ORDER = ['starter', 'pro', 'enterprise'];
 
 export const SettingsPage: React.FC = () => {
   const [settings, setSettings] = useState<any>(null);
@@ -44,18 +34,13 @@ export const SettingsPage: React.FC = () => {
   const [saving, setSaving] = useState(false);
   const [settingsMsg, setSettingsMsg] = useState<{ ok: boolean; text: string } | null>(null);
 
+  // Read-only plan overview. Plan details (usage, features, renewal date) are
+  // shown as before, but all management (change plan, renew, pay, history) is
+  // restricted to the platform administrator (Requirements #1/#5/#6).
   const [billing, setBilling] = useState<BillingOverview | null>(null);
   const [loadingBilling, setLoadingBilling] = useState(true);
-  const [changing, setChanging] = useState<string | null>(null);
-  const [renewing, setRenewing] = useState(false);
-  const [planMsg, setPlanMsg] = useState<{ ok: boolean; text: string } | null>(null);
-
-  const [checkout, setCheckout] = useState<CheckoutInfo | null>(null);
-  const [payments, setPayments] = useState<PaymentRecord[]>([]);
-  const [cycle, setCycle] = useState<BillingCycle>('monthly');
 
   const { t, language } = useLanguageStore();
-  const user = useAuthStore((s) => s.user);
 
   useEffect(() => {
     api.get('/settings').then((res) => {
@@ -68,18 +53,9 @@ export const SettingsPage: React.FC = () => {
   useEffect(() => {
     api
       .get('/billing/plan')
-      .then((res) => {
-        const data = res.data.data;
-        setBilling(data);
-        if (data?.billingCycle) setCycle(data.billingCycle);
-      })
-      .catch(() => setPlanMsg({ ok: false, text: t.planChangeFailed }))
+      .then((res) => setBilling(res.data.data))
+      .catch(() => setBilling(null))
       .finally(() => setLoadingBilling(false));
-
-    api
-      .get('/billing/payments')
-      .then((res) => setPayments(res.data.data.items))
-      .catch(() => setPayments([]));
   }, []);
 
   const saveSettings = async (e: React.FormEvent) => {
@@ -97,63 +73,6 @@ export const SettingsPage: React.FC = () => {
     }
   };
 
-  const changePlan = async (planKey: string) => {
-    const planName = billing?.plans.find((p) => p.key === planKey)?.name ?? planKey;
-    if (!window.confirm(`${t.confirmPlanChange} ${planName}?`)) return;
-    setChanging(planKey);
-    setPlanMsg(null);
-    try {
-      // Payment-driven flow: Checkout → Payment Provider → Webhook → ACTIVE.
-      const res = await api.post('/billing/checkout', { plan: planKey, billingCycle: cycle });
-      setCheckout(res.data.data as CheckoutInfo);
-    } catch (err: any) {
-      setPlanMsg({ ok: false, text: err.response?.data?.message || t.planChangeFailed });
-    } finally {
-      setChanging(null);
-    }
-  };
-
-  const renew = async () => {
-    setRenewing(true);
-    setPlanMsg(null);
-    try {
-      // Renew runs the same checkout flow (no plan = keep the current plan).
-      const res = await api.post('/billing/renew', { billingCycle: cycle });
-      setCheckout(res.data.data as CheckoutInfo);
-    } catch {
-      setPlanMsg({ ok: false, text: t.renewFailed });
-    } finally {
-      setRenewing(false);
-    }
-  };
-
-  const handleCheckoutProcessed = async () => {
-    setCheckout(null);
-    try {
-      const [plan, pay] = await Promise.all([
-        api.get('/billing/plan'),
-        api.get('/billing/payments'),
-      ]);
-      const data = plan.data.data;
-      setBilling(data);
-      if (data?.billingCycle) setCycle(data.billingCycle);
-      setPayments(pay.data.data.items);
-      await useBillingStore.getState().refresh();
-      setPlanMsg({ ok: true, text: t.checkoutSuccess });
-    } catch {
-      setPlanMsg({ ok: false, text: t.checkoutFailed });
-    }
-  };
-
-  const planLabel = (key: string) => {
-    switch (key) {
-      case 'starter': return t.saasStarter;
-      case 'pro': return t.saasPro;
-      case 'enterprise': return t.saasEnterprise;
-      default: return key;
-    }
-  };
-
   const statusLabel = (status: string) => {
     switch (status) {
       case 'TRIAL': return t.saasTrial;
@@ -164,24 +83,14 @@ export const SettingsPage: React.FC = () => {
     }
   };
 
-  const paymentStatusLabel = (status: string) => {
-    switch (status) {
-      case 'PAID': return t.paymentStatusPaid;
-      case 'PENDING': return t.paymentStatusPending;
-      case 'FAILED': return t.paymentStatusFailed;
-      case 'CANCELED': return t.paymentStatusCanceled;
-      default: return status;
-    }
-  };
-
-  const paymentStatusColor = (status: string) =>
-    status === 'PAID'
+  const statusColor =
+    billing?.status === 'ACTIVE'
       ? 'bg-emerald-100 text-emerald-700'
-      : status === 'PENDING'
+      : billing?.status === 'TRIAL'
       ? 'bg-cyan-100 text-cyan-700'
-      : status === 'FAILED'
-      ? 'bg-rose-100 text-rose-700'
-      : 'bg-slate-100 text-slate-600';
+      : billing?.status === 'PAST_DUE'
+      ? 'bg-amber-100 text-amber-700'
+      : 'bg-rose-100 text-rose-700';
 
   const formatDate = (d: string | null) =>
     d
@@ -200,15 +109,6 @@ export const SettingsPage: React.FC = () => {
     { label: t.branchesUsage, used: billing?.usage.branches ?? 0, limit: billing?.limits.branches ?? -1 },
     { label: t.productsUsage, used: billing?.usage.products ?? 0, limit: billing?.limits.products ?? -1 },
   ];
-
-  const statusColor =
-    billing?.status === 'ACTIVE'
-      ? 'bg-emerald-100 text-emerald-700'
-      : billing?.status === 'TRIAL'
-      ? 'bg-cyan-100 text-cyan-700'
-      : billing?.status === 'PAST_DUE'
-      ? 'bg-amber-100 text-amber-700'
-      : 'bg-rose-100 text-rose-700';
 
   return (
     <div className="space-y-6">
@@ -299,7 +199,7 @@ export const SettingsPage: React.FC = () => {
           </form>
         </div>
 
-        {/* Plan & Billing */}
+        {/* Plan overview (read-only details; management is admin-only) */}
         <div className="xl:col-span-3 space-y-6">
           <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6">
             <div className="flex items-center justify-between mb-5">
@@ -342,34 +242,17 @@ export const SettingsPage: React.FC = () => {
                       <p className="text-[10px] text-indigo-200 font-bold">{billing.billingCycle === 'yearly' ? t.saasPerYear : t.saasPerMonth}</p>
                     </div>
                   </div>
-                  <div className="mt-4 pt-4 border-t border-white/15 flex items-center justify-between text-xs font-semibold flex-wrap gap-2">
-                    <span className="text-indigo-100">
-                      {billing.status === 'TRIAL' ? t.trialEndsOn : t.renewsOn}: {formatDate(billing.periodEnd)}
-                    </span>
-                    <span className="px-2.5 py-1 rounded-full bg-white/15 text-[10px] font-extrabold uppercase">
-                      {billing.status === 'TRIAL' ? t.saasTrial : t.saasActiveSub}
-                    </span>
-                  </div>
-                </div>
-
-                {/* Renew banner when inactive */}
-                {(billing.status === 'PAST_DUE' || billing.status === 'CANCELED') && (
-                  <div className="mb-6 rounded-2xl border border-amber-200 bg-amber-50 p-5">
-                    <div className="flex items-center gap-2 mb-1.5">
-                      <AlertTriangle className="w-4 h-4 text-amber-600" />
-                      <h3 className="text-xs font-extrabold text-amber-800">{t.renewTitle}</h3>
+                  {billing.periodEnd && (
+                    <div className="mt-4 pt-4 border-t border-white/15 flex items-center justify-between text-xs font-semibold flex-wrap gap-2">
+                      <span className="text-indigo-100">
+                        {billing.status === 'TRIAL' ? t.trialEndsOn : t.renewsOn}: {formatDate(billing.periodEnd)}
+                      </span>
+                      <span className="px-2.5 py-1 rounded-full bg-white/15 text-[10px] font-extrabold uppercase">
+                        {billing.status === 'TRIAL' ? t.saasTrial : t.saasActiveSub}
+                      </span>
                     </div>
-                    <p className="text-xs font-medium text-amber-700 mb-3">{t.renewDesc}</p>
-                    <button
-                      onClick={renew}
-                      disabled={renewing}
-                      className="inline-flex items-center gap-2 rounded-xl bg-gradient-to-r from-amber-500 to-orange-600 px-5 py-2.5 text-xs font-extrabold text-white shadow-md shadow-amber-500/25 transition-all hover:from-amber-600 hover:to-orange-700 disabled:opacity-50"
-                    >
-                      {renewing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <CreditCard className="w-3.5 h-3.5" />}
-                      {renewing ? t.renewing : t.renewNow}
-                    </button>
-                  </div>
-                )}
+                  )}
+                </div>
 
                 {/* Usage vs limits */}
                 <div className="mb-6">
@@ -398,7 +281,7 @@ export const SettingsPage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Features */}
+                {/* Included features */}
                 {billing.features.length > 0 && (
                   <div className="mb-6">
                     <h3 className="text-xs font-extrabold text-slate-900 mb-2.5">{t.featuresLabel}</h3>
@@ -412,152 +295,17 @@ export const SettingsPage: React.FC = () => {
                   </div>
                 )}
 
-                {planMsg && (
-                  <div className={`mb-5 p-3 rounded-xl text-xs font-medium ${planMsg.ok ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-rose-50 text-rose-600 border border-rose-200'}`}>
-                    {planMsg.text}
-                  </div>
-                )}
+                {/* Read-only note: management is done by the administrator */}
+                <div className="rounded-xl border border-cyan-200 bg-cyan-50 p-4">
+                  <p className="text-xs font-medium text-cyan-800 leading-relaxed">{t.settingsContactAdminNote}</p>
+                </div>
               </>
-            ) : null}
+            ) : (
+              <p className="text-xs font-semibold text-slate-400 py-6 text-center">{t.planLoading}</p>
+            )}
           </div>
-
-          {/* Plan selector */}
-          {billing && (
-            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6">
-              <h3 className="text-xs font-extrabold text-slate-900 mb-1">{t.changePlan}</h3>
-              <p className="text-[11px] text-slate-400 font-semibold mb-4">{t.choosePlanDesc}</p>
-
-              <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100 w-fit mb-5">
-                <button
-                  type="button"
-                  onClick={() => setCycle('monthly')}
-                  className={`px-4 py-1.5 rounded-lg text-xs font-extrabold transition-all ${
-                    cycle === 'monthly' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-                  }`}
-                >
-                  {t.billingMonthly}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setCycle('yearly')}
-                  className={`px-4 py-1.5 rounded-lg text-xs font-extrabold transition-all flex items-center gap-1.5 ${
-                    cycle === 'yearly' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-                  }`}
-                >
-                  {t.billingYearly}
-                  <span className="px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[9px] font-extrabold">
-                    {t.yearlySaveNote}
-                  </span>
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                {PLAN_ORDER.map((key) => {
-                  const plan = billing.plans.find((p) => p.key === key)!;
-                  const isCurrent = key === billing.plan;
-                  const isManager = user?.role === 'MANAGER';
-                  return (
-                    <div
-                      key={key}
-                      className={`rounded-2xl border p-5 transition-all ${
-                        isCurrent
-                          ? 'border-cyan-500 bg-cyan-50/50 shadow-md shadow-cyan-500/10'
-                          : 'border-slate-200 bg-white hover:border-cyan-300 hover:shadow-sm'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between mb-2">
-                        <div className="flex items-center gap-2">
-                          {key === 'enterprise' && <Crown className="w-4 h-4 text-amber-500" />}
-                          <span className="font-extrabold text-slate-900 text-sm">{planLabel(key)}</span>
-                        </div>
-                        {isCurrent && (
-                          <span className="px-2 py-0.5 rounded-full bg-cyan-500 text-white text-[9px] font-extrabold uppercase">
-                            {t.currentPlanBadge}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-2xl font-extrabold text-slate-900">
-                        {formatMoney(cycle === 'yearly' ? plan.priceYearly : plan.priceMonthly)}
-                        <span className="text-[11px] text-slate-400 font-bold">
-                          {cycle === 'yearly' ? ` / ${t.saasPerYear}` : t.saasPerMonth}
-                        </span>
-                      </p>
-                      <button
-                        onClick={() => changePlan(key)}
-                        disabled={isCurrent || isManager || changing === key}
-                        className={`mt-4 w-full py-2.5 rounded-xl text-xs font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${
-                          isCurrent
-                            ? 'bg-cyan-500/10 text-cyan-600'
-                            : 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-md shadow-cyan-500/20 hover:from-cyan-600 hover:to-blue-700'
-                        }`}
-                      >
-                        {changing === key ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
-                        {isCurrent ? t.currentPlanBadge : t.saasUpgrade}
-                      </button>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Payment history */}
-          {billing && (
-            <div className="bg-white rounded-2xl border border-slate-200/80 shadow-sm p-6">
-              <div className="flex items-center gap-2.5 mb-4">
-                <div className="w-9 h-9 rounded-xl bg-slate-50 text-slate-600 flex items-center justify-center border border-slate-200">
-                  <History className="w-4.5 h-4.5" />
-                </div>
-                <div>
-                  <h3 className="text-xs font-extrabold text-slate-900">{t.paymentHistory}</h3>
-                  <p className="text-[10px] text-slate-400 font-semibold">{t.planBillingDesc}</p>
-                </div>
-              </div>
-
-              {payments.length === 0 ? (
-                <p className="text-xs font-semibold text-slate-400 py-4 text-center">{t.paymentHistoryEmpty}</p>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left">
-                    <thead>
-                      <tr className="text-[10px] uppercase tracking-wider text-slate-400 font-bold border-b border-slate-100">
-                        <th className="py-2 pr-3">{t.checkoutPlanLabel}</th>
-                        <th className="py-2 pr-3">{t.checkoutAmount}</th>
-                        <th className="py-2 pr-3">{t.billingCycleLabel}</th>
-                        <th className="py-2 pr-3">{t.checkoutProvider}</th>
-                        <th className="py-2 pr-3">{t.status}</th>
-                        <th className="py-2">{t.exportedOn}</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-50">
-                      {payments.map((p) => (
-                        <tr key={p.id}>
-                          <td className="py-2.5 pr-3 text-xs font-bold text-slate-800">{planLabel(p.plan)}</td>
-                          <td className="py-2.5 pr-3 text-xs font-extrabold text-slate-800">{formatMoney(p.amount)}</td>
-                          <td className="py-2.5 pr-3 text-xs font-semibold text-slate-500">
-                            <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-extrabold uppercase">
-                              {p.billingCycle === 'yearly' ? t.billingYearly : t.billingMonthly}
-                            </span>
-                          </td>
-                          <td className="py-2.5 pr-3 text-xs font-semibold text-slate-500">{p.provider}</td>
-                          <td className="py-2.5 pr-3">
-                            <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${paymentStatusColor(p.status)}`}>
-                              {paymentStatusLabel(p.status)}
-                            </span>
-                          </td>
-                          <td className="py-2.5 text-xs text-slate-500">{formatDate(p.createdAt)}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          )}
         </div>
       </div>
-
-      <CheckoutModal checkout={checkout} onClose={() => setCheckout(null)} onProcessed={handleCheckoutProcessed} />
     </div>
   );
 };

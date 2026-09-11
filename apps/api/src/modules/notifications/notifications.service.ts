@@ -33,20 +33,22 @@ function titleFor(type: ExpiryType, planName: string, periodEnd: Date): string {
     case 'trial_expiring':
       return 'Your trial ends soon';
     case 'subscription_expiring':
-      return `${planName} plan renews soon`;
+      return `${planName} plan period ends soon`;
     default:
       return 'Your subscription has ended';
   }
 }
 
 function bodyFor(type: ExpiryType, planName: string, periodEnd: Date): string {
+  // Subscriptions are managed by the platform administrator. Customers cannot
+  // renew or change plans themselves — copy points them to the admin.
   switch (type) {
     case 'trial_expiring':
-      return `Your trial ends on ${formatDate(periodEnd)}. Choose a plan to avoid interruption.`;
+      return `Your trial ends on ${formatDate(periodEnd)}. Contact your administrator to continue.`;
     case 'subscription_expiring':
-      return `Your ${planName} subscription renews on ${formatDate(periodEnd)}.`;
+      return `Your ${planName} subscription period ends on ${formatDate(periodEnd)}. Contact your administrator to renew.`;
     default:
-      return 'Your access has been suspended. Renew now to continue.';
+      return 'Your access has been suspended. Contact your administrator to reactivate your subscription.';
   }
 }
 

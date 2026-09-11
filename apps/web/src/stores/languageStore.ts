@@ -803,6 +803,9 @@ export interface Translations {
   currentPlanLabel: string;
   trialEndsOn: string;
   renewsOn: string;
+  settingsManagedAdminTitle: string;
+  settingsManagedAdminDesc: string;
+  settingsContactAdminNote: string;
   usageLabel: string;
   usersUsage: string;
   branchesUsage: string;
@@ -822,9 +825,11 @@ export interface Translations {
   paywallTrialEnded: string;
   paywallGoBilling: string;
   paywallLogout: string;
+  paywallContactAdmin: string;
   signupPlanTitle: string;
   signupPlanDesc: string;
   signupTrialNote: string;
+  signupAdminText: string;
   renewTitle: string;
   renewDesc: string;
   renewNow: string;
@@ -1890,7 +1895,10 @@ const translations: Record<Language, Translations> = {
     planBillingDesc: 'راجع خطتك الحالية والاستخدام ورقّ أو خفّض باقتك',
     currentPlanLabel: 'الباقة الحالية',
     trialEndsOn: 'تنتهي الفترة التجريبية في',
-    renewsOn: 'يتجدد الاشتراك في',
+    renewsOn: 'تستحق الباقة في',
+    settingsManagedAdminTitle: 'الاشتراك',
+    settingsManagedAdminDesc: 'تُدار الباقة والاشتراك بواسطة مسؤول النظام',
+    settingsContactAdminNote: 'تتم إدارة باقتك واشتراكك بالكامل بواسطة مسؤول المؤسسة. لتغيير الباقة أو التحديث أو التجديد، يرجى التواصل مع المسؤول.',
     usageLabel: 'الاستخدام',
     usersUsage: 'المستخدمون',
     branchesUsage: 'الفروع',
@@ -1907,16 +1915,18 @@ const translations: Record<Language, Translations> = {
 
     // Subscription guard / paywall
     paywallTitle: 'الاشتراك غير نشط',
-    paywallDesc: 'تم إيقاف الوصول مؤقتاً حتى يتم تجديد باقتك.',
-    paywallPastDue: 'فترة اشتراكك الحالية متأخرة السداد أو ملغاة. جرّبها أو اختر باقتك.',
-    paywallTrialEnded: 'انتهت الفترة التجريبية لباقتك.',
-    paywallGoBilling: 'الانتقال إلى الباقة والفواتير',
+    paywallDesc: 'تم إيقاف الوصول حتى يقوم مسؤول المؤسسة بإعادة تفعيل اشتراكك.',
+    paywallPastDue: 'اشتراكك الحالي غير نشط. يرجى التواصل مع المسؤول للمتابعة.',
+    paywallTrialEnded: 'انتهت الفترة التجريبية. يرجى التواصل مع المسؤول للمتابعة.',
+    paywallGoBilling: 'تواصل مع المدير',
     paywallLogout: 'تسجيل الخروج',
+    paywallContactAdmin: 'لتفعيل الاشتراك أو تغيير الباقة أو التجديد، يرجى التواصل مع مسؤول المؤسسة.',
 
     // Plan selection & renewal
     signupPlanTitle: 'اختر باقتك',
-    signupPlanDesc: 'ابدأ بفترة تجريبية 14 يوماً ثم ادفع شهرياً. يمكنك تغيير باقتك في أي وقت من الإعدادات.',
+    signupPlanDesc: 'ابدأ بفترة تجريبية مجانية. تُدار الباقة بواسطة مسؤول المؤسسة.',
     signupTrialNote: 'فترة تجريبية 14 يوماً · بدون بطاقة ائتمانية',
+    signupAdminText: 'يحدد مسؤول المؤسسة باقتك بعد التسجيل. تشمل الفترة التجريبية جميع مميزات النظام.',
     renewTitle: 'تجديد الاشتراك',
     renewDesc: 'انتهت الفترة التجريبية. جدّد باقتك للمتابعة على نفس الباقة.',
     renewNow: 'جدّد واستمر',
@@ -2082,16 +2092,16 @@ const translations: Record<Language, Translations> = {
     markAllRead: 'تعليم الكل كمقروء',
     notificationsUnread: '{count} غير مقروء',
     notifTrialExpiringTitle: 'تنتهي الفترة التجريبية قريبًا',
-    notifTrialExpiringBody: 'تنتهي الفترة التجريبية في {date}. اختر باقة لتجنب انقطاع الخدمة.',
-    notifSubscriptionExpiringTitle: 'استحقاق التجديد قريبًا',
-    notifSubscriptionExpiringBody: 'يتم تجديد اشتراكك في باقة {plan} بتاريخ {date}.',
+    notifTrialExpiringBody: 'تنتهي الفترة التجريبية في {date}. تواصل مع المسؤول للمتابعة.',
+    notifSubscriptionExpiringTitle: 'اقترب موعد استحقاق الباقة',
+    notifSubscriptionExpiringBody: 'تنتهي فترة باقة {plan} بتاريخ {date}. تواصل مع المسؤول للتجديد.',
     notifExpiredTitle: 'انتهى الاشتراك',
-    notifExpiredBody: 'تم تعليق الوصول إلى النظام. جدّد الآن للمتابعة.',
+    notifExpiredBody: 'تم تعليق الوصول إلى النظام. تواصل مع المسؤول لإعادة تفعيل الاشتراك.',
     bannerTrialExpiringTitle: 'اقتربت نهاية الفترة التجريبية',
-    bannerTrialExpiringDesc: 'تنتهي الفترة التجريبية في {date}. اختر باقة لمواصلة استخدام النظام.',
-    bannerPlanExpiringTitle: 'اقترب موعد انتهاء باقتك',
-    bannerPlanExpiringDesc: 'سيتم التجديد بتاريخ {date}. جدّد الآن لتجنب انقطاع الخدمة.',
-    bannerRenew: 'جدّد الآن',
+    bannerTrialExpiringDesc: 'تنتهي الفترة التجريبية في {date}. تواصل مع المسؤول للمتابعة.',
+    bannerPlanExpiringTitle: 'اقترب موعد استحقاق باقتك',
+    bannerPlanExpiringDesc: 'تنتهي فترة باقتك بتاريخ {date}. تواصل مع المسؤول لتجديدها.',
+    bannerRenew: 'تواصل مع المدير',
     bannerDismiss: 'إخفاء',
 
     // Billing cycle
@@ -2973,7 +2983,10 @@ const translations: Record<Language, Translations> = {
     planBillingDesc: 'Review your current plan and usage, upgrade or downgrade anytime',
     currentPlanLabel: 'Current Plan',
     trialEndsOn: 'Trial ends on',
-    renewsOn: 'Subscription renews on',
+    renewsOn: 'Plan period ends on',
+    settingsManagedAdminTitle: 'Subscription',
+    settingsManagedAdminDesc: 'Plan and subscription are managed by your administrator',
+    settingsContactAdminNote: 'Your plan and subscription are fully managed by your organization administrator. To change plans, upgrade, or renew, please contact the administrator.',
     usageLabel: 'Usage',
     usersUsage: 'Users',
     branchesUsage: 'Branches',
@@ -2990,16 +3003,18 @@ const translations: Record<Language, Translations> = {
 
     // Subscription guard / paywall
     paywallTitle: 'Subscription Inactive',
-    paywallDesc: 'Access has been temporarily disabled until your subscription is renewed.',
-    paywallPastDue: 'Your subscription is past due or canceled. Renew it or choose a plan to continue.',
-    paywallTrialEnded: 'Your plan trial period has ended.',
-    paywallGoBilling: 'Go to Plan & Billing',
+    paywallDesc: 'Access is on hold until your subscription is reactivated by your organization administrator.',
+    paywallPastDue: 'Your subscription is currently inactive. Please contact your administrator to continue using the system.',
+    paywallTrialEnded: 'Your free trial has ended. Please contact your administrator to continue using the system.',
+    paywallGoBilling: 'Contact administrator',
     paywallLogout: 'Log out',
+    paywallContactAdmin: 'To reactivate your subscription, change your plan, or renew, please contact your organization administrator.',
 
     // Plan selection & renewal
     signupPlanTitle: 'Choose your plan',
-    signupPlanDesc: 'Start with a 14-day free trial, then pay monthly. Change your plan anytime from settings.',
+    signupPlanDesc: 'Start with a free trial. Your plan is assigned by your organization administrator.',
     signupTrialNote: '14-day free trial · No credit card required',
+    signupAdminText: 'Your plan is assigned by your organization administrator after signup. The free trial includes all features.',
     renewTitle: 'Subscription renewal',
     renewDesc: 'Your trial has ended. Renew your plan to continue on the same plan.',
     renewNow: 'Renew & continue',
@@ -3165,16 +3180,16 @@ const translations: Record<Language, Translations> = {
     markAllRead: 'Mark all as read',
     notificationsUnread: '{count} unread',
     notifTrialExpiringTitle: 'Your trial ends soon',
-    notifTrialExpiringBody: 'Your trial ends on {date}. Choose a plan to avoid interruption.',
-    notifSubscriptionExpiringTitle: 'Renewal due soon',
-    notifSubscriptionExpiringBody: 'Your {plan} subscription renews on {date}.',
+    notifTrialExpiringBody: 'Your trial ends on {date}. Contact your administrator to continue.',
+    notifSubscriptionExpiringTitle: 'Plan period ending soon',
+    notifSubscriptionExpiringBody: 'Your {plan} subscription period ends on {date}. Contact your administrator to renew.',
     notifExpiredTitle: 'Subscription ended',
-    notifExpiredBody: 'Your access has been suspended. Renew now to continue.',
+    notifExpiredBody: 'Your access has been suspended. Contact your administrator to reactivate your subscription.',
     bannerTrialExpiringTitle: 'Your trial is about to end',
-    bannerTrialExpiringDesc: 'Trial ends on {date}. Choose a plan to keep using the system.',
+    bannerTrialExpiringDesc: 'Trial ends on {date}. Contact your administrator to continue.',
     bannerPlanExpiringTitle: 'Your plan is about to expire',
-    bannerPlanExpiringDesc: 'It renews on {date}. Renew now to avoid service interruption.',
-    bannerRenew: 'Renew now',
+    bannerPlanExpiringDesc: 'Your plan period ends on {date}. Contact your administrator to renew.',
+    bannerRenew: 'Contact administrator',
     bannerDismiss: 'Dismiss',
 
     // Billing cycle

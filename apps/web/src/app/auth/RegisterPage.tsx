@@ -3,14 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
 import { useLanguageStore } from '../../stores/languageStore';
 import { api } from '../../lib/api';
-import { Store, Mail, Lock, User, Phone, ArrowRight, Building2, Sparkles, Zap, Crown, Check } from 'lucide-react';
-import type { BillingCycle } from '../../stores/billingStore';
-
-const SIGNUP_PLANS = [
-  { key: 'starter', monthly: 99, yearly: 990, icon: Sparkles },
-  { key: 'pro', monthly: 199, yearly: 1990, icon: Zap },
-  { key: 'enterprise', monthly: 499, yearly: 4990, icon: Crown },
-];
+import { Store, Mail, Lock, User, Phone, ArrowRight, Building2, Sparkles } from 'lucide-react';
 
 export const RegisterPage: React.FC = () => {
   const [storeName, setStoreName] = useState('');
@@ -19,8 +12,6 @@ export const RegisterPage: React.FC = () => {
   const [password, setPassword] = useState('');
   const [phone, setPhone] = useState('');
   const [branchName, setBranchName] = useState('');
-  const [plan, setPlan] = useState('starter');
-  const [billingCycle, setBillingCycle] = useState<BillingCycle>('monthly');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -34,6 +25,9 @@ export const RegisterPage: React.FC = () => {
     setError('');
 
     try {
+      // The customer never selects a plan at signup: every organization starts
+      // on a free trial of the default plan. Plans/subscriptions are managed by
+      // the platform administrator (Requirement #3).
       const res = await api.post('/auth/signup', {
         storeName,
         ownerName,
@@ -41,8 +35,6 @@ export const RegisterPage: React.FC = () => {
         password,
         phone: phone || undefined,
         branchName: branchName || undefined,
-        plan,
-        billingCycle,
       });
       const { user, accessToken } = res.data.data;
       setAuth(user, accessToken);
@@ -177,71 +169,14 @@ export const RegisterPage: React.FC = () => {
             </div>
           </div>
 
-          {/* Plan selection */}
+          {/* Trial — plans are assigned by the organization administrator */}
           <div className="pt-1">
-            <div className="flex items-center justify-between">
-              <label className="block text-xs font-bold text-slate-700 mb-1">{t.signupPlanTitle}</label>
-              <span className="text-[10px] text-emerald-600 font-bold">{t.signupTrialNote}</span>
-            </div>
-            <p className="text-[11px] text-slate-400 font-semibold mb-2.5">{t.signupPlanDesc}</p>
-
-            <div className="flex items-center gap-1 p-1 rounded-xl bg-slate-100 w-fit mb-3">
-              <button
-                type="button"
-                onClick={() => setBillingCycle('monthly')}
-                className={`px-3 py-1 rounded-lg text-[11px] font-extrabold transition-all ${
-                  billingCycle === 'monthly' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-                }`}
-              >
-                {t.billingMonthly}
-              </button>
-              <button
-                type="button"
-                onClick={() => setBillingCycle('yearly')}
-                className={`px-3 py-1 rounded-lg text-[11px] font-extrabold transition-all flex items-center gap-1 ${
-                  billingCycle === 'yearly' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-700'
-                }`}
-              >
-                {t.billingYearly}
-                <span className="px-1 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[8px] font-extrabold">
-                  {t.yearlySaveNote}
-                </span>
-              </button>
-            </div>
-
-            <div className="grid grid-cols-3 gap-2">
-              {SIGNUP_PLANS.map((p) => {
-                const Icon = p.icon;
-                const active = plan === p.key;
-                return (
-                  <button
-                    type="button"
-                    key={p.key}
-                    onClick={() => setPlan(p.key)}
-                    className={`relative rounded-xl border p-3 text-center transition-all ${
-                      active
-                        ? 'border-cyan-500 bg-cyan-50 shadow-md shadow-cyan-500/10'
-                        : 'border-slate-200 bg-white hover:border-cyan-300'
-                    }`}
-                  >
-                    {active && (
-                      <span className="absolute -top-1.5 -right-1.5 w-4 h-4 rounded-full bg-cyan-500 text-white flex items-center justify-center">
-                        <Check className="w-2.5 h-2.5" strokeWidth={3} />
-                      </span>
-                    )}
-                    <Icon className={`w-4 h-4 mx-auto mb-1 ${p.key === 'enterprise' ? 'text-amber-500' : 'text-cyan-600'}`} />
-                    <p className="text-[11px] font-extrabold text-slate-800 truncate">
-                      {p.key === 'starter' ? t.saasStarter : p.key === 'pro' ? t.saasPro : t.saasEnterprise}
-                    </p>
-                    <p className="text-sm font-extrabold text-slate-900">
-                      {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'SAR', maximumFractionDigits: 0 }).format(billingCycle === 'yearly' ? p.yearly : p.monthly)}
-                      <span className="text-[9px] font-bold text-slate-400">
-                        {billingCycle === 'yearly' ? ` / ${t.saasPerYear}` : t.saasPerMonth}
-                      </span>
-                    </p>
-                  </button>
-                );
-              })}
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+              <div className="flex items-center gap-2 mb-1">
+                <Sparkles className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span className="text-xs font-extrabold text-emerald-800">{t.signupTrialNote}</span>
+              </div>
+              <p className="text-[11px] font-medium text-emerald-700 leading-relaxed">{t.signupAdminText}</p>
             </div>
           </div>
 

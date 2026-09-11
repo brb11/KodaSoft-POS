@@ -234,12 +234,6 @@ export const DashboardLayout: React.FC<{ children: React.ReactNode }> = ({ child
             </div>
             <div className="flex items-center gap-2 shrink-0">
               <button
-                onClick={() => navigate('/dashboard/settings')}
-                className="text-[11px] font-extrabold bg-amber-500 hover:bg-amber-600 text-white px-3.5 py-2 rounded-xl transition-colors shadow-sm"
-              >
-                {t.bannerRenew}
-              </button>
-              <button
                 onClick={dismissBanner}
                 className="p-2 text-amber-500 hover:text-amber-700 hover:bg-amber-100 rounded-xl transition-colors"
                 title={t.bannerDismiss}

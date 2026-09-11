@@ -5,6 +5,10 @@ export const loginSchema = z.object({
   password: z.string().min(1),
 });
 
+// The customer must not select a plan at signup. Every new organization is
+// created on a free trial of the default plan; plans and subscriptions are
+// assigned and managed exclusively by the platform administrator (SaaS
+// console). Unknown/extra fields sent by stale clients are stripped by zod.
 export const signupSchema = z.object({
   storeName: z.string().min(2, 'Store name is required'),
   ownerName: z.string().min(2, 'Owner name is required'),
@@ -13,8 +17,6 @@ export const signupSchema = z.object({
   phone: z.string().optional(),
   branchName: z.string().min(1).optional(),
   branchAddress: z.string().optional(),
-  plan: z.string().optional(),
-  billingCycle: z.enum(['monthly', 'yearly']).optional(),
 });
 
 export const pinLoginSchema = z.object({

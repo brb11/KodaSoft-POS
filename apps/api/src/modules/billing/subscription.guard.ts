@@ -52,7 +52,7 @@ export async function requireActiveSubscription(
       return next(
         new AppError(
           402,
-          'Your subscription is inactive. Please renew your plan to continue using the system.',
+          'Your subscription is inactive. Please contact your administrator to continue using the system.',
           'SUBSCRIPTION_INACTIVE'
         )
       );

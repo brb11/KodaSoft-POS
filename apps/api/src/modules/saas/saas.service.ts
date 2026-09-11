@@ -445,7 +445,11 @@ export async function updateTenant(
       data: {
         name: dto.name?.trim(),
         plan: planKey,
-        isActive: dto.isActive,
+        // Requirement #7: when the admin sets the subscription to ACTIVE, the
+        // organization (and therefore its stores) becomes active again and
+        // immediately uses the plan's limits. An explicit isActive=false from
+        // the admin (suspend) always wins.
+        isActive: dto.isActive ?? (dto.subscriptionStatus === 'ACTIVE' ? true : undefined),
       },
     });
 

@@ -27,6 +27,8 @@ export const createProductSchema = z.object({
 export const updateProductSchema = createProductSchema.partial().extend({
   // Allow explicitly clearing the base unit label on edit.
   unit: z.string().max(30).nullable().optional(),
+  // Allow toggling the product status from the UI (activate/reactivate).
+  isActive: z.boolean().optional(),
 });
 
 export const productQuerySchema = z.object({
