@@ -279,7 +279,16 @@ export const ProductsPage: React.FC = () => {
         setTimeout(() => setShowModal(false), 1800);
       }
     } catch (err: any) {
-      setSaveMsg({ ok: false, text: `❌ ${err.response?.data?.message || t.failedSaveProduct}` });
+      const code = err?.response?.data?.code;
+      const message =
+        code === 'DUPLICATE_BARCODE_IN_PRODUCT'
+          ? t.duplicateBarcodeInProduct
+          : code === 'BARCODE_EXISTS'
+            ? t.barcodeExists
+            : code === 'SKU_EXISTS'
+              ? t.skuExists
+              : err.response?.data?.message;
+      setSaveMsg({ ok: false, text: `❌ ${message || t.failedSaveProduct}` });
     } finally {
       setSubmitting(false);
     }

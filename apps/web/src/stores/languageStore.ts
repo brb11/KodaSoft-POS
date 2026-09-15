@@ -443,6 +443,9 @@ export interface Translations {
   saving: string;
   deactivateProductConfirm: string;
   failedSaveProduct: string;
+  duplicateBarcodeInProduct: string;
+  barcodeExists: string;
+  skuExists: string;
   selectCategory: string;
   productNamePlaceholder: string;
   skuPlaceholder: string;
@@ -1538,6 +1541,9 @@ const translations: Record<Language, Translations> = {
     saving: 'جاري الحفظ...',
     deactivateProductConfirm: 'هل أنت متأكد من إلغاء تفعيل هذا المنتج؟',
     failedSaveProduct: 'فشل حفظ المنتج',
+    duplicateBarcodeInProduct: 'رمز باركود مكرر — لا يمكن للمنتج ووحدة من وحداته مشاركة نفس الرمز',
+    barcodeExists: 'رمز الباركود مستخدم بالفعل لمنتج أو وحدة أو صنف آخر',
+    skuExists: 'رمز SKU مستخدم بالفعل',
     selectCategory: '-- اختر التصنيف --',
     productNamePlaceholder: 'مثال: لاتيه',
     skuPlaceholder: 'BEV-003',
@@ -2628,6 +2634,9 @@ const translations: Record<Language, Translations> = {
     saving: 'Saving...',
     deactivateProductConfirm: 'Are you sure you want to deactivate this product?',
     failedSaveProduct: 'Failed to save product',
+    duplicateBarcodeInProduct: 'Duplicate barcode — a product and its units cannot share the same code',
+    barcodeExists: 'Barcode already exists for another product, unit, or variant',
+    skuExists: 'SKU already exists',
     selectCategory: '-- Select Category --',
     productNamePlaceholder: 'e.g. Latte',
     skuPlaceholder: 'BEV-003',

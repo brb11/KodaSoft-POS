@@ -41,7 +41,7 @@ async function assertBarcodesAvailable(
   // barcode — ambiguous to scan, so reject it up front.
   const nonEmpty = codes.filter((b) => Boolean(b));
   if (new Set(nonEmpty).size !== nonEmpty.length) {
-    throw new AppError(409, 'Duplicate barcode — a product and its units cannot share the same code', 'BARCODE_EXISTS');
+    throw new AppError(409, 'Duplicate barcode — a product and its units cannot share the same code', 'DUPLICATE_BARCODE_IN_PRODUCT');
   }
   if (nonEmpty.length === 0) return;
 
@@ -168,9 +168,10 @@ export async function getProductByBarcode(tenantId: string, barcode: string) {
 
 export async function createProduct(tenantId: string, dto: CreateProductDto) {
   await assertPlanLimit(tenantId, 'products');
-  if (dto.sku) {
-    const existing = await prisma.product.findFirst({ where: { tenantId, sku: dto.sku } });
-    if (existing) throw new AppError(409, 'SKU already exists');
+  const sku = dto.sku?.trim() || undefined;
+  if (sku) {
+    const existing = await prisma.product.findFirst({ where: { tenantId, sku } });
+    if (existing) throw new AppError(409, 'SKU already exists', 'SKU_EXISTS');
   }
   const { units, ...rest } = dto;
   // The product's own barcode and its units' barcodes must all be different
@@ -184,6 +185,7 @@ export async function createProduct(tenantId: string, dto: CreateProductDto) {
   const product = await prisma.product.create({
     data: {
       ...rest,
+      sku,
       unit: normalizeUnitLabel(dto.unit) ?? undefined,
       tenantId,
       units: units?.length
@@ -201,6 +203,14 @@ export async function updateProduct(tenantId: string, id: string, dto: UpdatePro
   const scalarData = rest as any;
   if (scalarData.unit !== undefined) {
     scalarData.unit = normalizeUnitLabel(scalarData.unit ?? null);
+  }
+  if (scalarData.sku !== undefined) {
+    const sku = scalarData.sku?.trim() || null;
+    scalarData.sku = sku;
+    if (sku) {
+      const clash = await prisma.product.findFirst({ where: { tenantId, sku, id: { not: id } } });
+      if (clash) throw new AppError(409, 'SKU already exists', 'SKU_EXISTS');
+    }
   }
 
   // Final state of the barcodes after this save: the product's own code plus
