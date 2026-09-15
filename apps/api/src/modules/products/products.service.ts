@@ -18,46 +18,64 @@ export const PRODUCT_CSV_HEADER = [
   'isActive',
 ];
 
-// Ensure no barcode in the payload duplicates another barcode in the payload
-// or an existing product/unit barcode of the tenant.
+// Normalize the free-text base unit label so the same unit written differently
+// (e.g. "KG ", "kg") always maps to one canonical value.
+function normalizeUnitLabel(value?: string | null): string | null {
+  const v = (value ?? '').trim();
+  return v ? v.toLowerCase() : null;
+}
+
+// Ensure no barcode in the final set (product base barcode + selling-unit
+// barcodes) duplicates another barcode in the same set or an existing
+// product/unit/variant barcode owned by the tenant.
+// The DB now enforces a per-tenant unique index on each of the three tables,
+// so this guard both imports that constraint and extends cross-table ambiguity
+// (a product, a unit and a variant must never be scannable under one code).
 async function assertBarcodesAvailable(
   tenantId: string,
-  barcodes: string[],
-  opts: { ignoreProductId?: string; ignoreUnitIds?: string[] } = {},
-) {
-  const unique = [...new Set(barcodes.map((b) => b.trim()).filter(Boolean))];
-  if (unique.length !== barcodes.filter((b) => b?.trim()).length) {
-    throw new AppError(409, 'Duplicate barcode in the submitted units', 'BARCODE_EXISTS');
+  barcodes: Array<string | null | undefined>,
+  opts: { ignoreProductId?: string; ignoreUnitIds?: string[]; ignoreVariantIds?: string[] } = {},
+): Promise<void> {
+  const codes = barcodes.map((b) => (b ?? '').trim());
+  // Same code in the set means the product and one of its units would share a
+  // barcode — ambiguous to scan, so reject it up front.
+  const nonEmpty = codes.filter((b) => Boolean(b));
+  if (new Set(nonEmpty).size !== nonEmpty.length) {
+    throw new AppError(409, 'Duplicate barcode — a product and its units cannot share the same code', 'BARCODE_EXISTS');
   }
-  if (unique.length === 0) return;
+  if (nonEmpty.length === 0) return;
 
-  const [productClash, unitClash] = await Promise.all([
+  const [productClash, unitClash, variantClash] = await Promise.all([
     prisma.product.findFirst({
-      where: { tenantId, barcode: { in: unique }, ...(opts.ignoreProductId ? { id: { not: opts.ignoreProductId } } : {}) },
+      where: { tenantId, barcode: { in: nonEmpty }, ...(opts.ignoreProductId ? { id: { not: opts.ignoreProductId } } : {}) },
       select: { id: true },
     }),
     prisma.productUnit.findFirst({
       where: {
         tenantId,
-        barcode: { in: unique },
-        isActive: true,
+        barcode: { in: nonEmpty },
+        // No isActive filter: soft-deleted rows still own their barcode in the
+        // DB (the unique index covers every row), so they must stay reserved.
         ...(opts.ignoreUnitIds?.length ? { id: { notIn: opts.ignoreUnitIds } } : {}),
       },
       select: { id: true },
     }),
+    prisma.productVariant.findFirst({
+      where: { tenantId, barcode: { in: nonEmpty }, ...(opts.ignoreVariantIds?.length ? { id: { notIn: opts.ignoreVariantIds } } : {}) },
+      select: { id: true },
+    }),
   ]);
-  if (productClash || unitClash) {
-    throw new AppError(409, 'Barcode already exists for another product or unit', 'BARCODE_EXISTS');
+  if (productClash || unitClash || variantClash) {
+    throw new AppError(409, 'Barcode already exists for another product, unit, or variant', 'BARCODE_EXISTS');
   }
 }
 
-type UnitInput = { name: string; barcode?: string; factor: number; price: number };
+type UnitInput = { name: string; barcode?: string; factor: number; price: number; cost: number };
 
 // Replace-all strategy for a product's selling units. Ids change on every
 // save; carts/orders snapshot unit data so nothing breaks.
 async function syncProductUnits(tenantId: string, productId: string, units: UnitInput[]) {
-  const barcodes = units.map((u) => u.barcode).filter((b): b is string => Boolean(b?.trim()));
-  await assertBarcodesAvailable(tenantId, barcodes);
+  await assertBarcodesAvailable(tenantId, units.map((u) => u.barcode));
   await prisma.$transaction([
     prisma.productUnit.deleteMany({ where: { productId } }),
     ...units.map((u) =>
@@ -69,6 +87,7 @@ async function syncProductUnits(tenantId: string, productId: string, units: Unit
           barcode: u.barcode?.trim() || null,
           factor: u.factor,
           price: u.price,
+          cost: u.cost,
         },
       }),
     ),
@@ -153,16 +172,22 @@ export async function createProduct(tenantId: string, dto: CreateProductDto) {
     const existing = await prisma.product.findFirst({ where: { tenantId, sku: dto.sku } });
     if (existing) throw new AppError(409, 'SKU already exists');
   }
-  const { units, ...data } = dto;
+  const { units, ...rest } = dto;
+  // The product's own barcode and its units' barcodes must all be different
+  // and free in the tenant.
   if (units?.length || dto.barcode) {
-    await assertBarcodesAvailable(tenantId, [...(units ?? []).map((u) => u.barcode).filter((b): b is string => Boolean(b)), ...(dto.barcode ? [dto.barcode] : [])]);
+    await assertBarcodesAvailable(
+      tenantId,
+      [...(units ?? []).map((u) => u.barcode), ...(dto.barcode ? [dto.barcode] : [])],
+    );
   }
   const product = await prisma.product.create({
     data: {
-      ...data,
+      ...rest,
+      unit: normalizeUnitLabel(dto.unit) ?? undefined,
       tenantId,
       units: units?.length
-        ? { create: units.map((u) => ({ tenantId, name: u.name.trim(), barcode: u.barcode?.trim() || null, factor: u.factor, price: u.price })) }
+        ? { create: units.map((u) => ({ tenantId, name: u.name.trim(), barcode: u.barcode?.trim() || null, factor: u.factor, price: u.price, cost: u.cost })) }
         : undefined,
     },
     include: { units: true },
@@ -172,21 +197,28 @@ export async function createProduct(tenantId: string, dto: CreateProductDto) {
 
 export async function updateProduct(tenantId: string, id: string, dto: UpdateProductDto) {
   const existing = await getProductById(tenantId, id);
-  const { units, ...data } = dto;
-  const scalarData = data as any;
+  const { units, ...rest } = dto;
+  const scalarData = rest as any;
+  if (scalarData.unit !== undefined) {
+    scalarData.unit = normalizeUnitLabel(scalarData.unit ?? null);
+  }
+
+  // Final state of the barcodes after this save: the product's own code plus
+  // every selling unit that will exist. When units are omitted they stay as-is,
+  // so their codes are part of the set too and must not collide with a new
+  // product barcode. Existing rows being replaced/kept are ignored so their
+  // own codes can be reused.
+  const baseBarcode = dto.barcode !== undefined ? dto.barcode : (existing.barcode ?? undefined);
+  const incomingUnitBarcodes = units !== undefined ? units.map((u) => u.barcode) : [];
+  const keptUnitBarcodes = units === undefined ? existing.units.map((u) => u.barcode ?? '') : [];
+  await assertBarcodesAvailable(
+    tenantId,
+    [...keptUnitBarcodes, ...incomingUnitBarcodes, ...(baseBarcode ? [baseBarcode] : [])],
+    { ignoreProductId: id, ignoreUnitIds: existing.units.map((u) => u.id) },
+  );
 
   if (units !== undefined) {
-    // Full replace: the product's own current unit rows are deleted first, so
-    // their barcodes may be reused by the incoming set without clashing.
-    await assertBarcodesAvailable(
-      tenantId,
-      [
-        ...units.map((u) => u.barcode).filter((b): b is string => Boolean(b)),
-        ...(dto.barcode ? [dto.barcode] : []),
-      ],
-      { ignoreProductId: id, ignoreUnitIds: existing.units.map((u) => u.id) },
-    );
-
+    // Full replace: the product's own current unit rows are deleted first.
     return prisma.$transaction(async (tx) => {
       await tx.product.update({ where: { id }, data: scalarData });
       await tx.productUnit.deleteMany({ where: { productId: id } });
@@ -199,6 +231,7 @@ export async function updateProduct(tenantId: string, id: string, dto: UpdatePro
             barcode: u.barcode?.trim() || null,
             factor: u.factor,
             price: u.price,
+            cost: u.cost,
           })),
         });
       }
@@ -283,7 +316,7 @@ export async function importProducts(tenantId: string, csv: string): Promise<Imp
 
   const [categories, products] = await Promise.all([
     prisma.category.findMany({ where: { tenantId } }),
-    prisma.product.findMany({ where: { tenantId }, select: { id: true, sku: true } }),
+    prisma.product.findMany({ where: { tenantId }, select: { id: true, sku: true, barcode: true } }),
   ]);
 
   const catByName = new Map<string, string>();
@@ -296,6 +329,13 @@ export async function importProducts(tenantId: string, csv: string): Promise<Imp
   for (const p of products) {
     if (p.sku) productBySku.set(p.sku.toLowerCase(), p.id);
   }
+  // Barcodes already present in the tenant, keyed by code → product id.
+  const productByBarcode = new Map<string, string>();
+  for (const p of products) {
+    if (p.barcode) productByBarcode.set(p.barcode.trim(), p.id);
+  }
+  // Barcodes claimed by rows earlier in the same file.
+  const claimedBarcodes = new Set<string>();
 
   const resolveCategory = async (name: string): Promise<string | null> => {
     const n = (name || '').trim();
@@ -368,25 +408,48 @@ export async function importProducts(tenantId: string, csv: string): Promise<Imp
       const sku = field(r, 'sku').trim() || undefined;
       const categoryName = field(r, 'category').trim();
       const categoryId = categoryName ? await resolveCategory(categoryName) : undefined;
+      const barcode = field(r, 'barcode').trim() || undefined;
       const data = {
         name,
         categoryId,
-        barcode: field(r, 'barcode').trim() || undefined,
+        barcode,
         description: field(r, 'description').trim() || undefined,
         price: Number(priceRaw),
         cost,
-        unit: field(r, 'unit').trim() || 'pcs',
+        unit: normalizeUnitLabel(field(r, 'unit')) ?? 'pcs',
         trackInventory: field(r, 'trackInventory').toLowerCase() !== 'false',
         type: field(r, 'type').toLowerCase() === 'fnb' ? 'fnb' : 'retail',
         isActive: field(r, 'isActive').toLowerCase() !== 'false',
       };
 
-      if (sku && productBySku.has(sku.toLowerCase())) {
-        const id = productBySku.get(sku.toLowerCase())!;
-        await prisma.product.update({ where: { id }, data: { ...data, sku } });
+      let productId: string | undefined;
+      if (sku) productId = productBySku.get(sku.toLowerCase());
+
+      // A barcode may not be reused within the file, nor collide with another
+      // product already in the tenant. A product keeping its own barcode on an
+      // update is fine.
+      if (barcode) {
+        const owner = productByBarcode.get(barcode);
+        if (claimedBarcodes.has(barcode) || (owner && owner !== productId)) {
+          errors.push({ row: lineNo, message: `Barcode "${barcode}" already exists` });
+          skipped++;
+          continue;
+        }
+      }
+
+      if (productId) {
+        if (barcode) {
+          productByBarcode.set(barcode, productId);
+          claimedBarcodes.add(barcode);
+        }
+        await prisma.product.update({ where: { id: productId }, data: { ...data, sku } });
         updated++;
       } else {
         const created = await prisma.product.create({ data: { ...data, tenantId, sku } });
+        if (barcode) {
+          productByBarcode.set(barcode, created.id);
+          claimedBarcodes.add(barcode);
+        }
         if (sku) productBySku.set(sku.toLowerCase(), created.id);
         imported++;
       }

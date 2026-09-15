@@ -609,6 +609,8 @@ export interface Translations {
   itemCol: string;
   qtyCol: string;
   unitPriceCol: string;
+  unitCostCol: string;
+  unitCostRequired: string;
   baseUnit: string;
   baseUnitPlaceholder: string;
   sellingUnits: string;
@@ -1702,6 +1704,8 @@ const translations: Record<Language, Translations> = {
     itemCol: 'الصنف',
     qtyCol: 'الكمية',
     unitPriceCol: 'سعر الوحدة',
+    unitCostCol: 'تكلفة الوحدة',
+    unitCostRequired: 'يجب أن تكون تكلفة الوحدة قيمة صحيحة لا تقل عن صفر',
     baseUnit: 'الوحدة الأساسية',
     baseUnitPlaceholder: 'قطعة، كجم، لتر… (اختياري)',
     sellingUnits: 'وحدات البيع الإضافية',
@@ -2790,6 +2794,8 @@ const translations: Record<Language, Translations> = {
     itemCol: 'Item',
     qtyCol: 'Qty',
     unitPriceCol: 'Unit Price',
+    unitCostCol: 'Unit Cost',
+    unitCostRequired: 'Unit cost must be a valid non-negative number',
     baseUnit: 'Base unit',
     baseUnitPlaceholder: 'Piece, kg, liter… (optional)',
     sellingUnits: 'Additional Selling Units',
@@ -3302,6 +3308,10 @@ export const useLanguageStore = create<LanguageState>(
           document.documentElement.lang = lang;
           useLanguageStore.setState({ t: translations[lang] });
         }
+      },
+      merge: (persistedState: unknown, currentState: LanguageState) => {
+        const lang = ((persistedState as { language?: Language })?.language ?? currentState.language ?? 'ar') as Language;
+        return { ...currentState, ...(persistedState as object), t: translations[lang] } as LanguageState;
       },
     }
   )

@@ -1,7 +1,8 @@
 ---
 import type { Locale } from '../lib/i18n';
 import { t } from '../lib/i18n';
-import { APP_URL } from '../lib/app';
+import { APP_URL, CONTACT_WHATSAPP, CONTACT_WHATSAPP_LINK } from '../lib/app';
+import Icon from './Icon.astro';
 
 interface Props {
   lang: Locale;
@@ -40,6 +41,18 @@ const year = new Date().getFullYear();
           <li><span class="text-slate-400">KodaSoft</span></li>
           <li>
             <a href="mailto:kodasoft.dev@gmail.com" class="transition-colors hover:text-cyan-400">kodasoft.dev@gmail.com</a>
+          </li>
+          <li>
+            <a
+              href={CONTACT_WHATSAPP_LINK}
+              target="_blank"
+              rel="noopener"
+              dir="ltr"
+              class="inline-flex items-center gap-1.5 transition-colors hover:text-cyan-400"
+            >
+              <Icon name="whatsapp" class="h-3.5 w-3.5" filled />
+              {CONTACT_WHATSAPP}
+            </a>
           </li>
         </ul>
       </div>

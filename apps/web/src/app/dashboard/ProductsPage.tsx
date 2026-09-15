@@ -43,6 +43,7 @@ interface ProductUnitRow {
   barcode?: string | null;
   factor: number;
   price: number;
+  cost: number;
 }
 
 interface UnitFormRow {
@@ -51,9 +52,10 @@ interface UnitFormRow {
   barcode: string;
   factor: string;
   price: string;
+  cost: string;
 }
 
-const emptyUnitRow = (): UnitFormRow => ({ name: '', barcode: '', factor: '', price: '' });
+const emptyUnitRow = (): UnitFormRow => ({ name: '', barcode: '', factor: '', price: '', cost: '' });
 
 // ── helper ──────────────────────────────────────────────────────────────────
 function totalStock(product: Product): number {
@@ -167,6 +169,7 @@ export const ProductsPage: React.FC = () => {
         barcode: u.barcode || '',
         factor: String(u.factor ?? 1),
         price: String(u.price ?? ''),
+        cost: String(u.cost ?? ''),
       })),
     );
     setShowModal(true);
@@ -195,6 +198,7 @@ export const ProductsPage: React.FC = () => {
           barcode: r.barcode.trim() || undefined,
           factor: Number(r.factor) || 1,
           price: Number(r.price),
+          cost: Number(r.cost || 0),
         }));
       if (cleanedUnits.some((u) => !(u.factor > 0))) {
         setSaveMsg({ ok: false, text: `❌ ${t.unitFactorPositive}` });
@@ -203,6 +207,11 @@ export const ProductsPage: React.FC = () => {
       }
       if (cleanedUnits.some((u) => !(u.price >= 0)) || cleanedUnits.some((u) => !Number.isFinite(u.price))) {
         setSaveMsg({ ok: false, text: `❌ ${t.unitPriceRequired}` });
+        setSubmitting(false);
+        return;
+      }
+      if (cleanedUnits.some((u) => !(u.cost >= 0)) || cleanedUnits.some((u) => !Number.isFinite(u.cost))) {
+        setSaveMsg({ ok: false, text: `❌ ${t.unitCostRequired}` });
         setSubmitting(false);
         return;
       }
@@ -638,7 +647,7 @@ export const ProductsPage: React.FC = () => {
                             <Trash2 className="w-3.5 h-3.5" />
                           </button>
                         </div>
-                        <div className="grid grid-cols-3 gap-1.5">
+                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5">
                           <input type="text" value={row.barcode}
                             onChange={(e) => updateUnitRow(idx, { barcode: e.target.value })}
                             className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-slate-800 font-mono text-[11px] focus:outline-none focus:border-violet-500"
@@ -651,6 +660,10 @@ export const ProductsPage: React.FC = () => {
                             onChange={(e) => updateUnitRow(idx, { price: e.target.value })}
                             className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-slate-800 text-center focus:outline-none focus:border-violet-500"
                             placeholder={t.unitPriceCol} title={t.unitPriceCol} />
+                          <input type="number" min="0" step="0.01" value={row.cost}
+                            onChange={(e) => updateUnitRow(idx, { cost: e.target.value })}
+                            className="w-full bg-white border border-slate-200 rounded-lg px-2 py-1.5 text-slate-800 text-center focus:outline-none focus:border-violet-500"
+                            placeholder={t.unitCostCol} title={t.unitCostCol} />
                         </div>
                       </div>
                     ))}

@@ -436,14 +436,15 @@ export const PosTerminal: React.FC = () => {
     scanHighlightTimer.current = setTimeout(() => setRecentlyScannedId(null), 1400);
   };
 
-  const addProductToCart = (p: Product, unit?: { id: string; name: string; factor: number; price: number }) => {
-    if (!tryAddToCart(p, unit ? unit.factor : 1)) return;
+  const addProductToCart = (p: Product, unit?: { id: string; name: string; factor: number; price: number }): boolean => {
+    if (!tryAddToCart(p, unit ? unit.factor : 1)) return false;
     addItem(
       { id: p.id, name: p.name, price: Number(p.price), sku: p.sku, taxRate: p.taxRate },
       unit ? { unitId: unit.id, unitName: unit.name, unitFactor: unit.factor, price: unit.price } : undefined,
     );
     lastAddedRef.current = { productId: p.id, unitId: unit?.id };
     triggerScanHighlight(p.id);
+    return true;
   };
 
   const handleScanCode = async (code: string) => {
@@ -501,18 +502,18 @@ export const PosTerminal: React.FC = () => {
       for (const p of products) {
         const unit = (p.units || []).find((u) => u.barcode && u.barcode.trim() === trimmed);
         if (unit) {
-          addProductToCart(p, unit);
+          const added = addProductToCart(p, unit);
           setSearchQuery('');
-          flashScan(true, `${t.scanAdded}: ${p.name} (${unit.name})`);
+          if (added) flashScan(true, `${t.scanAdded}: ${p.name} (${unit.name})`);
           return;
         }
       }
 
       const local = products.find((p) => p.barcode && p.barcode.trim() === trimmed);
       if (local) {
-        addProductToCart(local);
+        const added = addProductToCart(local);
         setSearchQuery('');
-        flashScan(true, `${t.scanAdded}: ${local.name}`);
+        if (added) flashScan(true, `${t.scanAdded}: ${local.name}`);
         return;
       }
 
@@ -1411,8 +1412,9 @@ export const PosTerminal: React.FC = () => {
                       currency={t.currency}
                       stock={stockFor(p.id, p)}
                       onSelect={(product) => {
-                        addProductToCart(product);
-                        flashScan(true, `${t.scanAdded}: ${product.name}`);
+                        if (addProductToCart(product)) {
+                          flashScan(true, `${t.scanAdded}: ${product.name}`);
+                        }
                       }}
                       viewMode={viewMode}
                       skuPrefixLabel={t.skuPrefix}

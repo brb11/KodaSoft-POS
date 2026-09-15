@@ -149,6 +149,7 @@ export async function createPurchase(tenantId: string, userId: string, dto: Crea
     return {
       productId: item.productId,
       variantId: item.variantId || null,
+      unitId: item.unitId || null,
       unitName: unit?.name ?? null,
       unitFactor: unit?.factor ?? 1,
       name: item.name,
@@ -229,6 +230,7 @@ export async function updatePurchase(tenantId: string, id: string, dto: UpdatePu
         purchaseInvoiceId: id,
         productId: item.productId,
         variantId: item.variantId || null,
+        unitId: item.unitId || null,
         unitName: unit?.name ?? null,
         unitFactor: unit?.factor ?? 1,
         name: item.name,
@@ -333,6 +335,15 @@ export async function confirmPurchase(tenantId: string, userId: string, id: stri
           createdBy: userId,
         },
       });
+
+      // Reflect the agreed purchase price on the selling unit so profit
+      // reports and margins use the real landed cost.
+      if (item.unitId) {
+        await tx.productUnit.update({
+          where: { id: item.unitId },
+          data: { cost: item.unitPrice },
+        });
+      }
     }
 
     // Update supplier balance (increase debt)

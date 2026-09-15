@@ -39,6 +39,7 @@ model Tenant {
   purchaseInvoices PurchaseInvoice[]
   supplierPayments SupplierPayment[]
   productUnits   ProductUnit[]
+  productVariants ProductVariant[]
 
   @@map("tenants")
 }
@@ -239,11 +240,13 @@ model Product {
    purchaseItems      PurchaseItem[]
 
   @@unique([tenantId, sku])
+  @@unique([tenantId, barcode])
   @@map("products")
 }
 
 model ProductVariant {
   id            String  @id @default(uuid())
+  tenantId      String
   productId     String
   name          String
   sku           String?
@@ -255,10 +258,12 @@ model ProductVariant {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  product    Product     @relation(fields: [productId], references: [id])
-  inventory  Inventory[]
+  tenant   Tenant      @relation(fields: [tenantId], references: [id])
+  product  Product     @relation(fields: [productId], references: [id], onDelete: Cascade)
+  inventory Inventory[]
   orderItems OrderItem[]
 
+  @@unique([tenantId, barcode])
   @@map("product_variants")
 }
 
@@ -277,6 +282,7 @@ model ProductUnit {
   barcode   String?
   factor    Decimal  @db.Decimal(12, 3) @default(1)
   price     Decimal  @db.Decimal(10, 2)
+  cost      Decimal  @db.Decimal(10, 2) @default(0)
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -284,9 +290,11 @@ model ProductUnit {
   tenant    Tenant       @relation(fields: [tenantId], references: [id])
   product   Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
   orderItems OrderItem[]
+  purchaseItems PurchaseItem[]
 
   @@index([tenantId, productId])
   @@index([barcode])
+  @@unique([tenantId, barcode])
   @@map("product_units")
 }
 
@@ -761,6 +769,7 @@ model PurchaseItem {
   purchaseInvoiceId String
   productId         String
   variantId         String?
+  unitId            String?
   unitName          String?
   unitFactor        Decimal @db.Decimal(12, 3) @default(1)
   name              String
@@ -773,7 +782,9 @@ model PurchaseItem {
 
   purchaseInvoice PurchaseInvoice @relation(fields: [purchaseInvoiceId], references: [id], onDelete: Cascade)
   product         Product         @relation(fields: [productId], references: [id])
+  unit            ProductUnit?    @relation(fields: [unitId], references: [id])
 
+  @@index([unitId])
   @@map("purchase_items")
 }
 
